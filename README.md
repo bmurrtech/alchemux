@@ -5,13 +5,13 @@
 (  ~/||  ||      ||                         ,     
 (  / ||  ||  _-_ ||/\\  _-_  \/\/\/\ \\ \\ \\ /` 
  \/==||  || ||   || || || \\ || || || || ||  \\   
- /_ _||  || ||   || || ||/   || || || || ||  /\  
+ /_ _||  || ||   || || ||/   || || || || ||  /\\  
 (  - \\, \\ \\,/ \\ |/  \\,/ \\ \\ \\ \\/\\ /  \; 
                    _/                             
 ```                   
 **An arcane-styled yt-dlp CLI wrapper. Download + convert YouTube videos + 1K more -- it's alchemy media magic!**
 
-Alchemux transmutes URLs into purified media vessels through distillation, muxing, and sealing. Built on yt-dlp, it provides a stylized command-line interface for downloading and converting media from various sources.
+Alchemux transmutes URLs into purified media vessels through distillation, muxing, and sealing.
 
 ## What It Can Do
 
@@ -25,7 +25,7 @@ Alchemux transmutes URLs into purified media vessels through distillation, muxin
 
 ## Installation
 
-Alchemux can be used as either a **portable executable** (recommended) or run directly from source. Both methods support the same features and commands.
+Alchemux can be used as either a **portable executable** (recommended, but not always latest) or run directly from source (latest). Both methods support the same features and commands.
 
 ### Option 1: Portable Executable (Recommended)
 
