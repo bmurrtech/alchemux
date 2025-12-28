@@ -1,8 +1,10 @@
 """
 Secure .env file management with chmod 600 permissions, validation, and auto-update.
+Supports portable binaries with hybrid config location detection.
 """
 import os
 import stat
+import sys
 import shutil
 from pathlib import Path
 from typing import Optional, Dict, Any
@@ -13,6 +15,80 @@ from .logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def get_user_config_dir() -> Path:
+    """
+    Get platform-specific user config directory.
+    
+    Returns:
+        Path to user config directory (created if needed)
+    """
+    if sys.platform == "darwin":  # macOS
+        config_dir = Path.home() / "Library" / "Application Support" / "alchemux"
+    elif sys.platform == "win32":  # Windows
+        config_dir = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming")) / "alchemux"
+    else:  # Linux and others
+        config_dir = Path.home() / ".config" / "alchemux"
+    
+    # Create directory if it doesn't exist
+    config_dir.mkdir(parents=True, exist_ok=True)
+    return config_dir
+
+
+def get_config_location() -> Path:
+    """
+    Determine config file location for portable binaries.
+    
+    Priority:
+    1. If binary is in writable location → config next to binary
+    2. If binary is in system path → user config directory
+    3. Fallback → current working directory (for source/dev)
+    
+    Returns:
+        Path to .env file location
+    """
+    # Detect if running as packaged binary
+    if getattr(sys, 'frozen', False):
+        # Running as PyInstaller binary
+        binary_path = Path(sys.executable)
+        binary_dir = binary_path.parent
+        
+        # Check if binary directory is writable
+        if os.access(binary_dir, os.W_OK):
+            # Portable mode: config next to binary
+            logger.debug(f"Portable binary detected, using config next to binary: {binary_dir / '.env'}")
+            return binary_dir / ".env"
+        else:
+            # System install: use user config directory
+            user_config = get_user_config_dir() / ".env"
+            logger.debug(f"System binary detected, using user config: {user_config}")
+            return user_config
+    else:
+        # Running from source: prioritize existing .env, then project root, then CWD
+        # First, try to find existing .env file (searches upward from CWD)
+        env_file = find_dotenv()
+        if env_file:
+            env_path = Path(env_file)
+            # If .env exists, use its location
+            if env_path.exists():
+                logger.debug(f"Running from source, found existing .env: {env_path}")
+                return env_path
+            else:
+                # find_dotenv() found a path but file doesn't exist - use its parent directory
+                logger.debug(f"Running from source, using .env location from find_dotenv: {env_path}")
+                return env_path
+        
+        # No .env found - check if we're in a project root (has env.example)
+        cwd = Path.cwd()
+        env_example_in_cwd = cwd / "env.example"
+        if env_example_in_cwd.exists():
+            logger.debug(f"Running from source, using project root (has env.example): {cwd / '.env'}")
+            return cwd / ".env"
+        
+        # Default to current working directory
+        logger.debug(f"Running from source, using CWD: {cwd / '.env'}")
+        return cwd / ".env"
+
+
 class ConfigManager:
     """Manages .env file with secure permissions and validation."""
     
@@ -21,20 +97,56 @@ class ConfigManager:
         Initialize ConfigManager.
         
         Args:
-            env_path: Path to .env file (defaults to finding .env in current/project root)
+            env_path: Path to .env file (if None, uses smart detection for portable binaries)
         """
-        if env_path:
-            self.env_path = Path(env_path)
-        else:
-            # Try to find .env file
-            env_file = find_dotenv()
-            if env_file:
-                self.env_path = Path(env_file)
+        # Ensure env_path is a string (handle Typer OptionInfo objects)
+        if env_path is not None:
+            # Check if it's an OptionInfo object (when option not provided)
+            if hasattr(env_path, '__class__') and 'OptionInfo' in str(type(env_path)):
+                # OptionInfo object means option was not provided, treat as None
+                self.env_path = get_config_location()
+            elif isinstance(env_path, str):
+                # Check if string is OptionInfo representation
+                if env_path.startswith('<typer.models.OptionInfo'):
+                    # String representation of OptionInfo, treat as None
+                    self.env_path = get_config_location()
+                elif env_path.strip():
+                    # Valid string path
+                    self.env_path = Path(env_path)
+                else:
+                    # Empty string treated as None
+                    self.env_path = get_config_location()
             else:
-                # Default to .env in current working directory
-                self.env_path = Path.cwd() / ".env"
+                # Try to convert to string, but check result
+                env_path_str = str(env_path)
+                if env_path_str.startswith('<typer.models.OptionInfo'):
+                    # Conversion resulted in OptionInfo representation, treat as None
+                    self.env_path = get_config_location()
+                elif env_path_str.strip():
+                    self.env_path = Path(env_path_str)
+                else:
+                    # Empty string treated as None
+                    self.env_path = get_config_location()
+        else:
+            # Smart detection for portable binaries
+            self.env_path = get_config_location()
         
-        self.env_example_path = self.env_path.parent / "env.example"
+        # For env.example, try binary directory first, then user config, then .env parent
+        if getattr(sys, 'frozen', False):
+            binary_dir = Path(sys.executable).parent
+            self.env_example_path = binary_dir / "env.example"
+            if not self.env_example_path.exists():
+                self.env_example_path = get_user_config_dir() / "env.example"
+        else:
+            # Running from source: env.example should be in same directory as .env
+            # If .env is in repo root, env.example should be there too
+            self.env_example_path = self.env_path.parent / "env.example"
+            # Fallback: also check current working directory (for cases where .env is in subdirectory)
+            if not self.env_example_path.exists():
+                cwd_example = Path.cwd() / "env.example"
+                if cwd_example.exists():
+                    self.env_example_path = cwd_example
+        
         self._ensure_secure_permissions()
         load_dotenv(self.env_path)
     

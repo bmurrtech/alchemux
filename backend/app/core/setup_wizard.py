@@ -195,9 +195,10 @@ def interactive_setup_minimal(config: ConfigManager) -> bool:
         print(f"✓ Using default download path: {default_path}")
     
     print("\n✅ Setup complete!")
-    print(f"\nYour configuration has been saved to: {config.env_path}")
+    print(f"\n✅ Your configuration has been saved to: {config.env_path}")
+    print(f"   [dim]You can edit this file directly or run 'amx setup' again to reconfigure[/dim]")
+    print(f"   [dim]To use a different config location, use: amx --config /path/to/.env[/dim]")
     print("\nOptional: Run 'amx setup gcp' (or 'alchemux setup gcp') later to configure cloud upload.")
-    print("          Or edit .env directly to customize other settings.")
     
     return True
 
@@ -379,7 +380,8 @@ def smart_setup(config: ConfigManager, console: "ArcaneConsole") -> bool:
     
     # .env exists and has minimal required config
     console.console.print("\n[green]✓[/green] Configuration detected")
-    console.console.print(f"[dim]Using .env file at: {config.env_path}[/dim]")
+    console.console.print(f"[green]✓[/green] Using configuration at: [bold]{config.env_path}[/bold]")
+    console.console.print(f"[dim]To use a different config location, use: amx --config /path/to/.env[/dim]")
     
     # Check what's configured
     download_path = config.get("DOWNLOAD_PATH", "./downloads")
@@ -403,7 +405,8 @@ def smart_setup(config: ConfigManager, console: "ArcaneConsole") -> bool:
     if not s3_configured:
         console.console.print("    [cyan]alchemux setup s3[/cyan]   (for S3-compatible storage)")
     console.console.print("  • To customize other settings, edit .env directly")
-    console.console.print(f"    [dim]Location: {config.env_path}[/dim]")
+    console.console.print(f"    [dim]Config location: {config.env_path}[/dim]")
+    console.console.print(f"    [dim]To use a different config: amx --config /path/to/.env[/dim]")
     
     return True
 

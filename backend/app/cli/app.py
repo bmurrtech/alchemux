@@ -92,6 +92,7 @@ def main(
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
     setup: Optional[str] = typer.Option(
         None,
         "--setup",
@@ -140,7 +141,7 @@ def main(
         else:
             # No value provided - use parsed value or None for minimal setup
             target = setup if setup else None
-        setup_cmd(target=target, plain=plain)
+        setup_cmd(target=target, plain=plain, config=config)
         return
     
     # If URL provided, route to invoke for backward compatibility
@@ -159,6 +160,7 @@ def main(
             accept_eula=accept_eula,
             verbose=verbose,
             plain=plain,
+            config=config,
         )
         return
     

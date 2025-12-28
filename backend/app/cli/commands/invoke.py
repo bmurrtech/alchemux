@@ -20,6 +20,7 @@ def invoke(
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Invoke the full transmutation ritual.
@@ -39,5 +40,6 @@ def invoke(
         accept_eula=accept_eula,
         verbose=verbose,
         plain=plain,
+        config=config,
     )
 

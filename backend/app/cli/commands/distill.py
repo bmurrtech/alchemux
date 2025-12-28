@@ -39,6 +39,7 @@ def distill(
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Distills the bound media into its purified vessel.
@@ -52,8 +53,23 @@ def distill(
     download, and conversion in sequence. Optionally, it may also inscribe
     metadata and upload to cloud storage before completion.
     """
-    # Initialize configuration first (loads .env file)
-    config = ConfigManager()
+    # Initialize configuration (loads .env file, uses smart detection if --config not provided)
+    # Ensure config is a string (handle Typer OptionInfo objects)
+    # When Typer option is not provided, it passes OptionInfo object instead of None
+    if config is not None:
+        # Check if it's an OptionInfo object (when option not provided)
+        if hasattr(config, '__class__') and 'OptionInfo' in str(type(config)):
+            config_path = None
+        elif not isinstance(config, str):
+            config_path = str(config)
+            # If string conversion results in OptionInfo representation, treat as None
+            if config_path.startswith('<typer.models.OptionInfo'):
+                config_path = None
+        else:
+            config_path = config
+    else:
+        config_path = None
+    config = ConfigManager(env_path=config_path)
     
     # Initialize console (needed for logger) - read arcane_terms after .env is loaded
     arcane_terms_str = config.get("ARCANE_TERMS", "true").lower()

@@ -6,7 +6,7 @@ Complete reference for all Alchemux commands and options.
 
 ## Basic Usage
 
-The primary way to use Alchemux is to provide a URL:
+The primary way to use Alchemux is to provide a URL.
 
 ```bash
 amx [url]
@@ -19,6 +19,18 @@ alchemux [url]
 ```
 
 This automatically performs the full transmutation pipeline: scribe → scry → profile → distill → mux → seal.
+
+**Note**: The binary supports both `alchemux` and `amx` as command names. If you prefer the shorter `amx` command, you can create an alias:
+- **Unix/macOS/Linux**: `ln -s alchemux amx` (creates a symlink)
+- **Windows**: Copy `alchemux.exe` to `amx.exe` (or create a batch file)
+
+**Optional**: Create a symlink or alias for easier access:
+   ```bash
+   ln -s $(pwd)/backend/app/main.py /usr/local/bin/alchemux
+   # or add to your shell profile:
+   alias alchemux='python /path/to/alchemux/backend/app/main.py'
+   alias amx='python /path/to/alchemux/backend/app/main.py'  # shorter alias
+   ```
 
 ---
 
