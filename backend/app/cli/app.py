@@ -89,6 +89,9 @@ def main(
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
     save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom save location"),
     gcp: bool = typer.Option(False, "--gcp", help="Enable GCP Cloud Storage upload"),
+    s3: bool = typer.Option(False, "--s3", help="Enable S3-compatible storage upload"),
+    local: bool = typer.Option(False, "--local", help="Force local storage (override defaults)"),
+    save_default: bool = typer.Option(False, "--save-default", help="Set default storage destination interactively"),
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
@@ -128,6 +131,12 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
     
+    # Handle --save-default flag
+    if save_default:
+        from app.cli.commands.save_default import save_default as save_default_cmd
+        save_default_cmd(plain=plain, config=config)
+        return
+    
     # Handle --setup flag
     # Typer requires a value for string options, so we check sys.argv manually
     # to detect if --setup was used without a value
@@ -157,6 +166,8 @@ def main(
             flac=flac,
             save_path=save_path,
             gcp=gcp,
+            s3=s3,
+            local=local,
             accept_eula=accept_eula,
             verbose=verbose,
             plain=plain,

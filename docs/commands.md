@@ -102,12 +102,38 @@ amx --save-path /path/to/downloads [url]
 Enable automatic upload to Google Cloud Storage after successful download.
 
 ```bash
-amx --gcp [url]
+alchemux --gcp [url]
 ```
 
 **Prerequisites:**
 - GCP storage bucket configured (see `setup gcp`)
 - `GCP_STORAGE_BUCKET` and `GCP_SA_KEY_BASE64` set in `.env`
+
+**Note:** If GCP is not configured, the setup wizard will automatically run when this flag is used.
+
+### `--s3` (S3-Compatible Storage Upload)
+
+Enable automatic upload to S3-compatible storage after successful download.
+
+```bash
+alchemux --s3 [url]
+```
+
+**Prerequisites:**
+- S3-compatible storage configured (see `setup s3`)
+- `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, and `S3_BUCKET` set in `.env`
+
+**Note:** If S3 is not configured, the setup wizard will automatically run when this flag is used.
+
+### `--local` (Force Local Storage)
+
+Force local storage only, overriding any default cloud upload settings.
+
+```bash
+alchemux --local [url]
+```
+
+This flag ensures files are saved locally only, regardless of `GCP_UPLOAD_ENABLED` or `S3_UPLOAD_ENABLED` settings.
 
 ---
 
@@ -130,12 +156,27 @@ amx --setup
 amx --setup gcp
 ```
 
+### `--save-default` (Set Default Storage)
+
+Interactively set the default storage destination for all future transmutations.
+
+```bash
+alchemux --save-default
+```
+
+This command displays an interactive menu where you can select:
+- **Local**: Save files locally only (no cloud upload)
+- **GCP**: Upload to Google Cloud Platform by default
+- **S3**: Upload to S3-compatible storage by default
+
+The selected default is saved to your `.env` file and can be overridden per-run using `--gcp`, `--s3`, or `--local` flags.
+
 ### `--accept-eula`
 
 Accept the EULA non-interactively (useful for scripts).
 
 ```bash
-amx --accept-eula [url]
+alchemux --accept-eula [url]
 ```
 
 ---
@@ -225,13 +266,31 @@ amx --save-path ~/Music https://youtube.com/watch?v=abc123
 ### Download and Upload to GCP
 
 ```bash
-amx --gcp https://youtube.com/watch?v=abc123
+alchemux --gcp https://youtube.com/watch?v=abc123
+```
+
+### Download and Upload to S3
+
+```bash
+alchemux --s3 https://youtube.com/watch?v=abc123
+```
+
+### Force Local Storage (Override Defaults)
+
+```bash
+alchemux --local https://youtube.com/watch?v=abc123
+```
+
+### Set Default Storage Destination
+
+```bash
+alchemux --save-default
 ```
 
 ### Combined Options
 
 ```bash
-amx --format aac --save-path ~/Music --gcp --verbose https://youtube.com/watch?v=abc123
+alchemux --format aac --save-path ~/Music --gcp --verbose https://youtube.com/watch?v=abc123
 ```
 
 ---
@@ -247,8 +306,20 @@ Alchemux reads configuration from your `.env` file. Key variables:
 - `AUTO_OPEN` - Auto-open folder after download (default: `false`)
 - `GCP_STORAGE_BUCKET` - GCP bucket name (for `--gcp`)
 - `GCP_SA_KEY_BASE64` - GCP service account key (for `--gcp`)
+- `GCP_UPLOAD_ENABLED` - Enable GCP upload by default (default: `false`)
+- `S3_ENDPOINT` - S3-compatible storage endpoint (for `--s3`)
+- `S3_ACCESS_KEY` - S3 access key (for `--s3`)
+- `S3_SECRET_KEY` - S3 secret key (for `--s3`)
+- `S3_BUCKET` - S3 bucket name (for `--s3`)
+- `S3_UPLOAD_ENABLED` - Enable S3 upload by default (default: `false`)
 
 See `env.example` for all available options.
+
+### Default Storage Behavior
+
+By default, files are saved locally only. You can set `GCP_UPLOAD_ENABLED=true` or `S3_UPLOAD_ENABLED=true` in your `.env` file to enable automatic cloud uploads for all transmutations. These defaults can be overridden per-run using the `--gcp`, `--s3`, or `--local` flags.
+
+Use `alchemux --save-default` to interactively set your default storage destination.
 
 ---
 
@@ -267,14 +338,14 @@ See `env.example` for all available options.
 
 3. **Use:**
    ```bash
-   amx --gcp [url]
+   alchemux --gcp [url]
    ```
 
 ### S3-Compatible Storage
 
 1. **Run Setup Wizard:**
    ```bash
-   amx setup s3
+   alchemux setup s3
    ```
 
 2. **Manual Configuration:**
@@ -282,6 +353,12 @@ See `env.example` for all available options.
    - Set `S3_ACCESS_KEY` in `.env`
    - Set `S3_SECRET_KEY` in `.env`
    - Set `S3_BUCKET` in `.env`
+   - Set `S3_SSL` in `.env` (default: `true`)
+
+3. **Use:**
+   ```bash
+   alchemux --s3 [url]
+   ```
 
 ---
 
@@ -371,7 +448,10 @@ The `--plain` flag ensures clean output for parsing.
 | `--video-format` | | Video container (mp4, mkv, etc.) |
 | `--flac` | | FLAC 16kHz mono conversion |
 | `--save-path` | | Custom download location |
-| `--gcp` | | Enable GCP upload |
+| `--gcp` | | Enable GCP upload (one-time) |
+| `--s3` | | Enable S3 upload (one-time) |
+| `--local` | | Force local storage (override defaults) |
+| `--save-default` | | Set default storage destination interactively |
 | `--setup` | | Run setup wizard |
 | `--accept-eula` | | Accept EULA non-interactively |
 | `--verbose` | | Enable debug logging |

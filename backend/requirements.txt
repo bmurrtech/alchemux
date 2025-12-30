@@ -13,6 +13,9 @@ termcolor>=2.3.0
 # Optional: GCP upload
 google-cloud-storage>=2.10.0
 
+# Optional: S3 upload
+boto3>=1.28.0
+
 # Build tool
 pyinstaller>=6.0.0
 

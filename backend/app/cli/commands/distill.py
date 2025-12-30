@@ -14,6 +14,7 @@ from app.core.config_manager import ConfigManager
 from app.core.logger import setup_logger
 from app.core.downloader import MediaDownloader
 from app.services.gcp_upload import GCPUploader
+from app.services.s3_upload import S3Uploader
 from app.utils.file_utils import get_download_path, sanitize_filename, detect_source_type
 from app.utils.metadata import write_source_url_to_metadata
 
@@ -36,6 +37,8 @@ def distill(
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
     save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom save location"),
     gcp: bool = typer.Option(False, "--gcp", help="Enable GCP Cloud Storage upload"),
+    s3: bool = typer.Option(False, "--s3", help="Enable S3-compatible storage upload"),
+    local: bool = typer.Option(False, "--local", help="Force local storage (override defaults)"),
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
@@ -279,13 +282,73 @@ def distill(
             console.print_fracture("mux", "metadata write failed (continuing)")
             logger.warning("Failed to write source URL to metadata (continuing anyway)")
     
-    # GCP upload
-    if gcp:
+    # Determine upload target
+    upload_to_gcp = False
+    upload_to_s3 = False
+    
+    if local:
+        # --local flag overrides everything
+        upload_to_gcp = False
+        upload_to_s3 = False
+    elif gcp:
+        # --gcp flag forces GCP for this run
+        upload_to_gcp = True
+    elif s3:
+        # --s3 flag forces S3 for this run
+        upload_to_s3 = True
+    else:
+        # Check defaults from .env
+        gcp_enabled = config.get("GCP_UPLOAD_ENABLED", "false").lower() == "true"
+        s3_enabled = config.get("S3_UPLOAD_ENABLED", "false").lower() == "true"
+        
+        if gcp_enabled:
+            upload_to_gcp = True
+        elif s3_enabled:
+            upload_to_s3 = True
+    
+    # Auto-setup check for GCP
+    if upload_to_gcp:
         console.print_divider()
         uploader = GCPUploader(config)
         if not uploader.is_configured():
-            console.err_console.print("❌ GCP upload not configured. Run: alchemux setup gcp")
-            raise typer.Exit(code=1)
+            console.err_console.print("⚠️  GCP not configured. Running setup wizard...")
+            from app.core.setup_wizard import interactive_gcp_setup
+            if interactive_gcp_setup(config):
+                console.print_success("setup", "GCP configuration complete")
+                # Re-initialize uploader after setup
+                uploader = GCPUploader(config)
+            else:
+                console.print_fracture("setup", "GCP setup failed")
+                raise typer.Exit(code=1)
+        
+        with console.stage_status("evaporate", "evaporating artifact..."):
+            upload_success, upload_result = uploader.upload(
+                file_path,
+                Path(file_path).name,
+                source
+            )
+        
+        if upload_success:
+            console.stage_ok("evaporate", "transfer complete")
+            console.console.print(f"☁️  Uploaded to: {upload_result}")
+        else:
+            console.print_fracture("evaporate", upload_result or "upload failed")
+            # Continue anyway - local file is still available
+    
+    # Auto-setup check for S3
+    if upload_to_s3:
+        console.print_divider()
+        uploader = S3Uploader(config)
+        if not uploader.is_configured():
+            console.err_console.print("⚠️  S3 not configured. Running setup wizard...")
+            from app.core.setup_wizard import interactive_s3_setup
+            if interactive_s3_setup(config):
+                console.print_success("setup", "S3 configuration complete")
+                # Re-initialize uploader after setup
+                uploader = S3Uploader(config)
+            else:
+                console.print_fracture("setup", "S3 setup failed")
+                raise typer.Exit(code=1)
         
         with console.stage_status("evaporate", "evaporating artifact..."):
             upload_success, upload_result = uploader.upload(
