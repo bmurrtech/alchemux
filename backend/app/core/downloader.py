@@ -14,6 +14,7 @@ except ImportError:
 
 from app.core.logger import setup_logger, get_ytdl_logger
 from app.core.config_manager import ConfigManager
+from app.utils.file_utils import get_ffmpeg_location
 
 logger = setup_logger(__name__)
 
@@ -193,6 +194,15 @@ class MediaDownloader:
         # Add progress hook if provided
         if progress_hook:
             opts['progress_hooks'] = [progress_hook]
+        
+        # Set ffmpeg location if found (bundled, system, or custom from config)
+        # Config values are already loaded into os.environ via load_dotenv in ConfigManager
+        ffmpeg_location = get_ffmpeg_location()
+        if ffmpeg_location:
+            opts['ffmpeg_location'] = ffmpeg_location
+            logger.debug(f"Using ffmpeg from: {ffmpeg_location}")
+        else:
+            logger.warning("ffmpeg/ffprobe not found. Audio/video conversion may fail.")
         
         return opts
     

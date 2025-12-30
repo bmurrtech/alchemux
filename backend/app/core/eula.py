@@ -33,7 +33,7 @@ class EULAManager:
     """Manages EULA acceptance with dual storage strategy."""
     
     EULA_VERSION = "1.0"
-    LICENSE_FILES = ["LICENSE.MD", "EULA.md", "TERMS.md"]
+    LICENSE_FILES = ["LICENSE.MD", "EULA.md"]
     
     def __init__(self, config_manager: ConfigManager, root_dir: Optional[Path] = None):
         """
@@ -186,17 +186,17 @@ class EULAManager:
         Returns:
             EULA summary text
         """
-        return """Alchemux — Terms Notice (Authorized, Non-Commercial Use Only)
+        return """Alchemux — EULA
 
-By using this software you agree to the LICENSE, TERMS.md, and EULA.md.
+By using this software you agree to the LICENSE and EULA.md.
 Use only with content you own or are authorized to access.
 No warranty. You assume all risk. You agree to defend and indemnify the Provider and contributors.
 
 To continue:
   • Type: I AGREE
 Or run non-interactively:
-  • amx --accept-eula (or alchemux --accept-eula)
-Or set:
+  • alchemux --accept-eula
+Or set in your .env file directly:
   • EULA_ACCEPTED=true"""
     
     def interactive_acceptance(self) -> bool:
@@ -211,7 +211,7 @@ Or set:
         print("=" * 70 + "\n")
         
         while True:
-            response = input("Type \"I AGREE\" to confirm you are authorized to use any content you process and you accept the LICENSE, TERMS.md, and EULA.md: ").strip()
+            response = input("Type \"I AGREE\" to continue, or 'quit' to exit: ").strip()
             
             if response.upper() == "I AGREE":
                 self.accept("user_input")

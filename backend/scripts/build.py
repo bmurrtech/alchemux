@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PyInstaller build script for Alchemux macOS binary.
-Creates a single-file executable.
+PyInstaller build script for Alchemux binary.
+Creates a single-file executable with bundled ffmpeg/ffprobe.
 """
 import os
 import sys
@@ -26,9 +26,41 @@ def clean_build_dirs():
     print("✓ Cleaned")
 
 
+def find_ffmpeg_binaries():
+    """
+    Find ffmpeg and ffprobe binaries on the system.
+    
+    Returns:
+        Tuple of (ffmpeg_path, ffprobe_path) or (None, None) if not found
+    """
+    # Determine binary names based on platform
+    if sys.platform == "win32":
+        ffmpeg_name = "ffmpeg.exe"
+        ffprobe_name = "ffprobe.exe"
+    else:
+        ffmpeg_name = "ffmpeg"
+        ffprobe_name = "ffprobe"
+    
+    # Find binaries in PATH
+    ffmpeg_path = shutil.which("ffmpeg")
+    ffprobe_path = shutil.which("ffprobe")
+    
+    if ffmpeg_path and ffprobe_path:
+        print(f"✓ Found ffmpeg: {ffmpeg_path}")
+        print(f"✓ Found ffprobe: {ffprobe_path}")
+        return Path(ffmpeg_path), Path(ffprobe_path)
+    else:
+        print("⚠️  Warning: ffmpeg/ffprobe not found in PATH")
+        print("   The binary will still work but may require system ffmpeg installation.")
+        return None, None
+
+
 def build_binary():
-    """Build macOS binaries using PyInstaller (both amx and alchemux)."""
-    print("\nBuilding macOS binaries with PyInstaller...")
+    """Build binaries using PyInstaller (both amx and alchemux) with bundled ffmpeg/ffprobe."""
+    print("\nBuilding binaries with PyInstaller...")
+    
+    # Find ffmpeg binaries to bundle
+    ffmpeg_path, ffprobe_path = find_ffmpeg_binaries()
     
     binaries = ["amx", "alchemux"]
     built_binaries = []
@@ -62,6 +94,19 @@ def build_binary():
         
         for imp in hidden_imports:
             cmd.extend(["--hidden-import", imp])
+        
+        # Add ffmpeg/ffprobe binaries if found (included by default)
+        if ffmpeg_path and ffprobe_path:
+            # PyInstaller --add-binary format: "source:dest"
+            # For onefile mode, binaries are extracted to temp directory
+            # Use "." to place them in the root of the extracted bundle
+            if sys.platform == "win32":
+                cmd.extend(["--add-binary", f"{ffmpeg_path};."])
+                cmd.extend(["--add-binary", f"{ffprobe_path};."])
+            else:
+                cmd.extend(["--add-binary", f"{ffmpeg_path}:."])
+                cmd.extend(["--add-binary", f"{ffprobe_path}:."])
+            print(f"  Including ffmpeg/ffprobe binaries...")
         
         # Collect all data files (if needed)
         # cmd.extend(["--collect-all", "yt_dlp"])
