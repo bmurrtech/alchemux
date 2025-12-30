@@ -23,77 +23,61 @@ Alchemux transmutes URLs into purified media vessels through distillation, muxin
 
 ## Quick Start
 
-## Installation
+### Installation
 
-Alchemux can be used as either a **portable executable** (recommended, but not always latest) or run directly from source (latest). Both methods support the same features and commands.
-
-### Option 1: Portable Executable (Recommended)
+#### Option 1: Portable Executable (Recommended)
 
 1. **Download the binary** for your platform from the [releases page](https://github.com/bmurrtech/alchemux/releases).
-    - **macOS**: `alchemux`
-    - **Linux**: `alchemux`
-    - **Windows**: `alchemux.exe`
-2. **Make it executable** (on macOS/Linux):
-    ```bash
-    chmod +x alchemux
-    ```
-3. **Run Alchemux** just like in source mode (see usage below).
+   - **macOS**: `alchemux`
+   - **Linux**: `alchemux`
+   - **Windows**: `alchemux.exe`
+
+2. **Make it executable** (macOS/Linux only):
+   ```bash
+   chmod +x alchemux
+   ```
+
+3. **Open your terminal** and navigate to where you downloaded the binary.
+
+4. **Run setup** (first time only):
+   - **macOS/Linux**:
+     ```bash
+     ./alchemux setup
+     ```
+   - **Windows (CMD)**:
+     ```cmd
+     alchemux.exe setup
+     ```
+
+5. **Transmute a URL**:
+   - **macOS/Linux**:
+     ```bash
+     ./alchemux https://youtube.com/watch?v=...
+     ```
+   - **Windows (CMD)**:
+     ```cmd
+     alchemux.exe https://youtube.com/watch?v=...
+     ```
+
+6. **Get help**:
+   - **macOS/Linux**:
+     ```bash
+     ./alchemux -h
+     ```
+   - **Windows (CMD)**:
+     ```cmd
+     alchemux.exe -h
+     ```
+
+**Note**: The portable binary includes all dependencies (including ffmpeg/ffprobe) and doesn't require Python or any additional setup beyond the initial configuration wizard.
+
+#### Option 2: Run from Source
+
+For running from source (requires Python 3.8+), see [docs/install.md](docs/install.md) for detailed installation instructions.
 
 ---
 
-### Option 2: Run from Source
-
-1. **Clone the repository**:
-    ```bash
-    git clone https://github.com/bmurrtech/alchemux.git
-    cd alchemux
-    ```
-2. **Install dependencies**:
-    ```bash
-    cd backend
-    pip install -r requirements.txt
-    ```
-    (**Requires Python 3.8+**)
-
----
-
-### Usage (Both Portable and Source)
-
-- **Run Setup (first time only):**
-    - _Portable_:  
-      ```bash
-      ./alchemux setup
-      ```
-    - _Source_:  
-      ```bash
-      python backend/app/main.py setup
-      ```
-
-- **Transmute a URL:**
-    - _Portable_:  
-      ```bash
-      ./alchemux [url]
-      ```
-    - _Source_:  
-      ```bash
-      python backend/app/main.py [url]
-      ```
-    Example:
-    ```bash
-    ./alchemux https://youtube.com/watch?v=...
-    ```
-
-- **Get Help:**
-    - _Portable_:  
-      ```bash
-      ./alchemux --help
-      ```
-    - _Source_:  
-      ```bash
-      python backend/app/main.py --help
-      ```
-
-**Both the portable binary and source mode accept the same commands and options. See [docs/commands.md](docs/commands.md) for full CLI usage, formats, and options.**
+**See [docs/commands.md](docs/commands.md) for full CLI usage, formats, and options.**
 
 ## Arcane Terms
 
@@ -139,6 +123,7 @@ Feature requests, bug reports, and contributions are welcome!
 Alchemux relies on these excellent projects:
 
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Media downloader and converter (core functionality)
+- **[FFmpeg](https://ffmpeg.org/)** - Audio and video conversion (included in portable binaries)
 - **[Typer](https://typer.tiangolo.com/)** - Modern CLI framework
 - **[Rich](https://github.com/Textualize/rich)** - Beautiful terminal output and progress bars
 - **[mutagen](https://github.com/quodlibet/mutagen)** - Audio metadata handling
