@@ -1,17 +1,10 @@
 # Alchemux
-```
-  ___                                             
- -   -_  ,,      ,,                               
-(  ~/||  ||      ||                         ,     
-(  / ||  ||  _-_ ||/\\  _-_  \/\/\/\ \\ \\ \\ /` 
- \/==||  || ||   || || || \\ || || || || ||  \\   
- /_ _||  || ||   || || ||/   || || || || ||  /\\  
-(  - \\, \\ \\,/ \\ |/  \\,/ \\ \\ \\ \\/\\ /  \; 
-                   _/                             
-```                   
-**An arcane-styled yt-dlp CLI wrapper. Download + convert YouTube videos + 1K more -- it's alchemy media magic!**
 
-Alchemux transmutes URLs into purified media vessels through distillation, muxing, and sealing.
+**Arcane-styled yt-dlp CLI wrapper.** Download + convert YouTube videos + 1K more -- it's alchemy media magic!
+
+## CLI Showcase
+![transmuting](https://i.imgur.com/coG2REg.png)
+![usage](https://i.imgur.com/iDFjVCw.png)
 
 ## What It Can Do
 
@@ -69,8 +62,6 @@ Alchemux transmutes URLs into purified media vessels through distillation, muxin
      alchemux.exe -h
      ```
 
-**Note**: The portable binary includes all dependencies (including ffmpeg/ffprobe) and doesn't require Python or any additional setup beyond the initial configuration wizard.
-
 #### Option 2: Run from Source
 
 For running from source (requires Python 3.8+), see [docs/install.md](docs/install.md) for detailed installation instructions.
@@ -81,21 +72,13 @@ For running from source (requires Python 3.8+), see [docs/install.md](docs/insta
 
 ## Arcane Terms
 
-For fun, Alchemux uses arcane-themed terminology (distill, mux, seal, etc.), but if you want to be _boring_ and use technical terms instead, set `ARCANE_TERMS=false` in your `.env` file or as an environment variable.
+For fun, Alchemux uses arcane-themed terminology (transmute, distill, seal, etc.), but if you want technical terms instead, set `arcane_terms = "false"` in your `config.toml`
 
 For a complete legend of arcane terminology and their technical equivalents, see [docs/legend.md](docs/legend.md).
 
 ## Configuration
 
-Alchemux uses a `.env` file for configuration. The location depends on how you're running it:
-
-- **Portable binary**: Config is stored next to the binary (if writable) or in your user config directory
-- **Source**: Config is stored in the project root
-
-You can specify a custom config location using the `--config` flag:
-```bash
-amx --config /path/to/custom/.env [url]
-```
+Alchemux uses a `.env` file and a `config.toml` file for confiturations. These files will be automatically created at `setup` runtime.
 
 ## Cloud Storage
 
@@ -107,12 +90,12 @@ Alchemux supports optional cloud storage uploads. See [docs/commands.md](docs/co
 
 **Solution**: 
 1. Find where your config was created (check the setup completion message)
-2. Use `--config` to point to that location, or
+2. Use `alchemux config` to point to that location, or
 3. Run `setup` again to create a new config in the new location
 
 **Problem**: Permission errors when creating config
 
-**Solution**: The binary will automatically use your user config directory if the binary location isn't writable. You can also use `--config` to specify a writable location.
+**Solution**: The binary will automatically use your user config directory if the binary location isn't writable. You can also use `alchemux config` to specify a writable location.
 
 ## Contributing
 
@@ -131,11 +114,11 @@ Alchemux relies on these excellent projects:
 - **[PyInstaller](https://www.pyinstaller.org/)** - Binary packaging
 - **[termcolor](https://github.com/termcolor/termcolor)** - Terminal color support
 
-Special thanks to the yt-dlp community for their incredible work on media extraction and conversion.
+Special thanks to the yt-dlp and FFmpeg communities for their incredible work on media extraction and conversion.
 
 ## EULA
 
-Prebuilt releases distributed by the project maintainer may require acceptance of additional Release Terms (`EULA.md`) before enabling functionality. These Release Terms apply only to official releases.
+Prebuilt releases distributed by the project maintainer may require acceptance of additional Release Terms (`EULA.md`) before enabling functionality.
 
 ---
 Made with ❤️ for open-source.

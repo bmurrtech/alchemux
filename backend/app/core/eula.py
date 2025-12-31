@@ -83,49 +83,49 @@ class EULAManager:
     
     def _sync_storage(self) -> None:
         """
-        Synchronize dual storage (eula_config.json and .env).
+        Synchronize dual storage (eula_config.json and config.toml).
         JSON takes precedence if conflict exists.
         """
         json_data = self._read_json_config()
-        env_accepted = self.config.get("EULA_ACCEPTED", "").lower() == "true"
-        env_hash = self.config.get("EULA_ACCEPTANCE_HASH", "")
-        env_at = self.config.get("EULA_ACCEPTED_AT", "")
+        toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
+        toml_hash = self.config.get("eula.acceptance_hash", "")
+        toml_at = self.config.get("eula.accepted_at", "")
         
-        # If JSON exists and indicates acceptance, ensure .env is updated
+        # If JSON exists and indicates acceptance, ensure config.toml is updated
         if json_data and json_data.get("eula_accepted"):
-            if not env_accepted or env_hash != json_data.get("acceptance_hash"):
-                logger.debug("Syncing .env from eula_config.json")
-                self.config.set("EULA_ACCEPTED", "true")
-                self.config.set("EULA_ACCEPTED_AT", json_data.get("accepted_at", ""))
-                self.config.set("EULA_ACCEPTANCE_HASH", json_data.get("acceptance_hash", ""))
+            if not toml_accepted or toml_hash != json_data.get("acceptance_hash"):
+                logger.debug("Syncing config.toml from eula_config.json")
+                self.config.set("eula.accepted", "true")
+                self.config.set("eula.accepted_at", json_data.get("accepted_at", ""))
+                self.config.set("eula.acceptance_hash", json_data.get("acceptance_hash", ""))
         
-        # If .env indicates acceptance but JSON is missing, recreate JSON
-        elif env_accepted and env_hash:
+        # If config.toml indicates acceptance but JSON is missing, recreate JSON
+        elif toml_accepted and toml_hash:
             if not json_data or not json_data.get("eula_accepted"):
-                logger.debug("Recreating eula_config.json from .env")
+                logger.debug("Recreating eula_config.json from config.toml")
                 self._write_json_config({
                     "eula_accepted": True,
-                    "accepted_at": env_at or datetime.now(timezone.utc).isoformat(),
-                    "accepted_by": "env_variable",
-                    "acceptance_hash": env_hash,
+                    "accepted_at": toml_at or datetime.now(timezone.utc).isoformat(),
+                    "accepted_by": "config_toml",
+                    "acceptance_hash": toml_hash,
                     "eula_version": self.EULA_VERSION,
                     "license_files": self.LICENSE_FILES
                 })
         
         # If both indicate acceptance but hashes don't match, prompt for re-acceptance
-        elif json_data and env_accepted:
+        elif json_data and toml_accepted:
             json_hash = json_data.get("acceptance_hash", "")
-            if json_hash and env_hash and json_hash != env_hash:
-                logger.warning("EULA acceptance hash mismatch between JSON and .env")
+            if json_hash and toml_hash and json_hash != toml_hash:
+                logger.warning("EULA acceptance hash mismatch between JSON and config.toml")
                 # Clear both to force re-acceptance
                 self._clear_acceptance()
     
     def _clear_acceptance(self) -> None:
         """Clear EULA acceptance from both storage locations."""
-        # Clear .env
-        self.config.set("EULA_ACCEPTED", "false")
-        self.config.set("EULA_ACCEPTED_AT", "")
-        self.config.set("EULA_ACCEPTANCE_HASH", "")
+        # Clear config.toml
+        self.config.set("eula.accepted", "false")
+        self.config.set("eula.accepted_at", "")
+        self.config.set("eula.acceptance_hash", "")
         
         # Clear JSON
         if self.eula_json_path.exists():
@@ -148,8 +148,8 @@ class EULAManager:
         if json_data and json_data.get("eula_accepted"):
             return True
         
-        # Fallback to .env
-        return self.config.get("EULA_ACCEPTED", "").lower() == "true"
+        # Fallback to config.toml
+        return self.config.get("eula.accepted", "").lower() == "true"
     
     def accept(self, accepted_by: str = "user_input") -> None:
         """
@@ -172,10 +172,10 @@ class EULAManager:
         }
         self._write_json_config(json_data)
         
-        # Write to .env (runtime configuration)
-        self.config.set("EULA_ACCEPTED", "true")
-        self.config.set("EULA_ACCEPTED_AT", accepted_at)
-        self.config.set("EULA_ACCEPTANCE_HASH", acceptance_hash)
+        # Write to config.toml (non-secret configuration)
+        self.config.set("eula.accepted", "true")
+        self.config.set("eula.accepted_at", accepted_at)
+        self.config.set("eula.acceptance_hash", acceptance_hash)
         
         logger.info("EULA acceptance recorded in dual storage")
     
@@ -196,8 +196,8 @@ To continue:
   • Type: I AGREE
 Or run non-interactively:
   • alchemux --accept-eula
-Or set in your .env file directly:
-  • EULA_ACCEPTED=true"""
+Or set in your config.toml file directly:
+  • eula.accepted = true"""
     
     def interactive_acceptance(self) -> bool:
         """
@@ -252,9 +252,11 @@ Or set in your .env file directly:
             print("✓ EULA accepted via --accept-eula flag.\n")
             return True
         
-        if env_var or os.getenv("EULA_ACCEPTED", "").lower() == "true":
-            self.accept("env_var")
-            print("✓ EULA accepted via EULA_ACCEPTED environment variable.\n")
+        # Check config.toml for non-interactive acceptance
+        toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
+        if toml_accepted:
+            self.accept("config_toml")
+            print("✓ EULA accepted via config.toml.\n")
             return True
         
         # Require interactive acceptance

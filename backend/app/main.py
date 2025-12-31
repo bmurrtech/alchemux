@@ -96,8 +96,17 @@ if __name__ == "__main__":
                     _banner_shown = True
             
             # Run setup command directly
-            setup_cmd(target=target, plain=plain_mode)
-            sys.exit(0)
+            try:
+                setup_cmd(target=target, plain=plain_mode)
+                sys.exit(0)
+            except SystemExit:
+                # Re-raise SystemExit to preserve exit code
+                raise
+            except Exception as e:
+                print(f"❌ Setup error: {e}")
+                if os.getenv("LOG_LEVEL", "").lower() == "debug":
+                    traceback.print_exc()
+                sys.exit(1)
         
         # Print banner only once on initial startup (not for every command)
         if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":

@@ -110,7 +110,7 @@ class MediaDownloader:
             
             # Paths
             'paths': {
-                'home': self.config.get("DOWNLOAD_PATH", "./downloads"),
+                'home': self.config.get("paths.output_dir") or self.config.get("DOWNLOAD_PATH", "./downloads"),
                 'temp': self.config.get("TEMP_PATH", "./temp")
             },
             

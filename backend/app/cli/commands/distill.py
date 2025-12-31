@@ -35,14 +35,13 @@ def distill(
     format: str = typer.Option("mp3", "--format", "-f", help="Audio codec/format"),
     video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
-    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom save location"),
-    gcp: bool = typer.Option(False, "--gcp", help="Enable GCP Cloud Storage upload"),
-    s3: bool = typer.Option(False, "--s3", help="Enable S3-compatible storage upload"),
-    local: bool = typer.Option(False, "--local", help="Force local storage (override defaults)"),
+    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
+    local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
+    s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
+    gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with full tracebacks"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Distills the bound media into its purified vessel.
@@ -56,23 +55,8 @@ def distill(
     download, and conversion in sequence. Optionally, it may also inscribe
     metadata and upload to cloud storage before completion.
     """
-    # Initialize configuration (loads .env file, uses smart detection if --config not provided)
-    # Ensure config is a string (handle Typer OptionInfo objects)
-    # When Typer option is not provided, it passes OptionInfo object instead of None
-    if config is not None:
-        # Check if it's an OptionInfo object (when option not provided)
-        if hasattr(config, '__class__') and 'OptionInfo' in str(type(config)):
-            config_path = None
-        elif not isinstance(config, str):
-            config_path = str(config)
-            # If string conversion results in OptionInfo representation, treat as None
-            if config_path.startswith('<typer.models.OptionInfo'):
-                config_path = None
-        else:
-            config_path = config
-    else:
-        config_path = None
-    config = ConfigManager(env_path=config_path)
+    # Initialize configuration (loads .env file and config.toml)
+    config = ConfigManager()
     
     # Initialize console (needed for logger) - read arcane_terms after .env is loaded
     arcane_terms_str = config.get("ARCANE_TERMS", "true").lower()
@@ -80,13 +64,13 @@ def distill(
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
     
     # Set up logging with RichHandler (pass console for clean output)
-    if verbose:
+    if debug:
         os.environ["LOG_LEVEL"] = "debug"
-        os.environ["VERBOSE"] = "true"
+        os.environ["ALCHEMUX_DEBUG"] = "true"
     
     # Initialize logger with console for RichHandler (suppresses logs in default mode)
     global logger
-    logger = setup_logger(__name__, console=console.console, verbose=verbose)
+    logger = setup_logger(__name__, console=console.console, verbose=debug)
     
     # Check .env file - auto-run setup if missing
     if not config.check_env_file_exists():
@@ -100,7 +84,8 @@ def distill(
             raise typer.Exit(code=1)
     
     # Validate required variables
-    required_vars = ["DOWNLOAD_PATH"]
+    # Check for paths.output_dir (preferred) or DOWNLOAD_PATH (legacy)
+    required_vars = ["paths.output_dir"]
     is_valid, missing = config.validate_required(required_vars)
     if not is_valid:
         console.err_console.print(f"⚠️  Missing required configuration: {', '.join(missing)}")
@@ -125,11 +110,14 @@ def distill(
         # Running from source - EULA not required (Apache 2.0 license applies)
         logger.debug("Running from source - EULA check skipped")
     
-    # Handle --save-path flag
+    # Determine output directory (--save-path override or config default)
     if save_path:
-        config.update_download_path(save_path)
-        console.print_stage("vessel", "download path updated", status=save_path)
-        console.print_success("vessel", "ready")
+        # One-run override: use provided path
+        output_dir = save_path
+        console.print_stage("vessel", "output path override", status=save_path)
+    else:
+        # Use config default
+        output_dir = config.get("paths.output_dir", "./downloads")
     
     # Validate URL
     if not is_valid_url(url):
@@ -165,7 +153,6 @@ def distill(
         console.stage_ok("profile", "partial metadata recovered")
     
     # Prepare output path
-    download_path = config.get("DOWNLOAD_PATH", "./downloads")
     filename = sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
     
     # Determine actual format
@@ -188,7 +175,7 @@ def distill(
         ext = ext_map.get(audio_format.lower(), ".mp3")
         filename = os.path.splitext(filename)[0] + ext
     
-    output_path = get_download_path(download_path, source, filename)
+    output_path = get_download_path(output_dir, source, filename)
     with console.stage_status("vessel", f"preparing {filename}..."):
         pass  # Path already prepared
     console.stage_ok("vessel", "ready")
@@ -282,29 +269,66 @@ def distill(
             console.print_fracture("mux", "metadata write failed (continuing)")
             logger.warning("Failed to write source URL to metadata (continuing anyway)")
     
-    # Determine upload target
-    upload_to_gcp = False
-    upload_to_s3 = False
+    # Determine storage destinations from flags
+    # If multiple flags are set AND all are configured, save to all indicated places
+    # Otherwise, use priority: flags > config.toml storage.destination > fallback
+    flags_set = [flag for flag, value in [("local", local), ("s3", s3), ("gcp", gcp)] if value]
     
-    if local:
-        # --local flag overrides everything
-        upload_to_gcp = False
-        upload_to_s3 = False
-    elif gcp:
-        # --gcp flag forces GCP for this run
-        upload_to_gcp = True
-    elif s3:
-        # --s3 flag forces S3 for this run
-        upload_to_s3 = True
-    else:
-        # Check defaults from .env
-        gcp_enabled = config.get("GCP_UPLOAD_ENABLED", "false").lower() == "true"
-        s3_enabled = config.get("S3_UPLOAD_ENABLED", "false").lower() == "true"
+    if len(flags_set) > 1:
+        # Multiple flags set - check if all are configured
+        all_configured = True
+        if "s3" in flags_set and not config.is_s3_configured():
+            all_configured = False
+            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, skipping S3 upload")
+        if "gcp" in flags_set and not config.is_gcp_configured():
+            all_configured = False
+            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, skipping GCP upload")
         
-        if gcp_enabled:
-            upload_to_gcp = True
-        elif s3_enabled:
-            upload_to_s3 = True
+        if all_configured:
+            # All flags set and all configured - save to all indicated places
+            upload_to_local = "local" in flags_set
+            upload_to_s3 = "s3" in flags_set
+            upload_to_gcp = "gcp" in flags_set
+            console.console.print(f"[dim]Saving to all specified destinations: {', '.join(flags_set)}[/dim]")
+        else:
+            # Some not configured - use only configured ones
+            upload_to_local = "local" in flags_set  # Local is always available
+            upload_to_s3 = "s3" in flags_set and config.is_s3_configured()
+            upload_to_gcp = "gcp" in flags_set and config.is_gcp_configured()
+    elif len(flags_set) == 1:
+        # Single flag set - use that destination
+        storage_dest = flags_set[0]
+        if storage_dest == "s3" and not config.is_s3_configured():
+            fallback = config.get("storage.fallback", "local")
+            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}")
+            storage_dest = fallback if fallback != "error" else "local"
+        elif storage_dest == "gcp" and not config.is_gcp_configured():
+            fallback = config.get("storage.fallback", "local")
+            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
+            storage_dest = fallback if fallback != "error" else "local"
+        
+        upload_to_local = (storage_dest == "local")
+        upload_to_s3 = (storage_dest == "s3")
+        upload_to_gcp = (storage_dest == "gcp")
+    else:
+        # No flags set - use config.toml storage.destination
+        storage_dest = config.get_storage_destination()
+        
+        # Validate destination and check if configured
+        if storage_dest == "s3" and not config.is_s3_configured():
+            fallback = config.get("storage.fallback", "local")
+            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}")
+            storage_dest = fallback if fallback != "error" else "local"
+        elif storage_dest == "gcp" and not config.is_gcp_configured():
+            fallback = config.get("storage.fallback", "local")
+            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
+            storage_dest = fallback if fallback != "error" else "local"
+        
+        upload_to_local = (storage_dest == "local")
+        upload_to_s3 = (storage_dest == "s3")
+        upload_to_gcp = (storage_dest == "gcp")
+    
+    keep_local_copy = config.get("storage.keep_local_copy", "false").lower() == "true"
     
     # Auto-setup check for GCP
     if upload_to_gcp:
@@ -371,8 +395,9 @@ def distill(
     # Elevated completion state
     console.print_seal(file_path)
     
-    # Auto-open folder if enabled
-    auto_open = config.get("AUTO_OPEN", "false").lower() == "true"
+    # Auto-open folder if enabled (from config.toml ui.auto_open or legacy .env AUTO_OPEN)
+    auto_open_str = config.get("ui.auto_open") or config.get("AUTO_OPEN", "false")
+    auto_open = auto_open_str.lower() == "true" if isinstance(auto_open_str, str) else bool(auto_open_str)
     if auto_open and file_path:
         try:
             import subprocess

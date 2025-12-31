@@ -1,0 +1,70 @@
+# =============================================================================
+# Alchemux config.toml (non-secret defaults & UX)
+# =============================================================================
+
+[product]
+# If true, show arcane terminology + "transmute" command naming in help/output.
+arcane_terms = true
+
+[ui]
+# Default UX preferences (flags can override for a single run)
+auto_open = true
+plain = false          # if true, disables colors/animations by default
+animations = true      # optional future key
+colors = true          # optional future key
+
+[logging]
+# Defaults (CLI flags override per-run)
+debug = false
+
+[eula]
+# EULA acceptance state (set to true to accept non-interactively)
+accepted = false
+accepted_at = ""       # ISO8601 string (auto-set on acceptance)
+acceptance_hash = ""   # Acceptance verification hash (auto-set on acceptance)
+
+[paths]
+# Filesystem paths
+output_dir = "./downloads"  # Where downloaded files are saved locally
+temp_dir = "./tmp"          # Staging directory for processing
+
+[media.audio]
+# Defaults for "do the work" commands (CLI: --format overrides per-run)
+format = "mp3"         # mp3|flac|wav|...
+quality = "192k"       # example; keep your current semantics
+sample_rate = 0        # 0 = source/default; else explicit Hz
+channels = 0           # 0 = source/default; else 1/2/...
+
+[media.video]
+format = ""            # mp4|mkv|...
+codec = ""             # h264|hevc|...
+restrict_filenames = true
+
+[presets.flac]
+# Canonical key for your human-friendly toggle
+override = false       # true => apply your "FLAC 16kHz mono" preset behavior
+sample_rate = 16000
+channels = 1
+
+[network]
+retries = 3
+
+[storage]
+# Storage destination and policy
+destination = "local"        # local|s3|gcp (default storage destination)
+fallback = "local"          # local|s3|gcp|error (fallback if destination unavailable)
+keep_local_copy = false     # If true, keep local copy after cloud upload
+
+# Note: [storage.s3] and [storage.gcp] sections are only written when configured
+# Providers are considered "configured" if they have required keys + credentials in .env
+
+# Example [storage.s3] (only written when S3 is configured):
+# endpoint = "https://your-minio.example.com"  # optional if inferrable
+# bucket = "your-bucket-name"
+# ssl = true
+
+# Example [storage.gcp] (only written when GCP is configured):
+# bucket = "your-bucket-name"
+
+# Note: Auth-related configuration (cookies, OAuth) is stored in .env for security.
+# See env.example for auth configuration options.

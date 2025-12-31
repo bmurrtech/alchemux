@@ -15,14 +15,13 @@ def invoke(
     format: str = typer.Option("mp3", "--format", "-f", help="Audio codec/format"),
     video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
-    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom save location"),
-    gcp: bool = typer.Option(False, "--gcp", help="Enable GCP Cloud Storage upload"),
-    s3: bool = typer.Option(False, "--s3", help="Enable S3-compatible storage upload"),
-    local: bool = typer.Option(False, "--local", help="Force local storage (override defaults)"),
+    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
+    local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
+    s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
+    gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with full tracebacks"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Invoke the full transmutation ritual.
@@ -38,12 +37,11 @@ def invoke(
         video_format=video_format,
         flac=flac,
         save_path=save_path,
-        gcp=gcp,
-        s3=s3,
         local=local,
+        s3=s3,
+        gcp=gcp,
         accept_eula=accept_eula,
-        verbose=verbose,
+        debug=debug,
         plain=plain,
-        config=config,
     )
 

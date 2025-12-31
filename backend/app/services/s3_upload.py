@@ -32,11 +32,14 @@ class S3Uploader:
             config: ConfigManager instance
         """
         self.config = config
-        self.endpoint = config.get("S3_ENDPOINT")
+        # Non-secrets from config.toml (with .env fallback for legacy)
+        self.endpoint = config.get("storage.s3.endpoint") or config.get("S3_ENDPOINT")
+        self.bucket_name = config.get("storage.s3.bucket") or config.get("S3_BUCKET")
+        s3_ssl_str = config.get("storage.s3.ssl") or config.get("S3_SSL", "true")
+        self.use_ssl = s3_ssl_str.lower() == "true" if isinstance(s3_ssl_str, str) else bool(s3_ssl_str)
+        # Secrets from .env
         self.access_key = config.get("S3_ACCESS_KEY")
         self.secret_key = config.get("S3_SECRET_KEY")
-        self.bucket_name = config.get("S3_BUCKET")
-        self.use_ssl = config.get("S3_SSL", "true").lower() == "true"
         self._client = None
     
     def _get_client(self):
@@ -97,7 +100,7 @@ class S3Uploader:
             Tuple of (success, public_url or error_message)
         """
         if not self.is_configured():
-            error_msg = "S3 upload not configured. Set S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, and S3_BUCKET in .env"
+            error_msg = "S3 upload not configured. Run 'alchemux setup s3' to configure S3 storage"
             logger.error(error_msg)
             return False, error_msg
         

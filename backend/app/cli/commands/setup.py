@@ -9,7 +9,7 @@ from app.core.config_manager import ConfigManager
 from app.core.setup_wizard import (
     interactive_gcp_setup,
     interactive_s3_setup,
-    interactive_setup_minimal,
+    interactive_setup_refresh,
     smart_setup,
 )
 
@@ -17,7 +17,6 @@ from app.core.setup_wizard import (
 def setup(
     target: Optional[str] = typer.Argument(None, help="Setup target: 'gcp' or 's3' for cloud storage, or omit for minimal setup"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Run interactive setup wizard.
@@ -37,24 +36,7 @@ def setup(
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
     
-    # Ensure config is a string (handle Typer OptionInfo objects)
-    # When Typer option is not provided, it passes OptionInfo object instead of None
-    # Check if it's an OptionInfo and treat as None
-    if config is not None:
-        # Check if it's an OptionInfo object (when option not provided)
-        if hasattr(config, '__class__') and 'OptionInfo' in str(type(config)):
-            config_path = None
-        elif not isinstance(config, str):
-            config_path = str(config)
-            # If string conversion results in OptionInfo representation, treat as None
-            if config_path.startswith('<typer.models.OptionInfo'):
-                config_path = None
-        else:
-            config_path = config
-    else:
-        config_path = None
-    
-    config_manager = ConfigManager(env_path=config_path)
+    config_manager = ConfigManager()
     
     # Handle specific cloud storage targets
     if target == "gcp":
@@ -80,10 +62,21 @@ def setup(
         console.console.print("  s3     - S3-compatible storage")
         raise typer.Exit(code=1)
     else:
-        # No target specified - run smart setup
-        if smart_setup(config_manager, console):
-            console.print_success("setup", "Setup complete")
-        else:
-            console.print_fracture("setup", "Setup failed")
+        # No target specified - run smart setup (full refresh)
+        try:
+            if smart_setup(config_manager, console):
+                console.print_success("setup", "Setup complete")
+                raise typer.Exit(code=0)
+            else:
+                console.print_fracture("setup", "Setup failed")
+                raise typer.Exit(code=1)
+        except typer.Exit:
+            # Re-raise typer.Exit to ensure proper exit
+            raise
+        except Exception as e:
+            console.print_fracture("setup", f"Setup error: {e}")
+            if os.getenv("LOG_LEVEL", "").lower() == "debug":
+                import traceback
+                traceback.print_exc()
             raise typer.Exit(code=1)
 

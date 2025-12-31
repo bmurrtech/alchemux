@@ -32,7 +32,9 @@ class GCPUploader:
             config: ConfigManager instance
         """
         self.config = config
-        self.bucket_name = config.get("GCP_STORAGE_BUCKET")
+        # Bucket from config.toml (non-secret)
+        self.bucket_name = config.get("storage.gcp.bucket") or config.get("GCP_STORAGE_BUCKET")
+        # Service account key from .env (secret)
         self.sa_key_base64 = config.get("GCP_SA_KEY_BASE64")
         self._creds_file: Optional[str] = None
     

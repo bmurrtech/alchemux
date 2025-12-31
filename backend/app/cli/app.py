@@ -8,7 +8,7 @@ from typing import Optional
 from pathlib import Path
 
 # Version constant (shared with main.py)
-VERSION = "0.1.0-alpha"
+VERSION = "0.1.1-alpha"
 
 # Detect app name from binary invocation
 # When invoked as symlink, sys.argv[0] contains the symlink name
@@ -46,16 +46,20 @@ app.command("invoke", hidden=True)(invoke.invoke)
 app.command("mux", hidden=True)(mux.mux)
 app.command("seal", hidden=True)(seal.seal)
 app.command("inspect", hidden=True)(inspect.inspect)
-# Setup is the only visible command (for configuration)
+# Setup is a visible command (for configuration)
 app.command("setup")(setup.setup)
+
+# Import and register config and storage commands
+from app.cli.commands import config, storage
+app.add_typer(config.app, name="config", help="Manage configuration (config.toml)")
+app.add_typer(storage.app, name="storage", help="Manage storage settings and paths")
 
 # Version callback
 def version_callback(value: bool) -> None:
     """Display version information."""
     if value:
-        # Use detected app name for version display
-        display_name = APP_NAME.capitalize() if APP_NAME == "amx" else "Alchemux"
-        typer.echo(f"{display_name} {VERSION}")
+        # Always display as Alchemux
+        typer.echo(f"Alchemux {VERSION}")
         raise typer.Exit()
 
 @app.callback(invoke_without_command=True)
@@ -87,20 +91,12 @@ def main(
     audio_format: Optional[str] = typer.Option(None, "--audio-format", help="Audio codec/format (alias for --format)"),
     video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
-    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom save location"),
-    gcp: bool = typer.Option(False, "--gcp", help="Enable GCP Cloud Storage upload"),
-    s3: bool = typer.Option(False, "--s3", help="Enable S3-compatible storage upload"),
-    local: bool = typer.Option(False, "--local", help="Force local storage (override defaults)"),
-    save_default: bool = typer.Option(False, "--save-default", help="Set default storage destination interactively"),
+    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
+    local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
+    s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
+    gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
     accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable debug logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
-    setup: Optional[str] = typer.Option(
-        None,
-        "--setup",
-        help="Run setup wizard (use 'gcp' or 's3' for cloud storage, or use '--setup' alone for minimal setup)",
-    ),
 ) -> None:
     """
     Arcane media transmutation.
@@ -113,7 +109,7 @@ def main(
     alchemux --flac <url>  # Routes to invoke command
     """
     import os
-    if debug or verbose:
+    if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
     
@@ -131,28 +127,6 @@ def main(
     if ctx.invoked_subcommand is not None:
         return
     
-    # Handle --save-default flag
-    if save_default:
-        from app.cli.commands.save_default import save_default as save_default_cmd
-        save_default_cmd(plain=plain, config=config)
-        return
-    
-    # Handle --setup flag
-    # Typer requires a value for string options, so we check sys.argv manually
-    # to detect if --setup was used without a value
-    if "--setup" in sys.argv:
-        from app.cli.commands.setup import setup as setup_cmd
-        # Find --setup in argv and check if there's a value after it
-        setup_idx = sys.argv.index("--setup")
-        # If there's a next arg that's not a flag, use it as target
-        if setup_idx + 1 < len(sys.argv) and not sys.argv[setup_idx + 1].startswith("-"):
-            target = sys.argv[setup_idx + 1]
-        else:
-            # No value provided - use parsed value or None for minimal setup
-            target = setup if setup else None
-        setup_cmd(target=target, plain=plain, config=config)
-        return
-    
     # If URL provided, route to invoke for backward compatibility
     # But skip if URL is "setup" (that's a command, not a URL)
     if url and url != "setup":
@@ -165,13 +139,12 @@ def main(
             video_format=video_format,
             flac=flac,
             save_path=save_path,
-            gcp=gcp,
-            s3=s3,
             local=local,
+            s3=s3,
+            gcp=gcp,
             accept_eula=accept_eula,
-            verbose=verbose,
+            debug=debug,
             plain=plain,
-            config=config,
         )
         return
     

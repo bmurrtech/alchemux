@@ -9,28 +9,44 @@ Complete reference for all Alchemux commands and options.
 The primary way to use Alchemux is to provide a URL.
 
 ```bash
-amx [url]
-```
-
-Or with the full command name:
-
-```bash
 alchemux [url]
 ```
 
 This automatically performs the full transmutation pipeline: scribe → scry → profile → distill → mux → seal.
 
-**Note**: The binary supports both `alchemux` and `amx` as command names. If you prefer the shorter `amx` command, you can create an alias:
-- **Unix/macOS/Linux**: `ln -s alchemux amx` (creates a symlink)
-- **Windows**: Copy `alchemux.exe` to `amx.exe` (or create a batch file)
+---
 
-**Optional**: Create a symlink or alias for easier access:
-   ```bash
-   ln -s $(pwd)/backend/app/main.py /usr/local/bin/alchemux
-   # or add to your shell profile:
-   alias alchemux='python /path/to/alchemux/backend/app/main.py'
-   alias amx='python /path/to/alchemux/backend/app/main.py'  # shorter alias
-   ```
+## Command Reference Summary
+
+### Flags (One-Run Overrides)
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--format` | `-f` | Audio format (mp3, aac, flac, etc.) |
+| `--audio-format` | | Audio format (alias for --format) |
+| `--video-format` | | Video container (mp4, mkv, etc.) |
+| `--flac` | | FLAC 16kHz mono conversion |
+| `--save-path` | | Custom download location (one-time) |
+| `--gcp` | | Enable GCP upload (one-time) |
+| `--s3` | | Enable S3 upload (one-time) |
+| `--local` | | Force local storage (override defaults) |
+| `--accept-eula` | | Accept EULA non-interactively |
+| `--debug` | | Enable debug mode |
+| `--plain` | | Disable colors/animations |
+| `--version` | `-v` | Show version |
+| `--help` | `-h` | Show help |
+
+### Commands (Persistent Configuration)
+
+| Command | Description |
+|---------|-------------|
+| `alchemux setup` | Run setup wizard |
+| `alchemux setup gcp` | Configure GCP storage |
+| `alchemux setup s3` | Configure S3 storage |
+| `alchemux config` | Launch interactive config wizard |
+| `alchemux storage use <target>` | Set default storage (local/s3/gcp) |
+| `alchemux storage set <path>` | Set output directory path |
+| `alchemux storage status` | Show storage configuration status |
 
 ---
 
@@ -41,7 +57,7 @@ This automatically performs the full transmutation pipeline: scribe → scry →
 The source URL to transmute. Can be from YouTube, Facebook, or any source supported by yt-dlp.
 
 ```bash
-amx https://youtube.com/watch?v=...
+alchemux https://youtube.com/watch?v=...
 ```
 
 ### Format Options
@@ -51,8 +67,8 @@ amx https://youtube.com/watch?v=...
 Specify the audio codec/format. Default: `mp3`
 
 ```bash
-amx --format aac [url]
-amx -f opus [url]
+alchemux --format aac [url]
+alchemux -f opus [url]
 ```
 
 Supported formats: `mp3`, `aac`, `alac`, `flac`, `m4a`, `opus`, `vorbis`, `wav`
@@ -62,7 +78,7 @@ Supported formats: `mp3`, `aac`, `alac`, `flac`, `m4a`, `opus`, `vorbis`, `wav`
 Alias for `--format`. Use whichever you prefer.
 
 ```bash
-amx --audio-format flac [url]
+alchemux --audio-format flac [url]
 ```
 
 #### `--video-format` (Video Container)
@@ -70,8 +86,8 @@ amx --audio-format flac [url]
 Specify the video container format. Requires ffmpeg.
 
 ```bash
-amx --video-format mkv [url]
-amx --video-format webm [url]
+alchemux --video-format mkv [url]
+alchemux --video-format webm [url]
 ```
 
 Supported formats: `mp4`, `mkv`, `webm`, `mov`, `avi`, `flv`, `gif`
@@ -81,7 +97,7 @@ Supported formats: `mp4`, `mkv`, `webm`, `mov`, `avi`, `flv`, `gif`
 Shortcut for FLAC format with 16kHz mono conversion. Equivalent to `--audio-format flac` with optimized settings.
 
 ```bash
-amx --flac [url]
+alchemux --flac [url]
 ```
 
 ---
@@ -90,11 +106,11 @@ amx --flac [url]
 
 ### `--save-path`
 
-Set a custom download location. This updates your `.env` file automatically.
+Set a custom download location for this run only (does not persist).
 
 ```bash
-amx --save-path ~/Music [url]
-amx --save-path /path/to/downloads [url]
+alchemux --save-path ~/Music [url]
+alchemux --save-path /path/to/downloads [url]
 ```
 
 ### `--gcp` (Google Cloud Storage Upload)
@@ -106,8 +122,9 @@ alchemux --gcp [url]
 ```
 
 **Prerequisites:**
-- GCP storage bucket configured (see `setup gcp`)
-- `GCP_STORAGE_BUCKET` and `GCP_SA_KEY_BASE64` set in `.env`
+- GCP storage bucket configured (see `alchemux setup gcp`)
+- `storage.gcp.bucket` set in `config.toml`
+- `GCP_SA_KEY_BASE64` set in `.env`
 
 **Note:** If GCP is not configured, the setup wizard will automatically run when this flag is used.
 
@@ -120,8 +137,9 @@ alchemux --s3 [url]
 ```
 
 **Prerequisites:**
-- S3-compatible storage configured (see `setup s3`)
-- `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, and `S3_BUCKET` set in `.env`
+- S3-compatible storage configured (see `alchemux setup s3`)
+- `storage.s3.endpoint` and `storage.s3.bucket` set in `config.toml`
+- `S3_ACCESS_KEY` and `S3_SECRET_KEY` set in `.env`
 
 **Note:** If S3 is not configured, the setup wizard will automatically run when this flag is used.
 
@@ -133,43 +151,62 @@ Force local storage only, overriding any default cloud upload settings.
 alchemux --local [url]
 ```
 
-This flag ensures files are saved locally only, regardless of `GCP_UPLOAD_ENABLED` or `S3_UPLOAD_ENABLED` settings.
+This flag ensures files are saved locally only, regardless of `storage.destination` setting in `config.toml`.
 
 ---
 
-## Configuration Options
+## Configuration Commands
 
-### `--setup` (Setup Wizard)
+### `alchemux setup`
 
 Run the interactive setup wizard.
 
 ```bash
-amx setup              # Minimal setup (creates .env, handles EULA)
-amx setup gcp          # Configure GCP Cloud Storage
-amx setup s3           # Configure S3-compatible storage
+alchemux setup              # Full setup refresh (configures all preferences, creates files if missing)
+alchemux setup gcp          # Configure GCP Cloud Storage
+alchemux setup s3           # Configure S3-compatible storage
 ```
 
-Or use the flag:
+When run without arguments, the setup wizard guides you through:
+- Arcane terminology preference
+- Auto-open folder preference
+- Output directory configuration
+- Cloud storage setup (optional)
+
+The wizard only updates settings you choose to change, preserving existing configuration.
+
+### `alchemux config`
+
+Interactive configuration wizard for config.toml.
 
 ```bash
-amx --setup
-amx --setup gcp
+alchemux config    # Launch interactive configuration wizard
 ```
 
-### `--save-default` (Set Default Storage)
+This command launches an interactive wizard that guides you through reconfiguring existing settings in config.toml. For direct editing, modify `config.toml` manually.
 
-Interactively set the default storage destination for all future transmutations.
+### `alchemux storage`
+
+Manage storage settings and paths.
 
 ```bash
-alchemux --save-default
+alchemux storage use <target>        # Set default storage destination
+alchemux storage set <path>          # Set output directory path
+alchemux storage status              # Show storage configuration status
 ```
 
-This command displays an interactive menu where you can select:
-- **Local**: Save files locally only (no cloud upload)
-- **GCP**: Upload to Google Cloud Platform by default
-- **S3**: Upload to S3-compatible storage by default
+Where `<target>` is one of: `local`, `s3`, or `gcp`.
 
-The selected default is saved to your `.env` file and can be overridden per-run using `--gcp`, `--s3`, or `--local` flags.
+Examples:
+```bash
+alchemux storage use local            # Set default to local storage
+alchemux storage use s3              # Set default to S3 storage
+alchemux storage use gcp              # Set default to GCP storage
+alchemux storage set ~/Downloads     # Set output directory
+alchemux storage status              # Show current storage configuration
+```
+
+The `storage use` command is a human-friendly alias for `alchemux config set storage.destination <target>`.
 
 ### `--accept-eula`
 
@@ -178,6 +215,8 @@ Accept the EULA non-interactively (useful for scripts).
 ```bash
 alchemux --accept-eula [url]
 ```
+
+Alternatively, set `eula.accepted = true` in `config.toml` to accept non-interactively.
 
 ---
 
@@ -188,15 +227,7 @@ alchemux --accept-eula [url]
 Disable colors and animations (useful for CI/logs).
 
 ```bash
-amx --plain [url]
-```
-
-### `--verbose`
-
-Enable debug logging with detailed output.
-
-```bash
-amx --verbose [url]
+alchemux --plain [url]
 ```
 
 ### `--debug`
@@ -204,7 +235,7 @@ amx --verbose [url]
 Enable debug mode with full tracebacks.
 
 ```bash
-amx --debug [url]
+alchemux --debug [url]
 ```
 
 ---
@@ -216,8 +247,8 @@ amx --debug [url]
 Display version information and exit.
 
 ```bash
-amx --version
-amx -v
+alchemux --version
+alchemux -v
 ```
 
 ### `--help`, `-h`
@@ -225,8 +256,8 @@ amx -v
 Display help information.
 
 ```bash
-amx --help
-amx -h
+alchemux --help
+alchemux -h
 ```
 
 ---
@@ -236,31 +267,31 @@ amx -h
 ### Basic Download (MP3)
 
 ```bash
-amx https://youtube.com/watch?v=abc123
+alchemux https://youtube.com/watch?v=abc123
 ```
 
 ### Download as FLAC (16kHz Mono)
 
 ```bash
-amx --flac https://youtube.com/watch?v=abc123
+alchemux --flac https://youtube.com/watch?v=abc123
 ```
 
 ### Download as Opus
 
 ```bash
-amx --format opus https://youtube.com/watch?v=abc123
+alchemux --format opus https://youtube.com/watch?v=abc123
 ```
 
 ### Download Video as MKV
 
 ```bash
-amx --video-format mkv https://youtube.com/watch?v=abc123
+alchemux --video-format mkv https://youtube.com/watch?v=abc123
 ```
 
 ### Download with Custom Path
 
 ```bash
-amx --save-path ~/Music https://youtube.com/watch?v=abc123
+alchemux --save-path ~/Music https://youtube.com/watch?v=abc123
 ```
 
 ### Download and Upload to GCP
@@ -284,42 +315,71 @@ alchemux --local https://youtube.com/watch?v=abc123
 ### Set Default Storage Destination
 
 ```bash
-alchemux --save-default
+alchemux storage use s3
 ```
 
 ### Combined Options
 
 ```bash
-alchemux --format aac --save-path ~/Music --gcp --verbose https://youtube.com/watch?v=abc123
+alchemux --format aac --save-path ~/Music --gcp --debug https://youtube.com/watch?v=abc123
 ```
 
 ---
 
-## Environment Variables
+## Configuration Files
 
-Alchemux reads configuration from your `.env` file. Key variables:
+Alchemux uses two configuration files:
 
-- `DOWNLOAD_PATH` - Default download location
-- `AUDIO_FORMAT` - Default audio format
-- `VIDEO_FORMAT` - Default video format
-- `ARCANE_TERMS` - Use arcane terminology (default: `true`)
-- `AUTO_OPEN` - Auto-open folder after download (default: `false`)
-- `GCP_STORAGE_BUCKET` - GCP bucket name (for `--gcp`)
-- `GCP_SA_KEY_BASE64` - GCP service account key (for `--gcp`)
-- `GCP_UPLOAD_ENABLED` - Enable GCP upload by default (default: `false`)
-- `S3_ENDPOINT` - S3-compatible storage endpoint (for `--s3`)
-- `S3_ACCESS_KEY` - S3 access key (for `--s3`)
-- `S3_SECRET_KEY` - S3 secret key (for `--s3`)
-- `S3_BUCKET` - S3 bucket name (for `--s3`)
-- `S3_UPLOAD_ENABLED` - Enable S3 upload by default (default: `false`)
+### `.env` (Secrets Only)
 
-See `env.example` for all available options.
+The `.env` file contains **only secrets and sensitive data**:
+- `GCP_SA_KEY_BASE64` - GCP service account key
+- `S3_ACCESS_KEY` - S3 access key
+- `S3_SECRET_KEY` - S3 secret key
+- `OAUTH_CLIENT_ID` - OAuth client ID
+- `OAUTH_CLIENT_SECRET` - OAuth client secret
+- `FACEBOOK_COOKIES_BASE64` - Facebook cookies (if using base64)
+
+See `env.example` for all secret variables.
+
+### `config.toml` (Non-Secret Configuration)
+
+The `config.toml` file contains **user preferences and non-sensitive defaults**:
+- `paths.output_dir` - Default download location
+- `media.audio.format` - Default audio format
+- `storage.destination` - Default storage destination (local/s3/gcp)
+- `product.arcane_terms` - Use arcane terminology
+- `ui.auto_open` - Auto-open folder after download
+- `eula.accepted` - EULA acceptance state
+
+See `config.toml.example` for all available options.
+
+### Managing Configuration
+
+**Edit directly:**
+- Edit `config.toml` for non-secret settings
+- Edit `.env` for secrets (use `chmod 600 .env` for security)
+
+**Use commands:**
+```bash
+alchemux config              # Interactive configuration wizard
+alchemux storage use <target>    # Set default storage
+alchemux storage set <path>      # Set output directory
+```
 
 ### Default Storage Behavior
 
-By default, files are saved locally only. You can set `GCP_UPLOAD_ENABLED=true` or `S3_UPLOAD_ENABLED=true` in your `.env` file to enable automatic cloud uploads for all transmutations. These defaults can be overridden per-run using the `--gcp`, `--s3`, or `--local` flags.
+By default, files are saved locally only. You can set the default storage destination using:
+```bash
+alchemux storage use s3    # or 'gcp' or 'local'
+```
 
-Use `alchemux --save-default` to interactively set your default storage destination.
+Or directly:
+```bash
+alchemux config set storage.destination s3
+```
+
+These defaults can be overridden per-run using the `--gcp`, `--s3`, or `--local` flags.
 
 ---
 
@@ -329,11 +389,11 @@ Use `alchemux --save-default` to interactively set your default storage destinat
 
 1. **Run Setup Wizard:**
    ```bash
-   amx setup gcp
+   alchemux setup gcp
    ```
 
 2. **Manual Configuration:**
-   - Set `GCP_STORAGE_BUCKET` in `.env`
+   - Set `storage.gcp.bucket` in `config.toml`
    - Set `GCP_SA_KEY_BASE64` in `.env` (base64-encoded service account JSON)
 
 3. **Use:**
@@ -349,11 +409,9 @@ Use `alchemux --save-default` to interactively set your default storage destinat
    ```
 
 2. **Manual Configuration:**
-   - Set `S3_ENDPOINT` in `.env`
-   - Set `S3_ACCESS_KEY` in `.env`
-   - Set `S3_SECRET_KEY` in `.env`
-   - Set `S3_BUCKET` in `.env`
-   - Set `S3_SSL` in `.env` (default: `true`)
+   - Set `storage.s3.endpoint` and `storage.s3.bucket` in `config.toml`
+   - Set `storage.s3.ssl` in `config.toml` (default: `true`)
+   - Set `S3_ACCESS_KEY` and `S3_SECRET_KEY` in `.env`
 
 3. **Use:**
    ```bash
@@ -364,22 +422,28 @@ Use `alchemux --save-default` to interactively set your default storage destinat
 
 ## Troubleshooting
 
-### Missing .env File
+### Missing Configuration Files
 
 If you see a configuration error, run:
 
 ```bash
-amx setup
+alchemux setup
 ```
 
-This creates a `.env` file with default settings.
+This creates `.env` and `config.toml` files with default settings.
 
 ### EULA Not Accepted
 
 On first run, you'll be prompted to accept the EULA. To accept non-interactively:
 
 ```bash
-amx --accept-eula [url]
+alchemux --accept-eula [url]
+```
+
+Or set in `config.toml`:
+```toml
+[eula]
+accepted = true
 ```
 
 ### Format Conversion Fails
@@ -402,10 +466,10 @@ sudo apt install ffmpeg
 Verify your configuration:
 
 ```bash
-amx setup gcp
+alchemux setup gcp
 ```
 
-Check that `GCP_STORAGE_BUCKET` and `GCP_SA_KEY_BASE64` are set correctly in `.env`.
+Check that `storage.gcp.bucket` is set in `config.toml` and `GCP_SA_KEY_BASE64` is set in `.env`.
 
 ---
 
@@ -413,16 +477,17 @@ Check that `GCP_STORAGE_BUCKET` and `GCP_SA_KEY_BASE64` are set correctly in `.e
 
 ### Using Technical Terms
 
-To use technical terminology instead of arcane terms, set in `.env`:
+To use technical terminology instead of arcane terms, set in `config.toml`:
 
-```
-ARCANE_TERMS=false
+```toml
+[product]
+arcane_terms = false
 ```
 
-Or as an environment variable:
+Or use the config command:
 
 ```bash
-ARCANE_TERMS=false amx [url]
+alchemux config set product.arcane_terms false
 ```
 
 See [docs/legend.md](docs/legend.md) for terminology mappings.
@@ -432,33 +497,10 @@ See [docs/legend.md](docs/legend.md) for terminology mappings.
 For non-interactive use:
 
 ```bash
-amx --accept-eula --plain --format mp3 [url]
+alchemux --accept-eula --plain --format mp3 [url]
 ```
 
 The `--plain` flag ensures clean output for parsing.
-
----
-
-## Command Reference Summary
-
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--format` | `-f` | Audio format (mp3, aac, flac, etc.) |
-| `--audio-format` | | Audio format (alias for --format) |
-| `--video-format` | | Video container (mp4, mkv, etc.) |
-| `--flac` | | FLAC 16kHz mono conversion |
-| `--save-path` | | Custom download location |
-| `--gcp` | | Enable GCP upload (one-time) |
-| `--s3` | | Enable S3 upload (one-time) |
-| `--local` | | Force local storage (override defaults) |
-| `--save-default` | | Set default storage destination interactively |
-| `--setup` | | Run setup wizard |
-| `--accept-eula` | | Accept EULA non-interactively |
-| `--verbose` | | Enable debug logging |
-| `--debug` | | Enable debug mode |
-| `--plain` | | Disable colors/animations |
-| `--version` | `-v` | Show version |
-| `--help` | `-h` | Show help |
 
 ---
 

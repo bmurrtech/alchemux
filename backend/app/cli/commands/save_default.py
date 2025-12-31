@@ -12,7 +12,6 @@ from app.core.config_manager import ConfigManager
 
 def save_default(
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
-    config: Optional[str] = typer.Option(None, "--config", help="Path to .env configuration file"),
 ) -> None:
     """
     Set default storage destination interactively.
@@ -27,22 +26,7 @@ def save_default(
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
     
-    # Ensure config is a string (handle Typer OptionInfo objects)
-    if config is not None:
-        # Check if it's an OptionInfo object (when option not provided)
-        if hasattr(config, '__class__') and 'OptionInfo' in str(type(config)):
-            config_path = None
-        elif not isinstance(config, str):
-            config_path = str(config)
-            # If string conversion results in OptionInfo representation, treat as None
-            if config_path.startswith('<typer.models.OptionInfo'):
-                config_path = None
-        else:
-            config_path = config
-    else:
-        config_path = None
-    
-    config_manager = ConfigManager(env_path=config_path)
+    config_manager = ConfigManager()
     
     # Get current defaults
     gcp_enabled = config_manager.get("GCP_UPLOAD_ENABLED", "false").lower() == "true"
