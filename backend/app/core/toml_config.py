@@ -10,6 +10,13 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Try to import TOML Kit (preserves comments), fallback to stdlib/tomli
+try:
+    import tomlkit
+    TOMLKIT_AVAILABLE = True
+except ImportError:
+    TOMLKIT_AVAILABLE = False
+
 # Try to import TOML library (prefer tomllib for Python 3.11+, fallback to tomli)
 try:
     if sys.version_info >= (3, 11):
@@ -67,12 +74,21 @@ def read_toml(toml_path: Path) -> Dict[str, Any]:
     Returns:
         Dictionary of configuration values
     """
-    if not TOML_READ_AVAILABLE:
-        logger.warning("TOML read library not available. Install tomli for Python < 3.11")
-        return {}
-    
     if not toml_path.exists():
         logger.debug(f"config.toml not found at {toml_path}")
+        return {}
+        
+    # Prefer TOMLKit for comment preservation
+    if TOMLKIT_AVAILABLE:
+        try:
+            with open(toml_path, 'r', encoding='utf-8') as f:
+                return tomlkit.load(f)
+        except Exception as e:
+            logger.warning(f"TOMLKit read failed, falling back: {e}")
+            pass
+
+    if not TOML_READ_AVAILABLE:
+        logger.warning("TOML read library not available. Install tomli for Python < 3.11")
         return {}
     
     try:
@@ -91,13 +107,20 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
         toml_path: Path to config.toml
         config: Dictionary of configuration values (nested structure)
     """
-    if not TOML_WRITE_AVAILABLE:
-        logger.warning("TOML write library not available. Install tomli-w")
-        raise ImportError("tomli-w is required for writing config.toml")
-    
     try:
         # Ensure parent directory exists
         toml_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Prefer TOMLKit for comment preservation
+        if TOMLKIT_AVAILABLE:
+            with open(toml_path, 'w', encoding='utf-8') as f:
+                tomlkit.dump(config, f)
+            logger.debug(f"Wrote config.toml to {toml_path} (tomlkit)")
+            return
+
+        if not TOML_WRITE_AVAILABLE:
+            logger.warning("TOML write library not available. Install tomli-w")
+            raise ImportError("tomli-w is required for writing config.toml")
         
         # Convert dict to TOML string
         toml_content = TOML_WRITE_FUNC(config)

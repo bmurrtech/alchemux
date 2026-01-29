@@ -30,7 +30,7 @@ def is_packaged_build() -> bool:
 
 
 class EULAManager:
-    """Manages EULA acceptance with dual storage strategy."""
+    """Manages EULA acceptance using config.toml."""
     
     EULA_VERSION = "1.0"
     LICENSE_FILES = ["LICENSE.MD", "EULA.md"]
@@ -41,98 +41,15 @@ class EULAManager:
         
         Args:
             config_manager: ConfigManager instance
-            root_dir: Root directory for eula_config.json (defaults to .env parent or cwd)
+            root_dir: Ignored (legacy parameter)
         """
         self.config = config_manager
-        if root_dir:
-            self.root_dir = Path(root_dir)
-        else:
-            # Use .env file's parent directory as root
-            self.root_dir = config_manager.env_path.parent
-        
-        self.eula_json_path = self.root_dir / "eula_config.json"
-        self._sync_storage()
     
     def _generate_acceptance_hash(self) -> str:
         """Generate a unique hash for EULA acceptance verification."""
         return hashlib.sha256(
             f"{uuid.uuid4()}{datetime.now(timezone.utc).isoformat()}".encode()
         ).hexdigest()[:16]
-    
-    def _read_json_config(self) -> Optional[dict]:
-        """Read eula_config.json if it exists."""
-        if not self.eula_json_path.exists():
-            return None
-        
-        try:
-            with open(self.eula_json_path, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning(f"Error reading eula_config.json: {e}")
-            return None
-    
-    def _write_json_config(self, data: dict) -> None:
-        """Write eula_config.json with proper structure."""
-        try:
-            with open(self.eula_json_path, 'w') as f:
-                json.dump(data, f, indent=2)
-            logger.debug(f"Wrote eula_config.json to {self.eula_json_path}")
-        except IOError as e:
-            logger.error(f"Error writing eula_config.json: {e}")
-            raise
-    
-    def _sync_storage(self) -> None:
-        """
-        Synchronize dual storage (eula_config.json and config.toml).
-        JSON takes precedence if conflict exists.
-        """
-        json_data = self._read_json_config()
-        toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
-        toml_hash = self.config.get("eula.acceptance_hash", "")
-        toml_at = self.config.get("eula.accepted_at", "")
-        
-        # If JSON exists and indicates acceptance, ensure config.toml is updated
-        if json_data and json_data.get("eula_accepted"):
-            if not toml_accepted or toml_hash != json_data.get("acceptance_hash"):
-                logger.debug("Syncing config.toml from eula_config.json")
-                self.config.set("eula.accepted", "true")
-                self.config.set("eula.accepted_at", json_data.get("accepted_at", ""))
-                self.config.set("eula.acceptance_hash", json_data.get("acceptance_hash", ""))
-        
-        # If config.toml indicates acceptance but JSON is missing, recreate JSON
-        elif toml_accepted and toml_hash:
-            if not json_data or not json_data.get("eula_accepted"):
-                logger.debug("Recreating eula_config.json from config.toml")
-                self._write_json_config({
-                    "eula_accepted": True,
-                    "accepted_at": toml_at or datetime.now(timezone.utc).isoformat(),
-                    "accepted_by": "config_toml",
-                    "acceptance_hash": toml_hash,
-                    "eula_version": self.EULA_VERSION,
-                    "license_files": self.LICENSE_FILES
-                })
-        
-        # If both indicate acceptance but hashes don't match, prompt for re-acceptance
-        elif json_data and toml_accepted:
-            json_hash = json_data.get("acceptance_hash", "")
-            if json_hash and toml_hash and json_hash != toml_hash:
-                logger.warning("EULA acceptance hash mismatch between JSON and config.toml")
-                # Clear both to force re-acceptance
-                self._clear_acceptance()
-    
-    def _clear_acceptance(self) -> None:
-        """Clear EULA acceptance from both storage locations."""
-        # Clear config.toml
-        self.config.set("eula.accepted", "false")
-        self.config.set("eula.accepted_at", "")
-        self.config.set("eula.acceptance_hash", "")
-        
-        # Clear JSON
-        if self.eula_json_path.exists():
-            try:
-                self.eula_json_path.unlink()
-            except IOError as e:
-                logger.warning(f"Could not delete eula_config.json: {e}")
     
     def is_accepted(self) -> bool:
         """
@@ -141,19 +58,11 @@ class EULAManager:
         Returns:
             True if EULA is accepted, False otherwise
         """
-        self._sync_storage()
-        
-        # Check JSON first (authoritative)
-        json_data = self._read_json_config()
-        if json_data and json_data.get("eula_accepted"):
-            return True
-        
-        # Fallback to config.toml
         return self.config.get("eula.accepted", "").lower() == "true"
     
     def accept(self, accepted_by: str = "user_input") -> None:
         """
-        Record EULA acceptance in both storage locations.
+        Record EULA acceptance in config.toml.
         
         Args:
             accepted_by: How acceptance was recorded (e.g., "user_input", "flag", "env_var")
@@ -161,67 +70,73 @@ class EULAManager:
         acceptance_hash = self._generate_acceptance_hash()
         accepted_at = datetime.now(timezone.utc).isoformat()
         
-        # Write to JSON (authoritative proof)
-        json_data = {
-            "eula_accepted": True,
-            "accepted_at": accepted_at,
-            "accepted_by": accepted_by,
-            "acceptance_hash": acceptance_hash,
-            "eula_version": self.EULA_VERSION,
-            "license_files": self.LICENSE_FILES
-        }
-        self._write_json_config(json_data)
-        
-        # Write to config.toml (non-secret configuration)
+        # Write to config.toml
         self.config.set("eula.accepted", "true")
         self.config.set("eula.accepted_at", accepted_at)
         self.config.set("eula.acceptance_hash", acceptance_hash)
         
-        logger.info("EULA acceptance recorded in dual storage")
+        logger.info("EULA acceptance recorded in config.toml")
     
     def display_eula_summary(self) -> str:
         """
-        Display EULA summary text.
+        Display EULA summary text for the Rich Panel.
         
         Returns:
-            EULA summary text
+            EULA summary text (without interactive instructions - those are shown separately)
         """
-        return """Alchemux — EULA
+        return """By using this software you agree to the LICENSE and EULA.md.
 
-By using this software you agree to the LICENSE and EULA.md.
 Use only with content you own or are authorized to access.
-No warranty. You assume all risk. You agree to defend and indemnify the Provider and contributors.
 
-To continue:
-  • Type: I AGREE
-Or run non-interactively:
-  • alchemux --accept-eula
-Or set in your config.toml file directly:
-  • eula.accepted = true"""
+No warranty. You assume all risk. You agree to defend
+and indemnify the Provider and contributors."""
     
     def interactive_acceptance(self) -> bool:
         """
-        Prompt user for interactive EULA acceptance.
+        Prompt user for interactive EULA acceptance using the prompt wrapper (InquirerPy or Rich).
+        
+        Uses Rich Panel to display EULA summary and confirm prompt for y/n acceptance.
+        On decline, shows clear next steps for accepting later.
         
         Returns:
             True if user accepts, False otherwise
         """
-        print("\n" + "=" * 70)
-        print(self.display_eula_summary())
-        print("=" * 70 + "\n")
-        
-        while True:
-            response = input("Type \"I AGREE\" to continue, or 'quit' to exit: ").strip()
-            
-            if response.upper() == "I AGREE":
-                self.accept("user_input")
-                print("\n✓ EULA accepted. You may now use Alchemux.\n")
-                return True
-            elif response.lower() in ("quit", "exit", "q", "no", "n"):
-                print("\n✗ EULA not accepted. Exiting.\n")
-                return False
-            else:
-                print("Please type exactly \"I AGREE\" to continue, or 'quit' to exit.")
+        from rich.console import Console
+        from rich.panel import Panel
+
+        from app.cli.prompts import confirm
+
+        console = Console()
+
+        # Display EULA summary in a panel
+        console.print()
+        console.print(Panel(
+            self.display_eula_summary(),
+            title="[bold yellow]EULA Acceptance Required[/bold yellow]",
+            border_style="yellow",
+            padding=(1, 2)
+        ))
+        console.print()
+
+        # y/n confirmation via prompt wrapper (InquirerPy or Rich fallback)
+        accepted = confirm(
+            "Do you accept the EULA terms?",
+            default=False,
+        )
+        if accepted is None:
+            console.print("\n[yellow]![/yellow] EULA acceptance interrupted.")
+            accepted = False
+
+        if accepted:
+            self.accept("user_input")
+            console.print("\n[green]>[/green] EULA accepted. You may now use Alchemux.\n")
+            return True
+        else:
+            console.print("\n[yellow]![/yellow] EULA not accepted.")
+            console.print("[dim]To accept later, run:[/dim]")
+            console.print("  [cyan]alchemux setup[/cyan]")
+            console.print()
+            return False
     
     def check_and_require_acceptance(self, accept_flag: bool = False, env_var: bool = False) -> bool:
         """
@@ -237,6 +152,9 @@ Or set in your config.toml file directly:
         Returns:
             True if EULA is accepted (or was just accepted), False if user declined
         """
+        from rich.console import Console
+        console = Console()
+        
         # Skip EULA enforcement when running from source (not packaged)
         if not is_packaged_build():
             logger.debug("Running from source - EULA enforcement skipped (Apache 2.0 license applies)")
@@ -249,14 +167,14 @@ Or set in your config.toml file directly:
         # Check for non-interactive acceptance methods
         if accept_flag:
             self.accept("flag")
-            print("✓ EULA accepted via --accept-eula flag.\n")
+            console.print("[green]>[/green] EULA accepted via --accept-eula flag.\n")
             return True
         
         # Check config.toml for non-interactive acceptance
         toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
         if toml_accepted:
             self.accept("config_toml")
-            print("✓ EULA accepted via config.toml.\n")
+            console.print("[green]>[/green] EULA accepted via config.toml.\n")
             return True
         
         # Require interactive acceptance

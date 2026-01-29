@@ -30,9 +30,34 @@ def is_valid_url(url: str) -> bool:
         return False
 
 
+def _normalize_fracture_cause(msg: Optional[str]) -> str:
+    """Map common error text to readable cause for FRACTURED box; else 'unknown'."""
+    if not msg:
+        return "unknown"
+    m = (msg or "").lower()
+    if "403" in m or "forbidden" in m:
+        if "video data" in m or "unable to download video" in m:
+            return "video data blocked (HTTP 403)"
+        return "HTTP 403 Forbidden"
+    if "429" in m or "too many requests" in m:
+        return "rate limited (HTTP 429)"
+    if "network" in m or "connection" in m or "timeout" in m or "unreachable" in m:
+        return "network error"
+    if "not found" in m or "404" in m:
+        return "not found (HTTP 404)"
+    if "download failed" in m:
+        rest = m.replace("download failed:", "").replace("download failed", "").strip()
+        if "403" in rest or "forbidden" in rest:
+            return "HTTP 403 Forbidden"
+        if rest:
+            return rest[:80]
+        return "download failed"
+    return "unknown"
+
+
 def distill(
     url: str = typer.Argument(..., help="Source URL to distill"),
-    format: str = typer.Option("mp3", "--format", "-f", help="Audio codec/format"),
+    audio_format: Optional[str] = typer.Option(None, "--audio-format", "-a", help="Audio codec/format"),
     video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
     save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
@@ -58,8 +83,8 @@ def distill(
     # Initialize configuration (loads .env file and config.toml)
     config = ConfigManager()
     
-    # Initialize console (needed for logger) - read arcane_terms after .env is loaded
-    arcane_terms_str = config.get("ARCANE_TERMS", "true").lower()
+    # Initialize console: arcane_terms from config.toml (product.arcane_terms) then env fallback
+    arcane_terms_str = (config.get("product.arcane_terms") or config.get("ARCANE_TERMS") or "true").lower()
     arcane_terms = arcane_terms_str in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
     
@@ -72,16 +97,39 @@ def distill(
     global logger
     logger = setup_logger(__name__, console=console.console, verbose=debug)
     
-    # Check .env file - auto-run setup if missing
+    # Check EULA acceptance first (only enforced for packaged builds)
+    from app.core.eula import is_packaged_build, EULAManager
+    if is_packaged_build():
+        eula = EULAManager(config)
+        if not eula.is_accepted():
+            # Check if accept_eula flag is set for non-interactive acceptance
+            if accept_eula:
+                eula.accept("flag")
+                console.console.print("[green]>[/green] EULA accepted via --accept-eula flag.")
+            else:
+                # Run interactive EULA acceptance directly
+                if not eula.interactive_acceptance():
+                    # User declined - exit gracefully
+                    raise typer.Exit(code=1)
+    else:
+        # Running from source - EULA not required (Apache 2.0 license applies)
+        logger.debug("Running from source - EULA check skipped")
+    
+    # Ensure configuration files exist (auto-create from defaults if missing, now that EULA is handled)
     if not config.check_env_file_exists():
-        console.err_console.print("⚠️  Configuration file (.env) not found.")
-        console.err_console.print("   Running setup wizard...\n")
-        from app.core.setup_wizard import interactive_setup_minimal
-        if interactive_setup_minimal(config):
-            console.console.print()  # Add spacing
-        else:
-            console.err_console.print("\n❌ Setup failed. Please run 'alchemux setup' manually.")
-            raise typer.Exit(code=1)
+        try:
+            config._create_env_from_example()
+            # Reload env vars
+            from dotenv import load_dotenv
+            load_dotenv(config.env_path)
+        except Exception as e:
+            logger.warning(f"Could not create .env: {e}")
+            
+    if not config.check_toml_file_exists():
+        try:
+            config._create_toml_from_example()
+        except Exception as e:
+            logger.warning(f"Could not create config.toml: {e}")
     
     # Validate required variables
     # Check for paths.output_dir (preferred) or DOWNLOAD_PATH (legacy)
@@ -89,26 +137,8 @@ def distill(
     is_valid, missing = config.validate_required(required_vars)
     if not is_valid:
         console.err_console.print(f"⚠️  Missing required configuration: {', '.join(missing)}")
-        console.err_console.print("   Running setup wizard...\n")
-        from app.core.setup_wizard import interactive_setup_minimal
-        if interactive_setup_minimal(config):
-            console.console.print()  # Add spacing
-        else:
-            console.err_console.print("\n❌ Setup failed. Please run 'alchemux setup' manually.")
-            raise typer.Exit(code=1)
-    
-    # Check EULA acceptance (only enforced for packaged builds)
-    from app.core.eula import is_packaged_build, EULAManager
-    if is_packaged_build():
-        eula = EULAManager(config)
-        if not eula.check_and_require_acceptance(
-            accept_flag=accept_eula,
-            env_var=os.getenv("EULA_ACCEPTED", "").lower() == "true"
-        ):
-            raise typer.Exit(code=1)
-    else:
-        # Running from source - EULA not required (Apache 2.0 license applies)
-        logger.debug("Running from source - EULA check skipped")
+        console.err_console.print("   Please run 'alchemux setup' to repair configuration.\n")
+        raise typer.Exit(code=1)
     
     # Determine output directory (--save-path override or config default)
     if save_path:
@@ -152,124 +182,20 @@ def distill(
         title = f"{source}_{int(time.time())}"
         console.stage_ok("profile", "partial metadata recovered")
     
-    # Prepare output path
-    filename = sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
-    
-    # Determine actual format
-    audio_format = format
+    # Formats to produce: --video-format → one video run; --flac → flac; --audio-format → that; else enabled_formats
     if video_format:
-        # Video conversion - adjust filename extension
-        ext_map = {
-            "mp4": ".mp4", "mkv": ".mkv", "webm": ".webm",
-            "mov": ".mov", "avi": ".avi", "flv": ".flv", "gif": ".gif"
-        }
-        ext = ext_map.get(video_format, ".mp4")
-        filename = os.path.splitext(filename)[0] + ext
-    elif flac or (audio_format and audio_format.lower() == "flac"):
-        filename = os.path.splitext(filename)[0] + ".flac"
+        formats_to_produce = [video_format]  # one video run
+    elif flac:
+        formats_to_produce = ["flac"]
     elif audio_format:
-        ext_map = {
-            "aac": ".aac", "alac": ".m4a", "m4a": ".m4a",
-            "opus": ".opus", "vorbis": ".ogg", "wav": ".wav"
-        }
-        ext = ext_map.get(audio_format.lower(), ".mp3")
-        filename = os.path.splitext(filename)[0] + ext
-    
-    output_path = get_download_path(output_dir, source, filename)
-    with console.stage_status("vessel", f"preparing {filename}..."):
-        pass  # Path already prepared
-    console.stage_ok("vessel", "ready")
-    
-    # Download phase header (includes divider pattern)
-    console.print_phase_header("⚗ DISTILLING")
-    # Note: "initializing..." message is handled by progress bar, no need for separate print_stage
-    
-    # Progress tracking for Rich Progress
-    pulse_index = 0
-    last_percent = -1
-    progress_state = {"progress": None, "task_id": None, "total_bytes": 0}
-    
-    def progress_callback(d: dict) -> None:
-        nonlocal pulse_index, last_percent
-        status = d.get('status', '')
-        if status == 'downloading':
-            downloaded = d.get('downloaded_bytes', 0)
-            total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
-            
-            if total > 0:
-                progress_state["total_bytes"] = total
-                percent = int((downloaded / total) * 100)
-                
-                # Rotate pulse mark
-                if percent != last_percent:
-                    pulse_index = (pulse_index + 1) % len(console.PULSE_MARKS)
-                    last_percent = percent
-                
-                pulse = console.rotate_pulse(pulse_index)
-                
-                # Determine stage description (translate if needed)
-                if percent < 50:
-                    stage_desc = console.translate_message("charging vessel")
-                elif percent < 90:
-                    stage_desc = console.translate_message("distilling stream")
-                else:
-                    stage_desc = console.translate_message("distillation complete") if percent == 100 else "finalizing"
-                
-                # Update progress if available
-                if progress_state["progress"] and progress_state["task_id"] is not None:
-                    progress_state["progress"].update(
-                        progress_state["task_id"],
-                        completed=percent,
-                        total=100,
-                        status=stage_desc,
-                        description="downloading" if percent < 100 else "complete"
-                    )
-        elif status == 'finished':
-            if progress_state["progress"] and progress_state["task_id"] is not None:
-                progress_state["progress"].update(
-                    progress_state["task_id"],
-                    completed=100,
-                    total=100,
-                    status=console.translate_message("distillation complete"),
-                    description="[green]complete[/green]"
-                )
-    
-    # Create progress context
-    with console.create_progress_context("distill", total=100) as progress:
-        progress_state["progress"] = progress
-        task_id = console.add_progress_task(progress, "distill", total=100, status="initializing")
-        progress_state["task_id"] = task_id
-        
-        success, file_path, error_msg = downloader.download(
-            url,
-            str(output_path.with_suffix('')),  # Remove extension, yt-dlp will add it
-            audio_format=audio_format,
-            video_format=video_format,
-            flac_flag=flac,
-            progress_callback=progress_callback
-        )
-    
-    if not success:
-        console.print_fracture("distill", error_msg or "download failed")
-        raise typer.Exit(code=1)
-    
-    with console.stage_status("attune", "locating output..."):
-        pass  # File already located
-    console.stage_ok("attune", "attunement complete")
-    
-    # Write source URL to metadata (MUX stage)
-    if file_path:
-        console.print_phase_header("⌘ MUXING")
-        with console.stage_status("mux", "inscribing metadata..."):
-            metadata_success = write_source_url_to_metadata(file_path, url)
-        if metadata_success:
-            console.stage_ok("mux", "inscription complete")
-            logger.debug("Source URL written to metadata")
-        else:
-            console.print_fracture("mux", "metadata write failed (continuing)")
-            logger.warning("Failed to write source URL to metadata (continuing anyway)")
-    
-    # Determine storage destinations from flags
+        formats_to_produce = [audio_format]
+    else:
+        enabled = config.get_list("media.audio.enabled_formats")
+        formats_to_produce = enabled if enabled else [config.get("media.audio.format", "mp3")]
+
+    logger.debug(f"Formats to produce: {formats_to_produce}")
+
+    # Determine storage destinations from flags (before loop so we know upload_to_* once)
     # If multiple flags are set AND all are configured, save to all indicated places
     # Otherwise, use priority: flags > config.toml storage.destination > fallback
     flags_set = [flag for flag, value in [("local", local), ("s3", s3), ("gcp", gcp)] if value]
@@ -329,81 +255,149 @@ def distill(
         upload_to_gcp = (storage_dest == "gcp")
     
     keep_local_copy = config.get("storage.keep_local_copy", "false").lower() == "true"
-    
-    # Auto-setup check for GCP
+
+    # GCP/S3 setup once (so uploaders exist for the per-format loop)
+    gcp_uploader = None
     if upload_to_gcp:
-        console.print_divider()
-        uploader = GCPUploader(config)
-        if not uploader.is_configured():
+        console.print_phase_header("⇮ EVAPORATING")
+        gcp_uploader = GCPUploader(config)
+        if not gcp_uploader.is_configured():
             console.err_console.print("⚠️  GCP not configured. Running setup wizard...")
             from app.core.setup_wizard import interactive_gcp_setup
             if interactive_gcp_setup(config):
                 console.print_success("setup", "GCP configuration complete")
-                # Re-initialize uploader after setup
-                uploader = GCPUploader(config)
+                gcp_uploader = GCPUploader(config)
             else:
                 console.print_fracture("setup", "GCP setup failed")
                 raise typer.Exit(code=1)
-        
-        with console.stage_status("evaporate", "evaporating artifact..."):
-            upload_success, upload_result = uploader.upload(
-                file_path,
-                Path(file_path).name,
-                source
-            )
-        
-        if upload_success:
-            console.stage_ok("evaporate", "transfer complete")
-            console.console.print(f"☁️  Uploaded to: {upload_result}")
-        else:
-            console.print_fracture("evaporate", upload_result or "upload failed")
-            # Continue anyway - local file is still available
-    
-    # Auto-setup check for S3
+    s3_uploader = None
     if upload_to_s3:
-        console.print_divider()
-        uploader = S3Uploader(config)
-        if not uploader.is_configured():
+        if not upload_to_gcp:
+            console.print_phase_header("⇮ EVAPORATING")
+        s3_uploader = S3Uploader(config)
+        if not s3_uploader.is_configured():
             console.err_console.print("⚠️  S3 not configured. Running setup wizard...")
             from app.core.setup_wizard import interactive_s3_setup
             if interactive_s3_setup(config):
                 console.print_success("setup", "S3 configuration complete")
-                # Re-initialize uploader after setup
-                uploader = S3Uploader(config)
+                s3_uploader = S3Uploader(config)
             else:
                 console.print_fracture("setup", "S3 setup failed")
                 raise typer.Exit(code=1)
-        
-        with console.stage_status("evaporate", "evaporating artifact..."):
-            upload_success, upload_result = uploader.upload(
-                file_path,
-                Path(file_path).name,
-                source
-            )
-        
-        if upload_success:
-            console.stage_ok("evaporate", "transfer complete")
-            console.console.print(f"☁️  Uploaded to: {upload_result}")
+
+    seal_items = []  # [(ext, path_or_url), ...] for successful saves only
+    fractured_entries = []  # [(ext, cause), ...] for failed saves
+    first_file_path = None
+    title_display = os.path.splitext(sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title))[0]
+    is_video_run = bool(video_format)
+    video_ext_map = {"mp4": ".mp4", "mkv": ".mkv", "webm": ".webm", "mov": ".mov", "avi": ".avi", "flv": ".flv", "gif": ".gif"}
+    audio_ext_map = {"aac": ".aac", "alac": ".m4a", "m4a": ".m4a", "opus": ".opus", "vorbis": ".ogg", "wav": ".wav"}
+
+    for fmt in formats_to_produce:
+        base = sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
+        base = os.path.splitext(base)[0]
+        if is_video_run:
+            ext = video_ext_map.get((fmt or "").lower(), ".mp4")
+        elif (fmt or "").lower() == "flac":
+            ext = ".flac"
         else:
-            console.print_fracture("evaporate", upload_result or "upload failed")
-            # Continue anyway - local file is still available
-    
+            ext = audio_ext_map.get((fmt or "").lower(), ".mp3")
+        filename = base + ext
+        output_path = get_download_path(output_dir, source, filename)
+
+        with console.stage_status("vessel", f"preparing {filename}..."):
+            pass
+        console.stage_ok("vessel", "ready")
+
+        console.print_phase_header("⚗ DISTILLING")
+        # #region agent log
+        try:
+            import json
+            _lp = "/Users/bmurrtech/Documents/Code/alchemux/.cursor/debug.log"
+            with open(_lp, "a") as _f:
+                _f.write(json.dumps({"hypothesisId": "A", "location": "distill.py:download_call", "message": "URL passed to download", "data": {"url_is_watch": "youtube.com/watch" in url or "youtu.be" in url, "url_preview": url[:80] + "…" if len(url) > 80 else url}, "timestamp": __import__("time").time()}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        with console.stage_status("distill", "distilling..."):
+            success, file_path, error_msg = downloader.download(
+                url,
+                str(output_path.with_suffix("")),
+                audio_format=None if is_video_run else fmt,
+                video_format=fmt if is_video_run else None,
+                flac_flag=(fmt == "flac" and flac),
+                progress_callback=None,
+            )
+        if not success:
+            cause = _normalize_fracture_cause(error_msg)
+            fractured_entries.append((ext.lstrip(".") or fmt or "file", cause))
+            console.print_fracture("distill", error_msg or "download failed")
+            continue
+
+        with console.stage_status("attune", "locating output..."):
+            pass
+        console.stage_ok("attune", "attunement complete")
+        if not first_file_path and file_path:
+            first_file_path = file_path
+
+        if file_path:
+            console.print_phase_header("⌘ MUXING")
+            with console.stage_status("mux", "inscribing metadata..."):
+                metadata_success = write_source_url_to_metadata(file_path, url)
+            if metadata_success:
+                console.stage_ok("mux", "inscription complete")
+                logger.debug("Source URL written to metadata")
+            else:
+                logger.debug("Failed to write source URL to metadata (continuing anyway)")
+
+        this_display = None
+        if upload_to_gcp and gcp_uploader and file_path:
+            with console.stage_status("evaporate", "evaporating artifact..."):
+                up_ok, up_res = gcp_uploader.upload(file_path, Path(file_path).name, source)
+            if up_ok:
+                console.stage_ok("evaporate", "transfer complete")
+                this_display = up_res
+            else:
+                console.print_fracture("evaporate", up_res or "upload failed")
+                this_display = file_path
+        if upload_to_s3 and s3_uploader and file_path:
+            with console.stage_status("evaporate", "evaporating artifact..."):
+                up_ok, up_res = s3_uploader.upload(file_path, Path(file_path).name, source)
+            if up_ok:
+                console.stage_ok("evaporate", "transfer complete")
+                if this_display is None:
+                    this_display = up_res
+            else:
+                console.print_fracture("evaporate", up_res or "upload failed")
+                if this_display is None:
+                    this_display = file_path
+        if this_display is None and file_path:
+            this_display = file_path
+        if this_display:
+            seal_items.append((ext.lstrip(".") or fmt or "file", this_display))
+
     with console.stage_status("purge", "purging residues..."):
-        pass  # Cleanup is automatic
+        pass
     console.stage_ok("purge", "chamber clear")
-    
-    # Elevated completion state
-    console.print_seal(file_path)
-    
-    # Auto-open folder if enabled (from config.toml ui.auto_open or legacy .env AUTO_OPEN)
+
+    # Seal: title (no ext) + items; FRACTURED box for failed saves
+    if seal_items:
+        console.print_seal(title_base=title_display, items=seal_items)
+    if fractured_entries:
+        console.print_fractured_box(fractured_entries)
+    if fractured_entries and not seal_items:
+        raise typer.Exit(code=1)
+
+    # Auto-open folder if enabled
     auto_open_str = config.get("ui.auto_open") or config.get("AUTO_OPEN", "false")
     auto_open = auto_open_str.lower() == "true" if isinstance(auto_open_str, str) else bool(auto_open_str)
-    if auto_open and file_path:
+    path_for_open = first_file_path or (seal_items[0][1] if seal_items else None)
+    if auto_open and path_for_open and os.path.exists(path_for_open):
         try:
             import subprocess
             import platform
             
-            folder_path = Path(file_path).parent
+            folder_path = Path(path_for_open).parent
             
             if platform.system() == "Darwin":  # macOS
                 subprocess.run(["open", str(folder_path)], check=False)

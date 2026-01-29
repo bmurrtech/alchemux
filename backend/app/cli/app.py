@@ -51,8 +51,17 @@ app.command("setup")(setup.setup)
 
 # Import and register config and storage commands
 from app.cli.commands import config, storage
-app.add_typer(config.app, name="config", help="Manage configuration (config.toml)")
+# Config is now a Typer sub-app with subcommands (show, doctor, mv) + wizard default
+app.add_typer(config.app, name="config", help="Manage configuration location and diagnostics")
 app.add_typer(storage.app, name="storage", help="Manage storage settings and paths")
+
+# Import and register new configuration commands
+from app.cli.commands import audio_format, video_format, debug as debug_cmd, verbose as verbose_cmd, plain as plain_cmd
+app.command("audio-format", help="Interactive audio format selection")(audio_format.audio_format_command)
+app.command("video-format", help="Interactive video format selection")(video_format.video_format_command)
+app.command("debug", help="Toggle debug mode")(debug_cmd.debug_command)
+app.command("verbose", help="Toggle verbose logging")(verbose_cmd.verbose_command)
+app.command("plain", help="Toggle plain mode (disable colors/animations)")(plain_cmd.plain_command)
 
 # Version callback
 def version_callback(value: bool) -> None:
@@ -87,15 +96,14 @@ def main(
     ),
     # Backward compatibility: accept old-style arguments at root
     url: Optional[str] = typer.Argument(None, help="Source URL to transmute"),
-    format: str = typer.Option("mp3", "--format", "-f", help="Audio codec/format"),
-    audio_format: Optional[str] = typer.Option(None, "--audio-format", help="Audio codec/format (alias for --format)"),
+    audio_format: Optional[str] = typer.Option(None, "--audio-format", "-a", help="Audio codec/format"),
     video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
     save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
     local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
     s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
     gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
-    accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
     """
@@ -128,25 +136,28 @@ def main(
         return
     
     # If URL provided, route to invoke for backward compatibility
-    # But skip if URL is "setup" (that's a command, not a URL)
-    if url and url != "setup":
-        # Use audio_format if provided, otherwise format
-        actual_format = audio_format or format
-        from app.cli.commands.invoke import invoke
-        invoke(
-            url=url,
-            format=actual_format,
-            video_format=video_format,
-            flac=flac,
-            save_path=save_path,
-            local=local,
-            s3=s3,
-            gcp=gcp,
-            accept_eula=accept_eula,
-            debug=debug,
-            plain=plain,
-        )
-        return
+    # But skip if URL is a command name (like "setup", "audio-format", etc.)
+    # Only process URL if we have a valid URL and no command was invoked
+    if url and ctx.invoked_subcommand is None:
+        # Check if URL is actually a command name
+        command_names = ["setup", "audio-format", "video-format", "debug", "verbose", "plain", "config", "storage", "distill", "invoke", "mux", "seal", "inspect"]
+        if url not in command_names:
+            # Use audio_format if provided, otherwise default from config
+            from app.cli.commands.invoke import invoke
+            invoke(
+                url=url,
+                audio_format=audio_format,
+                video_format=video_format,
+                flac=flac,
+                save_path=save_path,
+                local=local,
+                s3=s3,
+                gcp=gcp,
+                debug=debug,
+                verbose=verbose,
+                plain=plain,
+            )
+            return
     
     # No URL and no subcommand - show help
     if not url:

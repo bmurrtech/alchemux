@@ -161,12 +161,21 @@ def storage_set(
     if not config_manager.check_env_file_exists():
         config_manager._create_env_from_example()
     
-    # Update config.toml
-    config_manager.set("paths.output_dir", absolute_path)
+    # Ensure config.toml exists
+    if not config_manager.check_toml_file_exists():
+        config_manager._create_toml_from_example()
     
-    console.print_success("storage", f"Output directory set to: {absolute_path}")
-    console.console.print(f"  Downloaded files will be saved to this location by default")
-    console.console.print("[dim]You can override this per-run using --save-path flag[/dim]")
+    try:
+        # Update config.toml
+        config_manager.set("paths.output_dir", absolute_path)
+        
+        console.print_success("storage", f"Output directory set to: {absolute_path}")
+        console.console.print(f"  Downloaded files will be saved to this location by default")
+        console.console.print(f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]")
+        console.console.print("[dim]You can override this per-run using --save-path flag[/dim]")
+    except Exception as e:
+        console.print_fracture("storage", f"Failed to update configuration: {e}")
+        raise typer.Exit(code=1)
 
 
 @app.command("use")
@@ -195,17 +204,28 @@ def storage_use(
     
     config_manager = ConfigManager()
     
-    # Use config.toml for storage.destination (non-secret)
-    config_manager.set("storage.destination", target)
-    console.print_success("storage", f"Default storage destination set to {target.upper()}")
+    # Ensure config files exist
+    if not config_manager.check_env_file_exists():
+        config_manager._create_env_from_example()
+    if not config_manager.check_toml_file_exists():
+        config_manager._create_toml_from_example()
     
-    console.console.print(f"  Files will be saved to {target} by default")
-    
-    # Warn if target is not configured
-    if target == "s3" and not config_manager.is_s3_configured():
-        console.console.print(f"  [yellow]⚠[/yellow]  S3 is not configured. Run 'alchemux setup s3' to configure it.")
-    elif target == "gcp" and not config_manager.is_gcp_configured():
-        console.console.print(f"  [yellow]⚠[/yellow]  GCP is not configured. Run 'alchemux setup gcp' to configure it.")
-    
-    console.console.print("[dim]You can override this per-run using --local, --s3, or --gcp flags[/dim]")
+    try:
+        # Use config.toml for storage.destination (non-secret)
+        config_manager.set("storage.destination", target)
+        console.print_success("storage", f"Default storage destination set to {target.upper()}")
+        
+        console.console.print(f"  Files will be saved to {target} by default")
+        console.console.print(f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]")
+        
+        # Warn if target is not configured
+        if target == "s3" and not config_manager.is_s3_configured():
+            console.console.print(f"  [yellow]⚠[/yellow]  S3 is not configured. Run 'alchemux setup s3' to configure it.")
+        elif target == "gcp" and not config_manager.is_gcp_configured():
+            console.console.print(f"  [yellow]⚠[/yellow]  GCP is not configured. Run 'alchemux setup gcp' to configure it.")
+        
+        console.console.print("[dim]You can override this per-run using --local, --s3, or --gcp flags[/dim]")
+    except Exception as e:
+        console.print_fracture("storage", f"Failed to update configuration: {e}")
+        raise typer.Exit(code=1)
 

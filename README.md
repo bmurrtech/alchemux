@@ -108,11 +108,11 @@ Alchemux relies on these excellent projects:
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Media downloader and converter (core functionality)
 - **[FFmpeg](https://ffmpeg.org/)** - Audio and video conversion (included in portable binaries)
 - **[Typer](https://typer.tiangolo.com/)** - Modern CLI framework
-- **[Rich](https://github.com/Textualize/rich)** - Beautiful terminal output and progress bars
+- **[Rich](https://github.com/Textualize/rich)** - Terminal output, progress bars, and styling
+- **[InquirerPy](https://github.com/kazhala/InquirerPy)** - Interactive CLI wizards.
 - **[mutagen](https://github.com/quodlibet/mutagen)** - Audio metadata handling
 - **[python-dotenv](https://github.com/theskumar/python-dotenv)** - Environment variable management
 - **[PyInstaller](https://www.pyinstaller.org/)** - Binary packaging
-- **[termcolor](https://github.com/termcolor/termcolor)** - Terminal color support
 
 Special thanks to the yt-dlp and FFmpeg communities for their incredible work on media extraction and conversion.
 
