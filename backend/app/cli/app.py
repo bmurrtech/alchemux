@@ -8,7 +8,7 @@ from typing import Optional
 from pathlib import Path
 
 # Version constant (shared with main.py)
-VERSION = "0.1.1-alpha"
+VERSION = "0.1.2-rc1"
 
 # Detect app name from binary invocation
 # When invoked as symlink, sys.argv[0] contains the symlink name
