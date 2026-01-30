@@ -34,6 +34,14 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
+      - name: Get platform and arch
+        id: arch
+        shell: bash
+        run: |
+          out=$(python scripts/ci_helpers.py)
+          echo "platform=$(echo "$out" | sed -n '1p')" >> "$GITHUB_OUTPUT"
+          echo "arch=$(echo "$out" | sed -n '2p')" >> "$GITHUB_OUTPUT"
+
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -68,29 +76,25 @@ jobs:
         if: matrix.platform == 'macos-latest'
         shell: bash
         run: |
-          ARCH=${{ runner.arch }}
-          SUFFIX=$(echo "$ARCH" | tr '[:upper:]' '[:lower:]')
-          cp dist/alchemux "dist/alchemux-${VERSION}-macos-${SUFFIX}"
-          [ -f dist/alchemux.command ] && cp dist/alchemux.command "dist/alchemux-${VERSION}-macos-${SUFFIX}.command" || true
+          cp dist/alchemux "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}"
+          [ -f dist/alchemux.command ] && cp dist/alchemux.command "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}.command" || true
 
       - name: Name and stage release artifact (Linux)
         if: matrix.platform == 'ubuntu-latest'
         shell: bash
-        run: cp dist/alchemux "dist/alchemux-${VERSION}-linux-x86_64"
+        run: cp dist/alchemux "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}"
 
       - name: Name and stage release artifact (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
-        run: Copy-Item dist\alchemux.exe "dist\alchemux-${env:VERSION}-windows-x86_64.exe"
+        run: Copy-Item dist\alchemux.exe "dist\alchemux-${env:VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}.exe"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: alchemux-${{ github.ref_name }}-${{ matrix.platform }}
+          name: alchemux-${{ github.ref_name }}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}
           path: |
-            dist/alchemux-*-macos-*
-            dist/alchemux-*-linux-x86_64
-            dist/alchemux-*-windows-x86_64.exe
+            dist/alchemux-*
           if-no-files-found: error
 
   release:
