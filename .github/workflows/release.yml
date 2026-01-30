@@ -59,7 +59,7 @@ jobs:
       - name: Build binary
         env:
           DIST_DIR: ${{ github.workspace }}/dist
-        run: python pm/scripts/build.py
+        run: python scripts/ci_build.py
 
       - name: Name and stage release artifact (macOS)
         if: matrix.platform == 'macos-latest'
