@@ -21,6 +21,9 @@ jobs:
 
     runs-on: ${{ matrix.platform }}
 
+    env:
+      VERSION: ${{ github.ref_name }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -67,27 +70,27 @@ jobs:
         run: |
           ARCH=${{ runner.arch }}
           SUFFIX=$(echo "$ARCH" | tr '[:upper:]' '[:lower:]')
-          cp dist/alchemux "dist/alchemux-macos-${SUFFIX}"
-          [ -f dist/alchemux.command ] && cp dist/alchemux.command "dist/alchemux-macos-${SUFFIX}.command" || true
+          cp dist/alchemux "dist/alchemux-${VERSION}-macos-${SUFFIX}"
+          [ -f dist/alchemux.command ] && cp dist/alchemux.command "dist/alchemux-${VERSION}-macos-${SUFFIX}.command" || true
 
       - name: Name and stage release artifact (Linux)
         if: matrix.platform == 'ubuntu-latest'
         shell: bash
-        run: cp dist/alchemux dist/alchemux-linux-x86_64
+        run: cp dist/alchemux "dist/alchemux-${VERSION}-linux-x86_64"
 
       - name: Name and stage release artifact (Windows)
         if: matrix.platform == 'windows-latest'
         shell: pwsh
-        run: Copy-Item dist\alchemux.exe dist\alchemux-windows-x86_64.exe
+        run: Copy-Item dist\alchemux.exe "dist\alchemux-${env:VERSION}-windows-x86_64.exe"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: alchemux-${{ matrix.platform }}
+          name: alchemux-${{ github.ref_name }}-${{ matrix.platform }}
           path: |
-            dist/alchemux-macos-*
-            dist/alchemux-linux-x86_64
-            dist/alchemux-windows-x86_64.exe
+            dist/alchemux-*-macos-*
+            dist/alchemux-*-linux-x86_64
+            dist/alchemux-*-windows-x86_64.exe
           if-no-files-found: error
 
   release:

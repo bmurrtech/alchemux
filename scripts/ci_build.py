@@ -26,7 +26,7 @@ def clean_build_dirs():
         shutil.rmtree(DIST_DIR)
     if BUILD_DIR.exists():
         shutil.rmtree(BUILD_DIR)
-    print("✓ Cleaned")
+    print("[OK] Cleaned")
 
 
 def find_ffmpeg_binaries():
@@ -37,10 +37,10 @@ def find_ffmpeg_binaries():
     ffmpeg_path = shutil.which("ffmpeg")
     ffprobe_path = shutil.which("ffprobe")
     if ffmpeg_path and ffprobe_path:
-        print(f"✓ Found ffmpeg: {ffmpeg_path}")
-        print(f"✓ Found ffprobe: {ffprobe_path}")
+        print(f"[OK] Found ffmpeg: {ffmpeg_path}")
+        print(f"[OK] Found ffprobe: {ffprobe_path}")
         return Path(ffmpeg_path), Path(ffprobe_path)
-    print("⚠️  Warning: ffmpeg/ffprobe not found in PATH")
+    print("[!] Warning: ffmpeg/ffprobe not found in PATH")
     return None, None
 
 
@@ -97,7 +97,7 @@ def build_binary():
 
     binary_path = DIST_DIR / (binary_name + (".exe" if sys.platform == "win32" else ""))
     if binary_path.exists():
-        print(f"✓ {binary_name} built successfully")
+        print(f"[OK] {binary_name} built successfully")
     return True
 
 
@@ -107,7 +107,7 @@ def create_launchers():
     with open(launcher_path, "w") as f:
         f.write('#!/bin/bash\ncd "$(dirname "$0")"\n./alchemux "$@"\n')
     os.chmod(launcher_path, 0o755)
-    print(f"✓ Created launcher: {launcher_path}")
+    print(f"[OK] Created launcher: {launcher_path}")
 
 
 def main():
@@ -116,9 +116,9 @@ def main():
     print("=" * 70)
     try:
         import PyInstaller
-        print(f"✓ PyInstaller {PyInstaller.__version__}")
+        print(f"[OK] PyInstaller {PyInstaller.__version__}")
     except ImportError:
-        print("❌ PyInstaller not found. pip install pyinstaller")
+        print("[X] PyInstaller not found. pip install pyinstaller")
         return 1
 
     clean_build_dirs()
@@ -129,7 +129,7 @@ def main():
 
     alchemux_path = DIST_DIR / ("alchemux.exe" if sys.platform == "win32" else "alchemux")
     if alchemux_path.exists():
-        print(f"\n✅ Build successful: {alchemux_path}")
+        print(f"\n[OK] Build successful: {alchemux_path}")
         return 0
     return 1
 
