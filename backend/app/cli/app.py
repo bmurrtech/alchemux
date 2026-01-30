@@ -49,19 +49,21 @@ app.command("inspect", hidden=True)(inspect.inspect)
 # Setup is a visible command (for configuration)
 app.command("setup")(setup.setup)
 
-# Import and register config and storage commands
-from app.cli.commands import config, storage
-# Config is now a Typer sub-app with subcommands (show, doctor, mv) + wizard default
+# Import and register config command
+from app.cli.commands import config, update, doctor, batch
+# Config is now a Typer sub-app with subcommands (show, mv) + wizard default
 app.add_typer(config.app, name="config", help="Manage configuration location and diagnostics")
-app.add_typer(storage.app, name="storage", help="Manage storage settings and paths")
+# Doctor command (standalone, moved from config doctor)
+app.command("doctor", help="Run configuration diagnostics and guided repairs")(doctor.doctor)
+# Update command for yt-dlp
+app.command("update", help="Update yt-dlp to latest stable version")(update.update)
+# Batch command (PRD 009): files / paste / playlist → per-URL pipeline
+app.command("batch", help="Process multiple URLs from files, paste, or playlist")(batch.batch)
 
-# Import and register new configuration commands
-from app.cli.commands import audio_format, video_format, debug as debug_cmd, verbose as verbose_cmd, plain as plain_cmd
-app.command("audio-format", help="Interactive audio format selection")(audio_format.audio_format_command)
-app.command("video-format", help="Interactive video format selection")(video_format.video_format_command)
-app.command("debug", help="Toggle debug mode")(debug_cmd.debug_command)
-app.command("verbose", help="Toggle verbose logging")(verbose_cmd.verbose_command)
-app.command("plain", help="Toggle plain mode (disable colors/animations)")(plain_cmd.plain_command)
+# Note: Removed commands per simplified CLI design (pm/notes/simplified-cli-design.md):
+# - audio-format, video-format: Use `alchemux config` wizard instead
+# - debug, verbose, plain: Use flags (--debug, --verbose, --plain) or `alchemux config` wizard
+# - storage: Use `alchemux config` wizard instead
 
 # Version callback
 def version_callback(value: bool) -> None:
@@ -94,17 +96,22 @@ def main(
         "--debug",
         help="Enable debug mode with full tracebacks",
     ),
+    accept_eula: bool = typer.Option(
+        False,
+        "--accept-eula",
+        help="Accept EULA non-interactively (packaged builds only; use with setup or alone, not with URL)",
+    ),
     # Backward compatibility: accept old-style arguments at root
     url: Optional[str] = typer.Argument(None, help="Source URL to transmute"),
-    audio_format: Optional[str] = typer.Option(None, "--audio-format", "-a", help="Audio codec/format"),
-    video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
-    flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
-    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
+    flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion (one-time override)"),
     local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
     s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
     gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
-    plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging (one-time override)"),
+    plain: bool = typer.Option(False, "--plain", help="Disable colors and animations (one-time override)"),
+    clipboard: bool = typer.Option(False, "--clipboard", "-p", help="Use URL from clipboard"),
+    # Note: Removed --audio-format, --video-format, --save-path per simplified CLI design
+    # Use `alchemux config` wizard for persistent configuration changes
 ) -> None:
     """
     Arcane media transmutation.
@@ -120,6 +127,38 @@ def main(
     if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
+    
+    # Handle non-interactive EULA acceptance at root level.
+    # This is intended for packaged builds and should NOT be used with a URL.
+    if accept_eula:
+        # Disallow using --accept-eula together with a URL to avoid
+        # silently accepting terms as part of a transmutation.
+        if url:
+            typer.echo("Error: --accept-eula cannot be used with a URL.")
+            typer.echo("Use one of:")
+            typer.echo("  alchemux --accept-eula")
+            typer.echo("  alchemux --accept-eula setup")
+            raise typer.Exit(code=1)
+        
+        from app.core.config_manager import ConfigManager
+        from app.core.eula import EULAManager, is_packaged_build
+        
+        config = ConfigManager()
+        eula = EULAManager(config)
+        
+        if is_packaged_build():
+            if eula.is_accepted():
+                typer.echo("EULA already accepted.")
+            else:
+                eula.accept("flag")
+                typer.echo("EULA accepted via --accept-eula.")
+        else:
+            # When running from source, EULA enforcement does not apply.
+            typer.echo("Running from source - EULA enforcement is not required.")
+        
+        # If only accepting EULA (no subcommand, no URL), exit after acceptance.
+        if ctx.invoked_subcommand is None and url is None:
+            raise typer.Exit()
     
     # Handle --help flag (eager, so it runs before other logic)
     if help:
@@ -140,16 +179,16 @@ def main(
     # Only process URL if we have a valid URL and no command was invoked
     if url and ctx.invoked_subcommand is None:
         # Check if URL is actually a command name
-        command_names = ["setup", "audio-format", "video-format", "debug", "verbose", "plain", "config", "storage", "distill", "invoke", "mux", "seal", "inspect"]
+        command_names = ["setup", "config", "doctor", "update", "batch", "distill", "invoke", "mux", "seal", "inspect"]
         if url not in command_names:
-            # Use audio_format if provided, otherwise default from config
+            # Route to invoke (audio_format and video_format now come from config, not flags)
             from app.cli.commands.invoke import invoke
             invoke(
                 url=url,
-                audio_format=audio_format,
-                video_format=video_format,
+                audio_format=None,  # Always use config default (per simplified CLI design)
+                video_format=None,   # Always use config default (per simplified CLI design)
                 flac=flac,
-                save_path=save_path,
+                save_path=None,      # Removed per simplified CLI design (use config wizard)
                 local=local,
                 s3=s3,
                 gcp=gcp,
@@ -158,8 +197,61 @@ def main(
                 plain=plain,
             )
             return
+        # Typer parsed the command name as the optional url argument (e.g. "alchemux batch").
+        # Dispatch to the intended command so batch/doctor/update work from the CLI.
+        if url == "batch":
+            from app.cli.commands.batch import batch
+            batch()
+            return
+        if url == "doctor":
+            from app.cli.commands.doctor import doctor
+            doctor()
+            return
+        if url == "update":
+            from app.cli.commands.update import update
+            update()
+            return
+        # config/setup are handled elsewhere; other names fall through to help below
     
-    # No URL and no subcommand - show help
+    # No URL and no subcommand: interactive mode or clipboard (PRD6)
+    if not url and ctx.invoked_subcommand is None:
+        from app.cli.url_input import acquire_url, is_tty
+
+        try:
+            resolved_url, overrides = acquire_url(
+                url_arg=url,
+                use_clipboard=clipboard,
+                is_tty=is_tty(),
+            )
+        except typer.Exit as e:
+            raise e
+
+        # Merge interactive overrides with existing flags (overrides take effect for this run only)
+        flac_final = flac or overrides.get("flac", False)
+        local_final = local or overrides.get("local", False)
+        s3_final = s3 or overrides.get("s3", False)
+        gcp_final = gcp or overrides.get("gcp", False)
+        debug_final = debug or overrides.get("debug", False)
+        verbose_final = verbose or overrides.get("verbose", False)
+        plain_final = plain or overrides.get("plain", False)
+
+        from app.cli.commands.invoke import invoke
+        invoke(
+            url=resolved_url,
+            audio_format=None,
+            video_format=None,
+            flac=flac_final,
+            save_path=None,
+            local=local_final,
+            s3=s3_final,
+            gcp=gcp_final,
+            debug=debug_final,
+            verbose=verbose_final,
+            plain=plain_final,
+        )
+        return
+
+    # No URL and no subcommand (fallback: e.g. non-TTY and no clipboard) - show help
     if not url:
         typer.echo(ctx.get_help())
         raise typer.Exit()

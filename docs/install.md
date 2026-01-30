@@ -112,22 +112,10 @@ python backend\app\main.py setup
 ```
 
 This will:
-- Create a `.env` configuration file
+- Create a `.env` and `config.toml` configuration files
 - Prompt you to accept the EULA
 - Set up download paths
 - Optionally configure cloud storage (GCP or S3)
-
-### Transmute a URL
-
-**Unix/macOS/Linux:**
-```bash
-python backend/app/main.py https://youtube.com/watch?v=...
-```
-
-**Windows (PowerShell):**
-```powershell
-python backend\app\main.py https://youtube.com/watch?v=...
-```
 
 ### Get Help
 

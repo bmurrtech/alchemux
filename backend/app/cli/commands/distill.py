@@ -36,8 +36,10 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
         return "unknown"
     m = (msg or "").lower()
     if "403" in m or "forbidden" in m:
-        if "video data" in m or "unable to download video" in m:
-            return "video data blocked (HTTP 403)"
+        # Note: yt-dlp reports "video data" even for audio-only downloads (YouTube returns result_type='video')
+        # The actual issue is CDN blocking (googlevideo.com) - can affect both audio and video streams
+        if "video data" in m or "unable to download" in m:
+            return "CDN blocked (HTTP 403) - try from residential IP"
         return "HTTP 403 Forbidden"
     if "429" in m or "too many requests" in m:
         return "rate limited (HTTP 429)"
@@ -64,7 +66,6 @@ def distill(
     local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
     s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
     gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
-    accept_eula: bool = typer.Option(False, "--accept-eula", help="Accept EULA non-interactively"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug mode with full tracebacks"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
@@ -98,19 +99,15 @@ def distill(
     logger = setup_logger(__name__, console=console.console, verbose=debug)
     
     # Check EULA acceptance first (only enforced for packaged builds)
+    # EULA must be accepted manually via setup wizard, not via flags
     from app.core.eula import is_packaged_build, EULAManager
     if is_packaged_build():
         eula = EULAManager(config)
         if not eula.is_accepted():
-            # Check if accept_eula flag is set for non-interactive acceptance
-            if accept_eula:
-                eula.accept("flag")
-                console.console.print("[green]>[/green] EULA accepted via --accept-eula flag.")
-            else:
-                # Run interactive EULA acceptance directly
-                if not eula.interactive_acceptance():
-                    # User declined - exit gracefully
-                    raise typer.Exit(code=1)
+            # Run interactive EULA acceptance directly
+            if not eula.interactive_acceptance():
+                # User declined - exit gracefully
+                raise typer.Exit(code=1)
     else:
         # Running from source - EULA not required (Apache 2.0 license applies)
         logger.debug("Running from source - EULA check skipped")
@@ -183,15 +180,27 @@ def distill(
         console.stage_ok("profile", "partial metadata recovered")
     
     # Formats to produce: --video-format → one video run; --flac → flac; --audio-format → that; else enabled_formats
-    if video_format:
-        formats_to_produce = [video_format]  # one video run
+    # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
+    video_format_config = config.get("media.video.format", "")
+    video_enabled_formats = config.get_list("media.video.enabled_formats") or []
+    video_enabled_in_config = bool(video_format_config and video_format_config.strip()) or bool(video_enabled_formats)
+    if video_format and video_enabled_in_config:
+        formats_to_produce = [video_format]  # one video run (only if enabled in config)
     elif flac:
         formats_to_produce = ["flac"]
     elif audio_format:
         formats_to_produce = [audio_format]
     else:
-        enabled = config.get_list("media.audio.enabled_formats")
-        formats_to_produce = enabled if enabled else [config.get("media.audio.format", "mp3")]
+        # Check if video formats are enabled in config (for multi-format production)
+        if video_enabled_in_config:
+            video_formats = video_enabled_formats if video_enabled_formats else ([video_format_config] if video_format_config else [])
+            enabled_audio = config.get_list("media.audio.enabled_formats")
+            audio_formats = enabled_audio if enabled_audio else [config.get("media.audio.format", "mp3")]
+            formats_to_produce = audio_formats + video_formats
+        else:
+            # Video disabled - only audio formats
+            enabled = config.get_list("media.audio.enabled_formats")
+            formats_to_produce = enabled if enabled else [config.get("media.audio.format", "mp3")]
 
     logger.debug(f"Formats to produce: {formats_to_produce}")
 
@@ -310,15 +319,6 @@ def distill(
         console.stage_ok("vessel", "ready")
 
         console.print_phase_header("⚗ DISTILLING")
-        # #region agent log
-        try:
-            import json
-            _lp = "/Users/bmurrtech/Documents/Code/alchemux/.cursor/debug.log"
-            with open(_lp, "a") as _f:
-                _f.write(json.dumps({"hypothesisId": "A", "location": "distill.py:download_call", "message": "URL passed to download", "data": {"url_is_watch": "youtube.com/watch" in url or "youtu.be" in url, "url_preview": url[:80] + "…" if len(url) > 80 else url}, "timestamp": __import__("time").time()}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         with console.stage_status("distill", "distilling..."):
             success, file_path, error_msg = downloader.download(
                 url,
@@ -329,10 +329,38 @@ def distill(
                 progress_callback=None,
             )
         if not success:
-            cause = _normalize_fracture_cause(error_msg)
-            fractured_entries.append((ext.lstrip(".") or fmt or "file", cause))
-            console.print_fracture("distill", error_msg or "download failed")
-            continue
+            # If video download failed, try audio-only fallback
+            if is_video_run and ("403" in (error_msg or "").lower() or "video data" in (error_msg or "").lower() or "forbidden" in (error_msg or "").lower()):
+                logger.warning(f"Video download failed ({error_msg}), attempting audio-only fallback...")
+                console.console.print(f"[yellow]⚠[/yellow]  Video download failed, attempting audio-only extraction...")
+                # Try audio-only extraction
+                audio_fmt = config.get("media.audio.format", "mp3")
+                success, file_path, error_msg = downloader.download(
+                    url,
+                    str(output_path.with_suffix("")),
+                    audio_format=audio_fmt,
+                    video_format=None,  # Explicitly disable video
+                    flac_flag=False,
+                    progress_callback=None,
+                )
+                if success:
+                    # Update extension for audio file
+                    ext = audio_ext_map.get(audio_fmt.lower(), ".mp3")
+                    filename = base + ext
+                    output_path = get_download_path(output_dir, source, filename)
+                    # Update is_video_run for this iteration
+                    is_video_run = False
+                    console.console.print(f"[green]✓[/green]  Audio extraction succeeded")
+                else:
+                    cause = _normalize_fracture_cause(error_msg)
+                    fractured_entries.append((ext.lstrip(".") or fmt or "file", cause))
+                    console.print_fracture("distill", error_msg or "download failed (video and audio fallback)")
+                    continue
+            else:
+                cause = _normalize_fracture_cause(error_msg)
+                fractured_entries.append((ext.lstrip(".") or fmt or "file", cause))
+                console.print_fracture("distill", error_msg or "download failed")
+                continue
 
         with console.stage_status("attune", "locating output..."):
             pass

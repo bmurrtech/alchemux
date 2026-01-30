@@ -58,8 +58,8 @@ def validate_path(path: str) -> Tuple[bool, Optional[str]]:
 
 
 def configure_product_settings(config: ConfigManager) -> None:
-    """Configure product settings (arcane_terms)."""
-    console.print("\n[bold cyan]Product Settings[/bold cyan]")
+    """Configure terminology settings (arcane_terms)."""
+    console.print("\n[bold cyan]Terminology Setting[/bold cyan]")
 
     current = config.get("product.arcane_terms", "true")
     current_bool = current.lower() in ("true", "1", "yes") if isinstance(current, str) else bool(current)
@@ -409,8 +409,19 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         console.print("[yellow]⚠[/yellow]  config.toml not found. Run 'alchemux setup' first to create it.")
         return False
     
+    # Add "Show Configurations" as first option (special action, not a category)
+    def show_configurations(config: ConfigManager) -> None:
+        """Show current configuration (same as 'alchemux config show')."""
+        from app.cli.commands.config import config_show
+        # Import console from config module
+        from app.cli.commands.config import console as config_console
+        # Call config_show but we need to handle it differently
+        # Since config_show uses its own console, we'll call it directly
+        config_show(plain=False)
+    
     categories = [
-        ("product", "Product Settings", configure_product_settings),
+        ("show", "Show Configurations", show_configurations),
+        ("product", "Terminology Setting", configure_product_settings),
         ("ui", "UI Settings", configure_ui_settings),
         ("logging", "Logging Settings", configure_logging_settings),
         ("paths", "Filesystem Paths", configure_paths),
@@ -423,27 +434,39 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         ("gcp", "GCP Storage Settings", configure_gcp_settings),
     ]
 
-    console.print("\n[bold]Select configuration categories to modify:[/bold]")
+    console.print("\n[bold]Select an action or configuration categories to modify:[/bold]")
     console.print("[dim]Use spacebar to toggle, Enter to confirm[/dim]\n")
     
     # Present checkbox menu
     category_choices = [(cat_id, name) for cat_id, name, _ in categories]
     selected = checkbox(
-        message="Select categories (at least one required)",
+        message="Select action or categories (at least one required)",
         choices=category_choices,
         default_selected=None,
     )
     
     if not selected or len(selected) == 0:
-        console.print("\n[yellow]No categories selected. Configuration cancelled.[/yellow]")
+        console.print("\n[yellow]No selection made. Configuration cancelled.[/yellow]")
         return False
+    
+    # If "show" is selected, run it and exit (don't modify config)
+    if "show" in selected:
+        show_configurations(config)
+        return True
+    
+    # Remove "show" from selected if it was there (it's already handled)
+    selected = [s for s in selected if s != "show"]
+    
+    if not selected:
+        # Only "show" was selected, already handled above
+        return True
     
     # Create mapping for quick lookup
     category_map = {cat_id: (name, func) for cat_id, name, func in categories}
     
     # Run selected category handlers sequentially
     console.print()
-    console.print(f"[dim]Configuring {len(selected)} category/categories...[/dim]\n")
+    console.print(f"[dim]Processing {len(selected)} selection(s)...[/dim]\n")
     
     for cat_id in selected:
         if cat_id not in category_map:
@@ -456,8 +479,8 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
             console.print("\n[yellow]Configuration cancelled.[/yellow]")
             return False
         except Exception as e:
-            logger.error(f"Error configuring {name}: {e}")
-            console.print(f"[red]✗[/red] Error configuring {name}: {e}")
+            logger.error(f"Error processing {name}: {e}")
+            console.print(f"[red]✗[/red] Error processing {name}: {e}")
     
     console.print()
     console.print("[green]✓[/green] Configuration wizard complete!")

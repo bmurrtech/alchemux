@@ -113,6 +113,22 @@ ALCHEMUX_TEST_VERBOSE=1 pytest backend/app/tests -q -s
 
 ---
 
+## Interactive mode and clipboard (PRD6 expansion)
+
+Tests for interactive URL prompt and `-p`/`--clipboard` use **mocks** only:
+
+- **InquirerPy**: prompt calls (text, confirm, checkbox) are mocked so tests do not hang; no real terminal UI.
+- **pyperclip**: `pyperclip.paste()` is mocked; tests never read or assert on real clipboard content.
+- **Non-interactive behavior**: run with CliRunner (no TTY) to assert exit codes and messages (e.g. "No URL provided", "Clipboard unsupported. Retry with …").
+
+To run only the PRD6 input tests:
+
+```bash
+pytest backend/app/tests/test_cli_interactive_input.py backend/app/tests/test_cli_clipboard_input.py -q -v
+```
+
+---
+
 ## Inventory: tests in this directory
 
 ## PRD7 functional expectations (what to validate)
@@ -155,6 +171,13 @@ This directory includes minimal smoke/unit coverage for:
 | `test_cli_config_smoke.py` | CLI smoke tests (user-action simulation) | `config show`, `config doctor` invocation via Typer CliRunner |
 | `test_config_doctor_repair.py` | Doctor/repair/backup unit tests | Backup creation/overwrite, restore, doctor diagnostics, arcane_terms precedence |
 | `test_downloader_path_resolution.py` | Multi-format path regression test | Expected extension wins when multiple formats exist |
+| `test_update_command.py` | Update command logic (throttling, version checks) | Update check throttling, timestamp file creation, version detection |
+| `test_cli_interactive_input.py` | PRD6 interactive URL input (no-args flow) | URL validation, prereq gating, acquire_url with mocks |
+| `test_cli_clipboard_input.py` | PRD6 clipboard URL input (`-p`/`--clipboard`) | Clipboard empty/invalid/unavailable, help shows `-p` |
+| `test_batch_parsing.py` | PRD009 batch URL extraction (TXT/CSV) | filter_url_candidates, extract_urls_from_text, extract_urls_from_csv; comments, blanks, invalid tokens |
+| `test_batch_file_discovery.py` | PRD009 batch file discovery | Config-dir scan (.txt/.csv only), _format_file_size, _collect_urls_from_files with mocked ConfigManager/inquirer |
+| `test_batch_playlist_expansion.py` | PRD009 batch playlist expansion | _expand_playlist_urls with mocked yt_dlp (entries → URLs); empty/failure cases |
+| `test_batch_command.py` | PRD009 batch command | batch in --help; TTY/prereq gating (patch.object on batch module); flow reaches inquirer.select |
 
 **What each test validates:**
 
@@ -162,6 +185,21 @@ This directory includes minimal smoke/unit coverage for:
 - **test_cli_config_smoke.py**: End-to-end CLI invocation (simulates `alchemux config show` and `alchemux config doctor` commands)
 - **test_config_doctor_repair.py**: Backup/restore functionality, single-latest overwrite policy, restore-on-failure, config key precedence (product.arcane_terms)
 - **test_downloader_path_resolution.py**: Regression guard for multi-format downloads (ensures correct file path returned per format)
+- **test_update_command.py**: Update command throttling logic, timestamp file management, version detection (no network operations in tests)
+- **test_cli_interactive_input.py**: PRD6 interactive URL acquisition (validate_url_like, domain_preview, prereq gating, acquire_url with mocks; no real InquirerPy/pyperclip)
+- **test_cli_clipboard_input.py**: PRD6 clipboard flow (_read_clipboard empty/invalid/unavailable, CLI --help shows -p/--clipboard, no-URL non-interactive exit message)
+- **test_batch_parsing.py**: Batch URL parsing (TXT newline/comma, comment lines; CSV cells; filter_url_candidates)
+- **test_batch_file_discovery.py**: Batch file discovery in config dir; one .txt file selected (mocked) yields extracted URLs
+- **test_batch_playlist_expansion.py**: Playlist expansion via mocked yt_dlp (webpage_url/url extraction; empty/failure returns [])
+- **test_batch_command.py**: Batch command in --help; batch.batch() exits with code 1 when is_tty False or _check_prerequisites False; flow calls inquirer.select when prereqs OK
+
+---
+
+## Batch mode tests (PRD 009)
+
+- **How to run:** `pytest backend/app/tests/test_batch_parsing.py backend/app/tests/test_batch_file_discovery.py backend/app/tests/test_batch_playlist_expansion.py backend/app/tests/test_batch_command.py -q` (or `pytest backend/app/tests -q` for full suite).
+- **Expected outcome:** All batch tests pass without network; InquirerPy and yt_dlp are mocked so no real prompts or downloads.
+- **What is mocked:** ConfigManager (config dir path), inquirer (select/checkbox/execute), yt_dlp (YoutubeDL.extract_info for playlist expansion). No secrets in logs.
 
 All tests are public-safe: use temp directories only, never print secrets/PII.
 

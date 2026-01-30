@@ -146,7 +146,11 @@ class MediaDownloader:
             opts['logger'] = self.ytdl_logger
         
         # Determine if we're doing audio or video
-        is_video = video_format is not None
+        # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
+        video_format_config = self.config.get("media.video.format", "")
+        video_enabled_formats = self.config.get_list("media.video.enabled_formats") or []
+        video_enabled_in_config = bool(video_format_config and video_format_config.strip()) or bool(video_enabled_formats)
+        is_video = video_format is not None and video_enabled_in_config
 
         # Merge-oriented format selectors to avoid fragile progressive formats (e.g. YouTube
         # format 22) that often cause 403 from googlevideo.com. Prefer DASH merge + container.
@@ -170,10 +174,18 @@ class MediaDownloader:
             audio_fmt = self._get_audio_format(audio_format)
             if flac_flag:
                 audio_fmt = "flac"
-            opts['format'] = 'bestaudio/best'
+            # Format selector for audio extraction. Default "best" reduces YouTube CDN 403s by requesting
+            # a single combined stream then extracting audio; "ba" requests best audio-only (more 403-prone).
+            # See: https://github.com/yt-dlp/yt-dlp/issues/14680
+            audio_selector = (os.getenv("YTDL_AUDIO_FORMAT_SELECTOR") or
+                             self.config.get("ytdl.audio_format_selector", "best") or "best")
+            opts['format'] = "best" if audio_selector.strip().lower() == "best" else "ba"
             opts['extractaudio'] = True
             opts['audioformat'] = audio_fmt
-            
+            # Explicitly prevent video processing
+            opts['writesubtitles'] = False
+            opts['writeautomaticsub'] = False
+
             # Audio quality (only for MP3)
             if audio_fmt.lower() == "mp3":
                 audio_quality = self.config.get("media.audio.quality", "5")
@@ -221,6 +233,12 @@ class MediaDownloader:
         else:
             logger.warning("ffmpeg/ffprobe not found. Audio/video conversion may fail.")
 
+        # Batch context (PRD 009): human-like delay via yt-dlp sleep to reduce 403/rate-limit risk
+        if os.getenv("ALCHEMUX_BATCH"):
+            opts['sleep_interval'] = 5
+            opts['max_sleep_interval'] = 6
+            logger.debug("Batch mode: yt-dlp sleep_interval 5s, max_sleep_interval 6s")
+
         # Optional 403/workaround options: config or env (env overrides). Rely on yt-dlp upstream.
         impersonate = os.getenv("YTDL_IMPERSONATE") or self.config.get("ytdl.impersonate")
         if impersonate and isinstance(impersonate, str) and impersonate.strip():
@@ -251,16 +269,6 @@ class MediaDownloader:
                 "paths_home": opts["paths"]["home"][:50] + "…" if len(opts["paths"]["home"]) > 50 else opts["paths"]["home"],
             }
             logger.debug(f"yt-dlp opts summary (sanitized): {summary}")
-        # #region agent log
-        try:
-            import json as _json
-            _lp = "/Users/bmurrtech/Documents/Code/alchemux/.cursor/debug.log"
-            _cfb = opts.get("cookiesfrombrowser")
-            with open(_lp, "a") as _f:
-                _f.write(_json.dumps({"hypothesisId": "B,H", "location": "downloader._build_ydl_opts", "message": "opts at runtime", "data": {"format": opts.get("format"), "merge_output_format": opts.get("merge_output_format"), "outtmpl": opts.get("outtmpl"), "paths_home_len": len(opts["paths"]["home"]), "impersonate": bool(opts.get("impersonate")), "cookiesfrombrowser_type": type(_cfb).__name__ if _cfb is not None else None, "force_ipv4": opts.get("force_ipv4")}, "timestamp": time.time()}) + "\n")
-        except Exception:
-            pass
-        # #endregion
 
         return opts
     
@@ -366,7 +374,33 @@ class MediaDownloader:
                 return False, None, error_msg
         
         except Exception as e:
-            error_msg = f"Download failed: {str(e)}"
+            error_msg = str(e)
+            # If 403 error on audio-only download, try alternative audio formats as fallback
+            if not video_format and ("403" in error_msg.lower() or "forbidden" in error_msg.lower()):
+                logger.warning(f"403 error on primary audio format, trying alternative audio formats...")
+                # Try specific audio format IDs in order: m4a (140), lower quality m4a (139), webm opus (251)
+                # These are common YouTube audio-only formats
+                fallback_formats = ['140', '139', '251']
+                for fmt_id in fallback_formats:
+                    try:
+                        ydl_opts_fallback = ydl_opts.copy()
+                        ydl_opts_fallback['format'] = fmt_id
+                        ydl_opts_fallback['extractaudio'] = True
+                        ydl_opts_fallback['audioformat'] = audio_fmt
+                        with yt_dlp.YoutubeDL(ydl_opts_fallback) as ydl_fallback:
+                            ydl_fallback.download([url])
+                        # If successful, find the file
+                        file_path = self._find_downloaded_file(output_path, downloaded_files, ydl_opts_fallback, expected_ext)
+                        if file_path and Path(file_path).exists():
+                            logger.info(f"Fallback format {fmt_id} succeeded: {file_path}")
+                            return True, file_path, None
+                    except Exception as fallback_error:
+                        logger.debug(f"Fallback format {fmt_id} failed: {fallback_error}")
+                        continue
+                # All fallbacks failed
+                error_msg = f"Download failed: {error_msg} (tried fallback formats: {', '.join(fallback_formats)})"
+            else:
+                error_msg = f"Download failed: {error_msg}"
             logger.exception(error_msg)
             return False, None, error_msg
     

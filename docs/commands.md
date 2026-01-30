@@ -11,6 +11,8 @@ The primary way to use Alchemux is to provide a URL for media transmutation.
 ```bash
 alchemux [OPTIONS] ["URL"]
 alchemux [OPTIONS] -- "URL"
+alchemux              # Interactive: prompts for URL (paste, no quotes)
+alchemux -p           # Use URL from clipboard (--clipboard)
 ```
 
 To transmute a URL using current defaults:
@@ -30,45 +32,47 @@ If you suspect argument parsing ambiguity, use the explicit delimiter form:
 alchemux -- "https://example.com/video?a=1&b=2"
 ```
 
+### Beginner-safe ways to run (no quoting needed)
+
+- **Option A:** Run `alchemux` with no arguments. When prompted, paste the URL (no quotes). Special characters are preserved.
+- **Option B:** Copy the media link, then run `alchemux -p` or `alchemux --clipboard` to use the URL from the clipboard (with validation).
+- **Option C (advanced):** Use a quoted URL or the `--` delimiter as above.
+
+Tip: Run `alchemux` and paste the URL when prompted to avoid shell quoting issues.
+
 ---
 
 ## Command Reference Summary
 
-### Flags (One-Run Overrides)
-*Requires a URL. These flags only apply to the current execution.*
+### Flags (One-Time Overrides)
+*These flags only apply to the current execution. For persistent configuration, use `alchemux config` wizard.*
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--audio-format` | `-a` | Audio format (mp3, aac, flac, etc.) |
-| `--video-format` | | Video container (mp4, mkv, etc.) |
-| `--flac` | | FLAC 16kHz mono conversion |
-| `--save-path` | | Custom download location |
-| `--gcp` | | Enable GCP upload |
-| `--s3` | | Enable S3 upload |
-| `--local` | | Force local storage |
-| `--debug` | | Enable debug mode |
-| `--verbose` | | Enable verbose logging |
-| `--plain` | | Disable colors/animations |
-| `--version` | `-v` | Show version |
-| `--help` | `-h` | Show help |
+| `--flac` | | FLAC 16kHz mono conversion (one-time override) |
+| `--gcp` | | Upload to GCP storage (one-time override) |
+| `--s3` | | Upload to S3 storage (one-time override) |
+| `--local` | | Save to local storage (one-time override) |
+| `--debug` | | Enable debug mode with full tracebacks (one-time override) |
+| `--verbose` | | Enable verbose logging (one-time override) |
+| `--plain` | | Disable colors and animations (one-time override) |
+| `--clipboard` | `-p` | Use URL from clipboard (paste) |
+| `--version` | `-v` | Show version and exit |
+| `--help` | `-h` | Show help and exit |
 
-### Commands (Persistent Configuration)
-*Standalone commands that modify `config.toml` or provide interactive wizards.*
+**Key principle:** Flags never persist. For persistent changes, use `alchemux config` wizard.
+
+### Commands
 
 | Command | Description |
 |---------|-------------|
-| `alchemux setup [target]` | Run setup wizard (target: gcp, s3, or default) |
-| `alchemux setup --reset` | Reset configuration to defaults |
-| `alchemux config` | Launch interactive config wizard |
-| `alchemux config show` | Show current configuration paths and values |
-| `alchemux config doctor` | Run diagnostics on configuration |
-| `alchemux config mv <path>` | Move/copy configuration to new directory |
-| `alchemux audio-format` | Set default audio format via selector |
-| `alchemux video-format` | Set default video format via selector |
-| `alchemux storage ...` | Manage storage settings and paths |
-| `alchemux debug` | Toggle persistent debug mode |
-| `alchemux verbose` | Toggle persistent verbose logging |
-| `alchemux plain` | Toggle persistent plain mode |
+| `alchemux setup` | Run interactive setup wizard (first-time setup or reset) |
+| `alchemux config` | Launch interactive config wizard (selective updates) |
+| `alchemux doctor` | Run configuration diagnostics and guided repairs |
+| `alchemux update` | Update yt-dlp to latest stable version |
+| `alchemux batch` | Process multiple URLs from files (TXT/CSV), paste, or playlist |
+
+**Note:** All configuration changes are handled through the `alchemux config` wizard.
 
 ---
 
@@ -82,153 +86,123 @@ The source URL to transmute. Can be from YouTube, Facebook, or any source suppor
 alchemux "https://youtube.com/watch?v=..."
 ```
 
-### Format Options (Overrides)
+### Format Configuration
 
-#### `--audio-format`, `-a`
+**Audio and video formats are configured via `alchemux config` wizard, not command-line flags.**
 
-Specify the audio codec/format for this run. Default is read from `config.toml`.
+To change default formats:
+1. Run `alchemux config`
+2. Select "Audio Settings" or "Video Settings" from the category menu
+3. Choose your preferred format from the interactive list
 
-```bash
-alchemux --audio-format flac "https://example.com/video"
-alchemux -a opus "https://example.com/video"
-```
+Supported audio formats: `mp3`, `aac`, `alac`, `flac`, `m4a`, `opus`, `vorbis`, `wav`
 
-Supported formats: `mp3`, `aac`, `alac`, `flac`, `m4a`, `opus`, `vorbis`, `wav`
+Supported video formats: `mp4`, `webm`, `mkv`, `mov`
 
-#### `--video-format`
-
-Specify the video container format for this run. Requires ffmpeg.
-
-```bash
-alchemux --video-format mkv "https://example.com/video"
-alchemux --video-format webm "https://example.com/video"
-```
+**One-time format override:** Use `--flac` flag for FLAC conversion on a single run.
 
 ---
 
 ## Configuration Commands
 
-### `alchemux setup [ARGS]`
+### `alchemux setup`
 
-Run the interactive setup wizard.
-
-```bash
-alchemux setup              # Full setup refresh
-alchemux setup gcp          # Configure GCP Cloud Storage
-alchemux setup s3           # Configure S3-compatible storage
-alchemux setup --reset      # Reset all configuration to defaults
-```
-
-The `--reset` flag deletes existing config files and recreates them from templates.
-This is useful when configuration becomes corrupted or you want a fresh start.
-
-### `alchemux audio-format` / `alchemux video-format`
-
-Interactive selection of supported codecs. Saves your selection as the new default in `config.toml`.
+Run the interactive setup wizard for first-time setup or to reset configuration.
 
 ```bash
-alchemux audio-format
-alchemux video-format
+alchemux setup              # First-time setup or reset configuration
 ```
+
+The setup wizard creates configuration files and guides you through initial configuration.
+If configuration files already exist, the wizard will refresh them.
 
 ### `alchemux config`
 
-Configuration management with subcommands and interactive wizard.
+Interactive configuration wizard for selective updates.
 
 ```bash
-alchemux config              # Launch interactive wizard (category-based multi-select)
-alchemux config show         # Show configuration paths and values
-alchemux config doctor       # Run diagnostics and guided repair
-alchemux config mv <path>    # Relocate configuration
+alchemux config              # Launch interactive wizard
 ```
 
-The `alchemux config` wizard is the **preferred** way to modify persistent settings. It supports **category-based selective updates**:
-
-- **Multi-select interface**: Choose multiple configuration categories to modify in one session
-- **Selective updates**: Only selected categories are changed; other settings remain unchanged
+The `alchemux config` wizard allows you to:
+- **View current configuration**: Select "Show Configurations" from the menu
+- **Modify specific settings**: Select one or more categories to update
 - **Guided experience**: Current values shown as defaults, validation built-in
-- **Available categories**: Product Settings, UI Settings, Logging, Filesystem Paths, Audio/Video Media, FLAC Presets, Network, Storage, S3/GCP (if configured)
 
-#### `alchemux config show`
+**Available options in the wizard:**
+- Show Configurations
+- Terminology Setting
+- UI Settings
+- Logging Settings
+- Filesystem Paths
+- Audio Media Settings
+- Video Media Settings
+- FLAC Preset Settings
+- Network Settings
+- Storage Settings
+- S3 Storage Settings (if configured)
+- GCP Storage Settings (if configured)
 
-Displays current configuration including:
-- Config directory and file paths
-- Output and temp directories
-- Storage destination and fallback
-- UI settings (arcane mode, plain mode)
+**No command-line options needed** — all configuration via guided UI.
 
-#### `alchemux config doctor`
+### `alchemux doctor`
 
-Runs diagnostics to check for common issues:
+Run configuration diagnostics and guided repairs.
+
+```bash
+alchemux doctor              # Run diagnostics and offer guided repairs
+```
+
+Runs automatic diagnostics to check for common issues:
 - Config directory and file existence
 - TOML file validity
 - Output directory writability
 - Cloud storage credential configuration
 - Pointer file validity
 
-**PRD7 behavior (config management MVP):**
-- After printing the diagnostic report, `config doctor` offers a **guided repair** flow for issues found.
-- Repairs are **interactive by default** and create a **single latest backup** before making changes.
-- If a repair fails, Alchemux attempts to **restore from the latest backup** and reports what happened.
+If issues are found, the doctor offers interactive repair options with automatic backup creation.
+No command-line options needed — the doctor is designed to be simple and automatic.
 
-Backups are stored under your active config directory (example):
-- `<config_dir>/.backups/latest/`
+### `alchemux update`
 
-Security note: diagnostics and repairs must **never print secret values** from `.env`.
-
-#### `alchemux config mv <path>`
-
-Copies configuration files to a new directory and updates the pointer file.
-Use `--move` to move files instead of copying.
+Update yt-dlp to the latest stable version.
 
 ```bash
-alchemux config mv ~/my-config              # Copy config to new location
-alchemux config mv ~/my-config --move       # Move config to new location
+alchemux update              # Check and update if needed (throttled to once per day)
+alchemux update --force      # Force update check (bypass throttling)
 ```
 
-The pointer file allows you to relocate configuration without breaking the app.
-Alchemux will use the new location on subsequent runs.
+**When to use:**
+- If downloads fail with HTTP 403 or extraction errors
+- To ensure you have the latest yt-dlp fixes and improvements
+- After yt-dlp releases new versions
 
-### `alchemux debug` / `alchemux verbose` / `alchemux plain`
+**How it works:**
+- Checks current yt-dlp version
+- Compares with latest stable from GitHub
+- Uses yt-dlp's built-in `--update-to stable` mechanism
+- Update checks are throttled to once per 24 hours (use `--force` to check immediately)
 
-Toggle persistent settings. These commands echo the new state and the path to `config.toml`.
+**Note**: This updates the yt-dlp Python package, not the Alchemux binary. The binary can update yt-dlp without requiring a new binary release.
+
+### `alchemux batch`
+
+Process multiple URLs from files (TXT/CSV), paste, or playlist expansion. Each URL runs through the same transmutation pipeline; a delay between items is applied automatically via yt-dlp to reduce 403 and rate-limit risk.
 
 ```bash
-alchemux debug      # Toggles debug mode on/off
-alchemux verbose    # Toggles verbose logging on/off
-alchemux plain      # Toggles plain mode on/off
+alchemux batch              # Interactive: choose source, then process
 ```
 
-### `alchemux storage`
+**Batch sources:**
+- **Files from config dir**: Place `.txt` or `.csv` files in the same directory as your `config.toml` and `.env`. Alchemux scans for them and lets you select one or more. URLs are extracted (one per line or comma-separated in TXT; any cell in CSV). Comment lines starting with `#`, `;`, or `]` are ignored.
+- **Paste URLs**: Paste multiple links (one per line or comma-separated). Submit an empty line to finish.
+- **Playlist URL**: Enter a playlist URL; Alchemux expands it to individual entry URLs via yt-dlp. If expansion fails, you can process the playlist URL as a single job or cancel.
 
-Manage storage settings and paths.
+**After URLs are loaded:** You can optionally apply one-time overrides (same as single-URL: `--debug`, `--flac`, `--local`, `--s3`, `--gcp`, `--verbose`, `--plain`) via a checkbox. Overrides apply to the entire batch run and do not persist.
 
-```bash
-alchemux storage use <target>        # Set default storage destination (local, s3, gcp)
-alchemux storage set <path>          # Set default output directory
-alchemux storage status              # Show current configuration status
-```
+**Behavior:** URLs are processed in order. If one fails, the batch continues and a summary (successes/failures) is printed at the end. No batch report file is written by default.
 
----
-
-## Path & Storage Options (Overrides)
-
-### `--save-path`
-
-Set a custom download location for this run only.
-
-```bash
-alchemux --save-path ~/Music "https://example.com/video"
-```
-
-### `--gcp` / `--s3` / `--local`
-
-One-time storage destination overrides. Requires a URL.
-
-```bash
-alchemux --gcp "https://example.com/video"    # Upload this transmutation to GCP
-alchemux --local "https://example.com/video"  # Save this transmutation locally only
-```
+**Note:** Batch mode requires an interactive terminal (TTY). Run `alchemux setup` first if you have not already.
 
 ---
 
@@ -276,24 +250,6 @@ alchemux "https://youtube.com/watch?v=abc123"
 alchemux --flac "https://youtube.com/watch?v=abc123"
 ```
 
-### Download as Opus
-
-```bash
-alchemux --audio-format opus "https://youtube.com/watch?v=abc123"
-```
-
-### Download Video as MKV
-
-```bash
-alchemux --video-format mkv "https://youtube.com/watch?v=abc123"
-```
-
-### Download with Custom Path
-
-```bash
-alchemux --save-path ~/Music "https://youtube.com/watch?v=abc123"
-```
-
 ### Download and Upload to GCP
 
 ```bash
@@ -315,39 +271,18 @@ alchemux --local "https://youtube.com/watch?v=abc123"
 ### Set Default Storage Destination
 
 ```bash
-alchemux storage use s3
+alchemux config  # Select "Storage Settings" → Choose S3
 ```
 
 ### Combined Options
 
 ```bash
-alchemux --audio-format aac --save-path ~/Music --gcp --debug "https://youtube.com/watch?v=abc123"
+alchemux --flac --gcp --debug "https://youtube.com/watch?v=abc123"
 ```
 
 ---
 
 ## Configuration Files
-
-### Configuration Location
-
-Alchemux uses platform-specific directories for configuration:
-
-| Platform | Config Directory |
-|----------|------------------|
-| macOS | `~/Library/Application Support/Alchemux/` |
-| Linux | `~/.config/alchemux/` or `$XDG_CONFIG_HOME/alchemux/` |
-| Windows | `%APPDATA%\Alchemux\` |
-
-Use `alchemux config show` to see your current configuration paths.
-
-#### Config Location Priority
-
-1. `ALCHEMUX_CONFIG_DIR` environment variable
-2. Pointer file (`config_path.txt` in default location)
-3. Portable mode: next to binary (if `.env` already exists there)
-4. Default OS config directory
-
-Use `alchemux config mv <path>` to relocate configuration.
 
 ### `.env` (Secrets Only)
 
@@ -371,11 +306,11 @@ All default configurations from `config.toml.example` are copied to `config.toml
 
 ### Running from source (Linux/macOS/Windows)
 
-If you are running from source (without a packaged binary), use:
+Run from the **repository root** (the directory that contains the `backend/` folder). Do **not** use `python -m app.main` from the repo root; use the path to `main.py`:
 
 ```bash
+cd /path/to/alchemux
 python backend/app/main.py --help
-python backend/app/main.py config show
 python backend/app/main.py "https://example.com/video"
 ```
 
@@ -385,18 +320,18 @@ python backend/app/main.py "https://example.com/video"
 
 ### EULA Acceptance
 
-If the EULA has not been accepted (packaged builds only), Alchemux will prompt for acceptance during setup or when running a transmutation. Use the setup wizard to accept interactively:
+If the EULA has not been accepted, Alchemux will prompt for acceptance during setup or when running a transmutation. Use the setup wizard to accept interactively:
 
 ```bash
 alchemux setup
 ```
 
-To accept non-interactively when transmuting a URL (e.g., in CI):
-```bash
-alchemux --accept-eula "https://example.com/video"
-```
+To accept non-interactively (e.g., in CI for packaged builds), use:
 
-Note: Source code builds (running from Python source) do not require EULA acceptance - they are covered by the Apache 2.0 license.
+```bash
+alchemux --accept-eula          # Accept EULA only
+alchemux --accept-eula setup    # Accept EULA, then run setup
+```
 
 ### Missing Defaults
 
@@ -405,3 +340,22 @@ If `config.toml` is missing or corrupted, run:
 alchemux setup
 ```
 This will restore all default settings from the example template while preserving your secrets in `.env`.
+
+### Update yt-dlp
+
+If downloads fail with HTTP 403 or other extraction errors, try updating yt-dlp:
+
+```bash
+alchemux update
+```
+
+This command:
+- Checks if yt-dlp is outdated
+- Updates to the latest stable version automatically
+- Throttles checks to once per day (use `--force` to bypass)
+
+**Note**: Update checks are throttled to avoid GitHub API rate limits. The update uses yt-dlp's built-in update mechanism, which is the most reliable method across platforms.
+
+### YouTube 403 / CDN blocking
+
+Alchemux uses a **combined-format** default for audio extraction (`best`): it downloads a single combined stream then extracts audio. This reduces YouTube CDN 403 errors compared to requesting separate audio streams. To use best-audio-only instead (e.g. for non-YouTube sources), set in `config.toml` under `[ytdl]`: `audio_format_selector = "ba"`, or env `YTDL_AUDIO_FORMAT_SELECTOR=ba`. See [yt-dlp #14680](https://github.com/yt-dlp/yt-dlp/issues/14680) for upstream context.
