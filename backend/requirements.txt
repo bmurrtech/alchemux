@@ -6,13 +6,21 @@ mutagen>=1.47.0
 # CLI framework
 typer>=0.12.0
 rich>=13.0.0
+InquirerPy>=0.3.4
+pyperclip>=1.8.0
 
-# Terminal utilities
-termcolor>=2.3.0
+# Cross-platform config paths
+# Reference: https://platformdirs.readthedocs.io/en/latest/api.html
+platformdirs>=4.0.0
+
+# TOML support (for Python < 3.11)
+tomli>=2.0.0; python_version < "3.11"
+tomli-w>=1.0.0
+tomlkit>=0.12.0
 
 # Optional: GCP upload
 google-cloud-storage>=2.10.0
 
-# Build tool
-pyinstaller>=6.0.0
+# Optional: S3 upload
+boto3>=1.28.0
 

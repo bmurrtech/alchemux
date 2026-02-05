@@ -2,6 +2,8 @@
 File management utilities for save path, directory creation, and file organization.
 """
 import os
+import sys
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -117,4 +119,132 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
     
     logger.debug(f"Sanitized filename: {filename}")
     return filename
+
+
+def get_resource_path(relative_path: str) -> Path:
+    """
+    Get absolute path to resource, works for dev and for PyInstaller.
+    
+    When running as PyInstaller binary, resources are extracted to _MEIPASS.
+    When running from source, resources are relative to the project root.
+    
+    Args:
+        relative_path: Relative path to resource (e.g., 'ffmpeg' or 'ffmpeg.exe')
+        
+    Returns:
+        Absolute Path to resource
+    """
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = Path(sys._MEIPASS)
+    except AttributeError:
+        # Running from source
+        base_path = Path(__file__).parent.parent.parent.parent
+    
+    return base_path / relative_path
+
+
+def find_ffmpeg_binary() -> Optional[Path]:
+    """
+    Find ffmpeg binary, checking bundled location first, then system PATH.
+    
+    Returns:
+        Path to ffmpeg binary, or None if not found
+    """
+    # Determine binary name based on platform
+    if sys.platform == "win32":
+        binary_name = "ffmpeg.exe"
+    else:
+        binary_name = "ffmpeg"
+    
+    # First, check if bundled with PyInstaller
+    try:
+        bundled_path = get_resource_path(binary_name)
+        if bundled_path.exists() and os.access(bundled_path, os.X_OK):
+            logger.debug(f"Found bundled ffmpeg: {bundled_path}")
+            return bundled_path
+    except Exception as e:
+        logger.debug(f"Could not check bundled ffmpeg: {e}")
+    
+    # Fall back to system PATH
+    ffmpeg_path = shutil.which("ffmpeg")
+    if ffmpeg_path:
+        logger.debug(f"Found ffmpeg in PATH: {ffmpeg_path}")
+        return Path(ffmpeg_path)
+    
+    logger.warning("ffmpeg not found in bundled location or system PATH")
+    return None
+
+
+def find_ffprobe_binary() -> Optional[Path]:
+    """
+    Find ffprobe binary, checking bundled location first, then system PATH.
+    
+    Returns:
+        Path to ffprobe binary, or None if not found
+    """
+    # Determine binary name based on platform
+    if sys.platform == "win32":
+        binary_name = "ffprobe.exe"
+    else:
+        binary_name = "ffprobe"
+    
+    # First, check if bundled with PyInstaller
+    try:
+        bundled_path = get_resource_path(binary_name)
+        if bundled_path.exists() and os.access(bundled_path, os.X_OK):
+            logger.debug(f"Found bundled ffprobe: {bundled_path}")
+            return bundled_path
+    except Exception as e:
+        logger.debug(f"Could not check bundled ffprobe: {e}")
+    
+    # Fall back to system PATH
+    ffprobe_path = shutil.which("ffprobe")
+    if ffprobe_path:
+        logger.debug(f"Found ffprobe in PATH: {ffprobe_path}")
+        return Path(ffprobe_path)
+    
+    logger.warning("ffprobe not found in bundled location or system PATH")
+    return None
+
+
+def get_ffmpeg_location() -> Optional[str]:
+    """
+    Get ffmpeg location for yt-dlp, handling bundled, system, and custom paths.
+    
+    Checks in order:
+    1. FFMPEG_PATH (if FFMPEG_CUSTOM_PATH=true)
+    2. Bundled ffmpeg/ffprobe (PyInstaller)
+    3. System PATH
+    
+    Returns:
+        Directory path containing ffmpeg/ffprobe, or None if not found
+    """
+    # Check if custom path is enabled
+    custom_path_enabled = os.getenv("FFMPEG_CUSTOM_PATH", "false").lower() == "true"
+    
+    if custom_path_enabled:
+        # Check for custom FFMPEG_PATH in environment
+        ffmpeg_env = os.getenv("FFMPEG_PATH", "").strip()
+        if ffmpeg_env:
+            # If it's a file path, use its parent directory
+            # If it's a directory, use it directly
+            env_path = Path(ffmpeg_env)
+            if env_path.is_file():
+                logger.debug(f"Using FFMPEG_PATH from environment (file): {env_path}")
+                return str(env_path.parent)
+            elif env_path.is_dir():
+                logger.debug(f"Using FFMPEG_PATH from environment (directory): {env_path}")
+                return str(env_path)
+            else:
+                logger.warning(f"FFMPEG_PATH set but path not found: {ffmpeg_env}")
+        else:
+            logger.warning("FFMPEG_CUSTOM_PATH=true but FFMPEG_PATH is not set")
+    
+    # Fall back to bundled or system ffmpeg
+    ffmpeg_path = find_ffmpeg_binary()
+    if ffmpeg_path:
+        # Return the directory containing ffmpeg
+        return str(ffmpeg_path.parent)
+    return None
 

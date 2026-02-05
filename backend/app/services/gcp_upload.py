@@ -8,6 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Tuple, Optional
+from urllib.parse import quote
 
 try:
     from google.cloud import storage
@@ -32,7 +33,9 @@ class GCPUploader:
             config: ConfigManager instance
         """
         self.config = config
-        self.bucket_name = config.get("GCP_STORAGE_BUCKET")
+        # Bucket from config.toml (non-secret)
+        self.bucket_name = config.get("storage.gcp.bucket") or config.get("GCP_STORAGE_BUCKET")
+        # Service account key from .env (secret)
         self.sa_key_base64 = config.get("GCP_SA_KEY_BASE64")
         self._creds_file: Optional[str] = None
     
@@ -139,7 +142,7 @@ class GCPUploader:
             if blob.exists():
                 metadata = blob.metadata or {}
                 if metadata.get("upload_complete") == "true":
-                    public_url = f"https://storage.googleapis.com/{self.bucket_name}/{blob_name}"
+                    public_url = f"https://storage.googleapis.com/{self.bucket_name}/{quote(blob_name, safe='/')}"
                     logger.info(f"File already exists: {public_url}")
                     return True, public_url
             
@@ -161,7 +164,7 @@ class GCPUploader:
             except Exception as e:
                 logger.debug(f"Could not set ACL (bucket may use uniform access): {e}")
             
-            public_url = f"https://storage.googleapis.com/{self.bucket_name}/{blob_name}"
+            public_url = f"https://storage.googleapis.com/{self.bucket_name}/{quote(blob_name, safe='/')}"
             logger.info(f"Uploaded to {public_url}")
             return True, public_url
         

@@ -140,9 +140,9 @@ Errors use the “fracture detected” pattern:
 
 ## Configuration
 
-Control terminology via the `ARCANE_TERMS` environment variable:
+Control terminology via **config.toml** (preferred) or environment:
 
-- `ARCANE_TERMS=true` (default) — Use arcane terminology
-- `ARCANE_TERMS=false` — Use technical terminology
+- **config.toml:** `[product]` → `arcane_terms = true` or `arcane_terms = false`
+- **Environment:** `ARCANE_TERMS=true` (default) or `ARCANE_TERMS=false`
 
-Set via `.env` or directly in the environment.
+When `arcane_terms = false`, technical terms are used (see tables above). The distill command reads `product.arcane_terms` from config.toml first, then falls back to `ARCANE_TERMS` from the environment.

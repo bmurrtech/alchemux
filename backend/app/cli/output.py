@@ -5,17 +5,14 @@ import os
 import sys
 from typing import Optional
 from rich.console import Console
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn, TimeElapsedColumn
+from rich.progress import (
+    Progress, SpinnerColumn, TextColumn, BarColumn, 
+    TimeRemainingColumn, TimeElapsedColumn, TaskProgressColumn
+)
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
 from rich.text import Text
-
-try:
-    from termcolor import colored
-    HAS_TERMCOLOR = True
-except ImportError:
-    HAS_TERMCOLOR = False
 
 
 class ArcaneConsole:
@@ -125,11 +122,36 @@ class ArcaneConsole:
         "⚗ DISTILLING": "⚗ DOWNLOADING",
         "◇ ATTUNING": "◇ LOCATING",
         "⌘ MUXING": "⌘ EMBEDDING",
+        "⇮ EVAPORATING": "⇮ UPLOADING",
         "SEAL COMPLETE": "SAVE COMPLETE",
     }
     
     # Pulse marks for progress animation
     PULSE_MARKS = ["◐", "◓", "◑", "◒"]
+    
+    # Stage-to-spinner mapping (non-emoji spinners only)
+    # Reference: python -m rich.spinner
+    # Forbidden: christmas, arrow2, earth, hearts, monkey, moon, runner, smiley, weather
+    SPINNER_MAP = {
+        "scribe": "dots",      # Inscribing dots
+        "scry": "dots3",       # Divination pulses
+        "profile": "dots2",    # Data extraction matrix
+        "vessel": "toggle11",  # Matches vessel sigil ⧈
+        "distill": "arc",      # Distillation rotation
+        "attune": "dots4",     # Frequency alignment
+        "mux": "dots",         # Stream weaving
+        "evaporate": "arrow3", # Ascending upload
+        "purge": "dots5",      # Cleaning residue
+        "seal": "toggle3",     # Final seal stamp
+        # Technical aliases
+        "validate": "dots",
+        "detect": "dots3",
+        "download": "arc",
+        "embed": "dots",
+        "upload": "arrow3",
+        "cleanup": "dots5",
+        "save": "toggle3",
+    }
     
     def __init__(self, plain: bool = False, arcane_terms: Optional[bool] = None):
         """
@@ -228,19 +250,32 @@ class ArcaneConsole:
         else:
             self.console.print(text)
     
-    def stage_status(self, stage: str, message: str) -> None:
+    def stage_status(self, stage: str, message: str):
         """
         Show a status spinner for a stage (e.g., "checking URL...").
         Use with context manager for automatic spinner.
         
+        Uses stage-consistent non-emoji spinners from SPINNER_MAP.
+        
         Args:
             stage: Stage name
             message: Status message
+            
+        Returns:
+            Console status context manager
         """
         sigil = self.SIGILS.get(stage, "")
         display_stage = self._translate_stage(stage)
         display_message = self._translate_message(message)
-        return self.console.status(f"[bold]{sigil}[/bold] {display_message}")
+        
+        # Get stage-specific spinner (non-emoji only)
+        spinner = self.SPINNER_MAP.get(stage, "dots")
+        
+        return self.console.status(
+            f"[bold]{sigil}[/bold] {display_message}",
+            spinner=spinner,
+            spinner_style="cyan" if not self.plain else None,
+        )
     
     def stage_ok(self, stage: str, message: str, duration: Optional[str] = None) -> None:
         """
@@ -308,6 +343,9 @@ class ArcaneConsole:
         """
         Print progress bar with pulse mark.
         
+        DEPRECATED: Use create_progress_context() for Rich-based progress instead.
+        This ASCII-based method is kept for backward compatibility only.
+        
         Args:
             stage: Stage name
             percent: Progress percentage (0-100)
@@ -343,43 +381,74 @@ class ArcaneConsole:
     ) -> Progress:
         """
         Create Rich Progress context manager for progress bars.
-        Uses proper Rich Progress that handles log line collisions.
+        
+        Uses spinner for unknown totals, bar for known totals.
+        Reference: https://rich.readthedocs.io/en/stable/progress.html
         
         Args:
             stage: Stage name
-            total: Total progress (None for unknown duration)
+            total: Total progress (None for indeterminate/pulsing)
             description: Initial description
             
         Returns:
-            Rich Progress instance
+            Rich Progress instance configured with Alchemux styling
         """
-        # Translate stage if needed
         display_stage = self._translate_stage(stage)
         sigil = self.SIGILS.get(stage, "")
+        spinner = self.SPINNER_MAP.get(stage, "dots")
         
+        # Build columns based on whether total is known
         if total is None:
-            # Spinner for unknown duration (transient, overwrites line)
-            progress = Progress(
-                SpinnerColumn(),
+            # Indeterminate progress - use spinner (will switch to bar when total is set)
+            columns = [
+                SpinnerColumn(spinner_name=spinner),
+                TextColumn(f"[bold]{sigil}[/bold]"),
+                TextColumn("[bold]{task.fields[stage]}[/bold]"),
                 TextColumn("[progress.description]{task.description}"),
-                transient=True,
-                console=self.console,
-            )
-        else:
-            # Clean progress bar with stage name, bar, percentage, and status
-            # Format: >> distill | [=====>........] 45% | charging vessel
-            progress = Progress(
-                TextColumn(f"[bold]>> {{task.fields[stage]}}[/bold] | {{task.description}}"),
-                BarColumn(bar_width=None),
-                TextColumn("{{task.percentage:>3.0f}}%"),
                 TextColumn("|"),
-                TextColumn("{{task.fields[status]}}"),
+                TextColumn("{task.fields[status]}"),
                 TimeElapsedColumn(),
-                console=self.console,
-                transient=False,  # Keep progress bar visible
-            )
+            ]
+        else:
+            # Determinate progress - use bar
+            columns = [
+                TextColumn(f"[bold]{sigil}[/bold]"),
+                TextColumn("[bold]{task.fields[stage]}[/bold]"),
+                BarColumn(bar_width=None, complete_style="green", finished_style="green"),
+                TaskProgressColumn(),
+                TextColumn("|"),
+                TextColumn("[progress.description]{task.description}"),
+                TextColumn("{task.fields[status]}"),
+                TimeElapsedColumn(),
+                TimeRemainingColumn(),
+            ]
+        
+        progress = Progress(
+            *columns,
+            console=self.console,
+            transient=False,
+            expand=True,
+            disable=self.plain,
+        )
         
         return progress
+    
+    def create_spinner_status(self, stage: str, message: str):
+        """
+        Create Rich Status spinner for unknown-duration tasks.
+        
+        Alias for stage_status() for API consistency with PRD.
+        
+        Reference: https://rich.readthedocs.io/en/stable/console.html#status
+        
+        Args:
+            stage: Stage name
+            message: Status message
+            
+        Returns:
+            Console status context manager
+        """
+        return self.stage_status(stage, message)
     
     def add_progress_task(
         self,
@@ -387,6 +456,7 @@ class ArcaneConsole:
         stage: str,
         total: Optional[int] = None,
         status: str = "",
+        description: str = "",
         pulse: Optional[str] = None
     ) -> int:
         """
@@ -407,10 +477,15 @@ class ArcaneConsole:
         display_status = self._translate_message(status) if status else ""
         
         if total is None:
-            return progress.add_task(description=f"{display_stage}", total=None)
+            return progress.add_task(
+                description=description or display_stage,
+                total=None,
+                stage=display_stage,
+                status=display_status
+            )
         else:
             return progress.add_task(
-                description="initializing",
+                description=description or "initializing",
                 total=total,
                 stage=display_stage,
                 status=display_status
@@ -428,42 +503,84 @@ class ArcaneConsole:
         """
         return self.PULSE_MARKS[iteration % len(self.PULSE_MARKS)]
     
-    def print_seal(self, file_path: str) -> None:
+    def print_seal(
+        self,
+        title_base: Optional[str] = None,
+        items: Optional[list] = None,
+        location: Optional[str] = None,
+        locations: Optional[list] = None,
+    ) -> None:
         """
-        Print seal box completion message using Rich Panel with enhanced details.
-        
-        Args:
-            file_path: Path to completed file
+        Print seal box: title (no ext) in header when provided; one line per output.
+        items = [(ext, path_or_url), ...] — when len > 1, show ".ext bottled → path_or_URL".
+        Legacy: location / locations as plain strings still supported.
         """
-        from pathlib import Path
-        
-        path_obj = Path(file_path)
-        basename = path_obj.name
-        dir_path = path_obj.parent
-        
-        # Translate seal message if needed
+        # Normalize to (title_base, list of (ext, path_or_url))
+        if items:
+            display_pairs = [(str(e).strip(), str(v).strip()) for e, v in items if v]
+        elif locations:
+            display_pairs = [("", str(s).strip()) for s in locations if s]
+        elif location:
+            display_pairs = [("", str(location).strip())]
+        else:
+            display_pairs = []
+
+        if not display_pairs:
+            return
+
         if self.arcane_terms:
             action = "bottled"
-            title = "SEAL COMPLETE"
+            box_title = "SEAL COMPLETE"
         else:
             action = "saved"
-            title = "SAVE COMPLETE"
-        
-        # Build panel content with basename emphasized and path dimmed
-        content_lines = [
-            f"[bold][■][/bold] {action} → [bold]{basename}[/bold]",
-            f"[dim]path: {dir_path}/...[/dim]"
-        ]
-        
+            box_title = "SAVE COMPLETE"
+        if title_base:
+            box_title = f"{box_title} — {title_base}"
+
+        show_ext = len(display_pairs) > 1
+        content_lines = []
+        for ext, path_or_url in display_pairs:
+            if show_ext and ext:
+                prefix = f"[bold][■][/bold] .{ext} {action} → "
+            else:
+                prefix = f"[bold][■][/bold] {action} → "
+            content_lines.append(prefix + f"[dim]{path_or_url}[/dim]")
         content = "\n".join(content_lines)
-        
-        # Use Rich Panel for clean, terminal-aware display
+
         panel_style = self.colors["success"] if self.colors["success"] else "default"
         self.console.print(
             Panel.fit(
                 content,
-                title=title,
+                title=box_title,
                 border_style=panel_style,
+                padding=(0, 1),
+            )
+        )
+
+    def print_fractured_box(self, entries: list) -> None:
+        """
+        Print FRACTURED box (red outline) for failed saves.
+        entries = [(ext_or_type, cause), ...]
+        Arcane: "⟬⌿⟭ [.ext] fractured | cause: cause"
+        Tech: "[×] [.ext] save failed | cause: cause"
+        """
+        if not entries:
+            return
+        if self.arcane_terms:
+            sigil, label = "⟬⌿⟭", "fractured"
+        else:
+            sigil, label = "[×]", "save failed"
+        content_lines = [
+            f"{sigil} [.{ext}] {label} | cause: {cause}"
+            for ext, cause in entries
+        ]
+        content = "\n".join(content_lines)
+        style = self.colors["error"] or "red"
+        self.err_console.print(
+            Panel.fit(
+                content,
+                title="FRACTURED",
+                border_style=style,
                 padding=(0, 1),
             )
         )
@@ -486,10 +603,9 @@ class ArcaneConsole:
         Print ALCHEMUX banner using hardcoded gothic-style ASCII art.
         
         Uses text-based representation for reliability and experimentation.
-        Applies gold color (yellow) if termcolor is available and not in plain mode.
+        Applies gold color (yellow) via Rich if not in plain mode.
         Uses raw strings to preserve exact backslash formatting.
         
-        ⚠️  CRITICAL: DO NOT MODIFY THE BANNER_LINES BELOW (lines 277-285)
         The exact spacing, backslashes, and characters are critical for proper rendering.
         Any changes will break the logo display.
         """
@@ -504,23 +620,17 @@ class ArcaneConsole:
             "(  ~/||  ||      ||                         ,     ",
             r"(  / ||  ||  _-_ ||/\\  _-_  \\/\\/\\ \\ \\ \\ /` ",
             r" \/==||  || ||   || || || \\ || || || || ||  \\   ",
-            r" /_ _||  || ||   || || ||/   || || || || ||  /\  ",
+            r" /_ _||  || ||   || || ||/   || || || || ||  /\\  ",
             r"(  - \\, \\ \\,/ \\ |/  \\,/ \\ \\ \\ \\/\\ /  \; ",
             "                   _/                             ",
         ]
         
-        # Apply color if not in plain mode and termcolor is available
-        if not self.plain and HAS_TERMCOLOR:
-            try:
-                # Use termcolor for yellow (gold-like) color
-                for line in banner_lines:
-                    print(colored(line, "yellow"))
-            except Exception:
-                # Fallback to plain if coloring fails
-                for line in banner_lines:
-                    print(line)
+        # Apply gold color via Rich if not in plain mode
+        if not self.plain:
+            for line in banner_lines:
+                self.console.print(line, style="yellow", highlight=False)
         else:
-            # Plain mode or no termcolor - no color, print exactly as-is
+            # Plain mode - no color, print exactly as-is
             for line in banner_lines:
                 print(line)
         
