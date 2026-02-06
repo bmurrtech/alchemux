@@ -157,5 +157,5 @@ Alchemux relies on these excellent projects:
 
 ## License
 
-Open source under the **GNU AGPLv3**—see `[LICENSE](LICENSE)` for terms.
+Open source under the **GNU AGPLv3**—see [LICENSE](LICENSE) for terms.
 Commercial licensing available—contact maintainers for details.
