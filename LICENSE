@@ -1,30 +1,89 @@
-# License
+LICENSE
+================================================================================
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+This project is licensed under the GNU Affero General Public License v3.0
+(AGPL-3.0).
 
-Full license text: <https://www.gnu.org/licenses/agpl-3.0.en.html>
+Full license text:
+https://www.gnu.org/licenses/agpl-3.0.en.html
 
----
+================================================================================
+SUMMARY OF PERMISSIONS AND RESTRICTIONS
+(For convenience only — the AGPL-3.0 license text is authoritative)
+================================================================================
 
-| Use Case                                                      | Permitted?                      | Conditions/Notes                                                                              |
-|---------------------------------------------------------------|------------------------------------------------|-----------------------------------------------------------------------------------------------|
-| Use the software privately                                    | ✅ Yes                                         | You may use for any private or internal purpose.                                               |
-| Modify the source code for your own use                       | ✅ Yes                                         | No restrictions as long as changes are for private/internal use only.                          |
-| Share/distribute unmodified versions                          | ✅ Yes                                         | Must include the full AGPL-3.0 license text and source code.                                   |
-| Distribute modified versions                                  | ✅ Yes                                         | Must release the full source and keep AGPL license—cannot make it more restrictive.            |
-| Provide the software as a service (e.g., SaaS, network use)   | ✅ Yes                                         | If users interact with your modified software over a network, you **must** offer your source.  |
-| Keep modifications private/internal only                      | ✅ Yes                                         | No need to share source unless you distribute or offer as a service.                           |
-| Close/proprietary fork (don’t release source)                 | ❌ No                                          | All distributed changes, including SaaS or network use, require releasing source code.         |
-| Hide modifications behind paywall, login, or closed binaries  | ❌ No                                          | Source must be accessible to all users; can’t restrict with logins or obfuscate binaries only. |
-| Sub-license under a more restrictive (proprietary) license    | ❌ No                                          | Cannot add restrictions beyond AGPL-3.0—copyleft must be preserved.                            |
-| Offer without sharing source for hosted/online use            | ❌ No                                          | Network users must get corresponding source for the actual running version.                    |
+PERMITTED USES
+--------------
 
+• Use the software privately or internally
+  - Permitted: YES
+  - Conditions: May be used for any private, internal, or non-distributed purpose.
 
-## Need commercial use, no attribution, or SaaS/network freedom?
+• Modify the source code for your own use
+  - Permitted: YES
+  - Conditions: No restrictions as long as changes remain private/internal.
 
-→ **Commercial and proprietary licenses are available!** These licenses waive AGPL copyleft (no source disclosure required, no open attribution needed, SaaS/embedded use OK).
+• Share or distribute unmodified versions
+  - Permitted: YES
+  - Conditions: Must include the full AGPL-3.0 license text and complete source.
 
-**How to get a commercial license:**
-Open a GitHub Issue in this project’s repository to contact the maintainers for commercial/pricing details.
+• Distribute modified versions
+  - Permitted: YES
+  - Conditions: Must release full source code under AGPL-3.0.
 
-_We don’t publish a direct email to avoid spam—public GitHub contact is preferred and monitored regularly._
+• Provide the software as a service (SaaS / network use)
+  - Permitted: YES
+  - Conditions: Users interacting over a network must be able to obtain the
+    complete corresponding source code for the running version.
+
+• Keep modifications private (no distribution or SaaS)
+  - Permitted: YES
+  - Conditions: Source disclosure is not required unless distributing or
+    providing network access.
+
+PROHIBITED USES
+---------------
+
+• Creating a closed-source or proprietary fork
+  - Permitted: NO
+  - Reason: All distributed or network-hosted modifications require source
+    disclosure under AGPL-3.0.
+
+• Hiding modifications behind paywalls, logins, or closed binaries
+  - Permitted: NO
+  - Reason: Source must be accessible to all users interacting with the software.
+
+• Sub-licensing under a more restrictive or proprietary license
+  - Permitted: NO
+  - Reason: AGPL-3.0 copyleft restrictions must remain intact.
+
+• Offering hosted or online access without sharing source
+  - Permitted: NO
+  - Reason: Network users must receive the source for the exact version in use.
+
+================================================================================
+COMMERCIAL / PROPRIETARY LICENSING
+================================================================================
+
+Need any of the following?
+
+• Commercial use without copyleft obligations
+• Proprietary or closed-source usage
+• SaaS or hosted deployment without source disclosure
+• Embedded or internal distribution without attribution
+
+Commercial licenses are available.
+
+These licenses waive AGPL-3.0 copyleft requirements, including:
+- No obligation to publish source code
+- No public attribution requirements
+- SaaS, hosted, and embedded use allowed
+
+HOW TO OBTAIN A COMMERCIAL LICENSE
+----------------------------------
+
+Open a GitHub Issue in this project’s repository to contact the maintainers
+for licensing and pricing details.
+
+We do not publish a direct email address to reduce spam.
+Public GitHub contact is preferred and is actively monitored.
