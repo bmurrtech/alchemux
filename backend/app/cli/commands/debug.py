@@ -1,6 +1,7 @@
 """
 Debug command - Toggle debug mode in config.toml.
 """
+
 import typer
 from rich.console import Console
 
@@ -29,7 +30,11 @@ def debug_command(
     try:
         # Get current debug setting
         current_debug = config.get("logging.debug", "false")
-        current_debug_bool = current_debug.lower() in ("true", "1", "yes") if isinstance(current_debug, str) else bool(current_debug)
+        current_debug_bool = (
+            current_debug.lower() in ("true", "1", "yes")
+            if isinstance(current_debug, str)
+            else bool(current_debug)
+        )
 
         # Toggle the setting
         new_value = "false" if current_debug_bool else "true"

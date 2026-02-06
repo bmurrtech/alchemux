@@ -47,6 +47,11 @@ The repo uses **[prek](https://github.com/j178/prek)** for pre-commit hooks (for
 1. **Run hooks:** `prek run --all-files` (from repo root). Fix any failures.
 2. **Run tests:** `pytest backend/app/tests -q` (with venv activated and deps installed).
 
+**Pre-commit checks included:**
+
+- **Built-in hooks:** trailing whitespace, end-of-file fixer, mixed line endings, check-toml, check-yaml, check-json, merge conflict detection, private-key detection, large-file check, case/symlink checks.
+- **Ruff:** Python linting (with `--fix`) and formatting. Ruff is configured via the repo-root **`pyproject.toml`** (`[tool.ruff]`, `[tool.ruff.format]`, `[tool.ruff.lint]`). Source paths and rules are defined there; run `ruff check .` or `ruff format .` from the repo root to reproduce hook behavior locally if needed.
+
 See [docs/contributors.md](../../docs/contributors.md) for prek install ([installation](https://github.com/j178/prek?tab=readme-ov-file#installation)), `prek install --install-hooks`, and the full CLI reference ([prek.j178.dev/cli](https://prek.j178.dev/cli/)).
 
 ---

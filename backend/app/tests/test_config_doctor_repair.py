@@ -3,19 +3,18 @@ Tests for config doctor diagnostics and guided repair (PRD7 FR-3/FR-4).
 
 Public-safe tests using temp directories only. No secrets or real user configs.
 """
+
 import os
 import sys
 import tempfile
 from pathlib import Path
-from unittest.mock import patch
 
-import pytest
 
 # Ensure `app.*` imports work when running from repo root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from app.core.config_manager import ConfigManager  # noqa: E402
-from app.core.toml_config import read_toml, write_toml  # noqa: E402
+from app.core.toml_config import read_toml  # noqa: E402
 
 
 def _seed_minimal_config(cfg_dir: Path) -> None:
@@ -23,9 +22,7 @@ def _seed_minimal_config(cfg_dir: Path) -> None:
     cfg_dir.mkdir(parents=True, exist_ok=True)
     (cfg_dir / ".env").write_text("")
     (cfg_dir / "config.toml").write_text(
-        "[paths]\n"
-        'output_dir = "./downloads"\n'
-        'temp_dir = "./tmp"\n'
+        "[paths]\n" 'output_dir = "./downloads"\n' 'temp_dir = "./tmp"\n'
     )
 
 

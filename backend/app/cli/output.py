@@ -1,18 +1,22 @@
 """
 Arcane output console using Rich for stylized ritual output.
 """
+
 import os
-import sys
 from typing import Optional
 from rich.console import Console
 from rich.progress import (
-    Progress, SpinnerColumn, TextColumn, BarColumn,
-    TimeRemainingColumn, TimeElapsedColumn, TaskProgressColumn
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TimeRemainingColumn,
+    TimeElapsedColumn,
+    TaskProgressColumn,
 )
 from rich.panel import Panel
 from rich.rule import Rule
 from rich.table import Table
-from rich.text import Text
 
 
 class ArcaneConsole:
@@ -133,16 +137,16 @@ class ArcaneConsole:
     # Reference: python -m rich.spinner
     # Forbidden: christmas, arrow2, earth, hearts, monkey, moon, runner, smiley, weather
     SPINNER_MAP = {
-        "scribe": "dots",      # Inscribing dots
-        "scry": "dots3",       # Divination pulses
-        "profile": "dots2",    # Data extraction matrix
+        "scribe": "dots",  # Inscribing dots
+        "scry": "dots3",  # Divination pulses
+        "profile": "dots2",  # Data extraction matrix
         "vessel": "toggle11",  # Matches vessel sigil ⧈
-        "distill": "arc",      # Distillation rotation
-        "attune": "dots4",     # Frequency alignment
-        "mux": "dots",         # Stream weaving
-        "evaporate": "arrow3", # Ascending upload
-        "purge": "dots5",      # Cleaning residue
-        "seal": "toggle3",     # Final seal stamp
+        "distill": "arc",  # Distillation rotation
+        "attune": "dots4",  # Frequency alignment
+        "mux": "dots",  # Stream weaving
+        "evaporate": "arrow3",  # Ascending upload
+        "purge": "dots5",  # Cleaning residue
+        "seal": "toggle3",  # Final seal stamp
         # Technical aliases
         "validate": "dots",
         "detect": "dots3",
@@ -173,7 +177,9 @@ class ArcaneConsole:
 
         # Create console instances
         self.console = Console(force_terminal=not self.plain, no_color=self.plain)
-        self.err_console = Console(stderr=True, force_terminal=not self.plain, no_color=self.plain)
+        self.err_console = Console(
+            stderr=True, force_terminal=not self.plain, no_color=self.plain
+        )
 
         # Color styles
         self.colors = {
@@ -218,7 +224,7 @@ class ArcaneConsole:
         stage: str,
         message: str,
         status: Optional[str] = None,
-        style: Optional[str] = None
+        style: Optional[str] = None,
     ) -> None:
         """
         Print stage message with sigil.
@@ -230,7 +236,7 @@ class ArcaneConsole:
             style: Optional style (success, processing, warning, error)
         """
         # Translate stage and message if needed
-        display_stage = self._translate_stage(stage)
+        _display_stage = self._translate_stage(stage)
         display_message = self._translate_message(message)
         display_status = self._translate_message(status) if status else None
 
@@ -265,7 +271,7 @@ class ArcaneConsole:
             Console status context manager
         """
         sigil = self.SIGILS.get(stage, "")
-        display_stage = self._translate_stage(stage)
+        _display_stage = self._translate_stage(stage)
         display_message = self._translate_message(message)
 
         # Get stage-specific spinner (non-emoji only)
@@ -277,7 +283,9 @@ class ArcaneConsole:
             spinner_style="cyan" if not self.plain else None,
         )
 
-    def stage_ok(self, stage: str, message: str, duration: Optional[str] = None) -> None:
+    def stage_ok(
+        self, stage: str, message: str, duration: Optional[str] = None
+    ) -> None:
         """
         Print a consistent stage success line with uniform formatting.
 
@@ -297,13 +305,19 @@ class ArcaneConsole:
         t.add_column()
 
         if duration:
-            t.add_row(f"{sigil}", display_stage, f"[green]✓[/green] {display_message} [dim]{duration}[/dim]")
+            t.add_row(
+                f"{sigil}",
+                display_stage,
+                f"[green]✓[/green] {display_message} [dim]{duration}[/dim]",
+            )
         else:
             t.add_row(f"{sigil}", display_stage, f"[green]✓[/green] {display_message}")
 
         self.console.print(t)
 
-    def print_success(self, stage: str, message: str, status: Optional[str] = None) -> None:
+    def print_success(
+        self, stage: str, message: str, status: Optional[str] = None
+    ) -> None:
         """Print success message with checkmark."""
         # Translate stage and message if needed
         display_stage = self._translate_stage(stage)
@@ -334,11 +348,7 @@ class ArcaneConsole:
         self.console.print(f"~∿~∿~∿~∿~∿~∿~ [dim]⟦{display_phase}⟧[/dim] ~∿~∿~∿~∿~∿~∿~")
 
     def print_progress(
-        self,
-        stage: str,
-        percent: int,
-        status: str,
-        pulse: Optional[str] = None
+        self, stage: str, percent: int, status: str, pulse: Optional[str] = None
     ) -> None:
         """
         Print progress bar with pulse mark.
@@ -366,7 +376,11 @@ class ArcaneConsole:
             bar = "=" * filled
             pulse_text = ""
         else:
-            bar = "=" * filled + ">" + "." * (unfilled - 1) if unfilled > 0 else "=" * filled
+            bar = (
+                "=" * filled + ">" + "." * (unfilled - 1)
+                if unfilled > 0
+                else "=" * filled
+            )
             pulse_text = f" {pulse}" if pulse else ""
 
         sigil = self.SIGILS.get(stage, ">>")
@@ -374,10 +388,7 @@ class ArcaneConsole:
         self.console.print(text, end="\r")
 
     def create_progress_context(
-        self,
-        stage: str,
-        total: Optional[int] = None,
-        description: Optional[str] = None
+        self, stage: str, total: Optional[int] = None, description: Optional[str] = None
     ) -> Progress:
         """
         Create Rich Progress context manager for progress bars.
@@ -393,7 +404,7 @@ class ArcaneConsole:
         Returns:
             Rich Progress instance configured with Alchemux styling
         """
-        display_stage = self._translate_stage(stage)
+        _display_stage = self._translate_stage(stage)
         sigil = self.SIGILS.get(stage, "")
         spinner = self.SPINNER_MAP.get(stage, "dots")
 
@@ -414,7 +425,9 @@ class ArcaneConsole:
             columns = [
                 TextColumn(f"[bold]{sigil}[/bold]"),
                 TextColumn("[bold]{task.fields[stage]}[/bold]"),
-                BarColumn(bar_width=None, complete_style="green", finished_style="green"),
+                BarColumn(
+                    bar_width=None, complete_style="green", finished_style="green"
+                ),
                 TaskProgressColumn(),
                 TextColumn("|"),
                 TextColumn("[progress.description]{task.description}"),
@@ -457,7 +470,7 @@ class ArcaneConsole:
         total: Optional[int] = None,
         status: str = "",
         description: str = "",
-        pulse: Optional[str] = None
+        pulse: Optional[str] = None,
     ) -> int:
         """
         Add a task to a progress context.
@@ -481,14 +494,14 @@ class ArcaneConsole:
                 description=description or display_stage,
                 total=None,
                 stage=display_stage,
-                status=display_status
+                status=display_status,
             )
         else:
             return progress.add_task(
                 description=description or "initializing",
                 total=total,
                 stage=display_stage,
-                status=display_status
+                status=display_status,
             )
 
     def rotate_pulse(self, iteration: int) -> str:
@@ -571,8 +584,7 @@ class ArcaneConsole:
         else:
             sigil, label = "[×]", "save failed"
         content_lines = [
-            f"{sigil} [.{ext}] {label} | cause: {cause}"
-            for ext, cause in entries
+            f"{sigil} [.{ext}] {label} | cause: {cause}" for ext, cause in entries
         ]
         content = "\n".join(content_lines)
         style = self.colors["error"] or "red"
@@ -595,7 +607,9 @@ class ArcaneConsole:
         """
         # Translate stage if needed
         display_stage = self._translate_stage(stage)
-        self.err_console.print(f"⟬×⟭ {display_stage} | fracture detected", style=self.colors["error"])
+        self.err_console.print(
+            f"⟬×⟭ {display_stage} | fracture detected", style=self.colors["error"]
+        )
         self.err_console.print(f"    └─ cause: {cause}", style=self.colors["error"])
 
     def print_banner(self) -> None:

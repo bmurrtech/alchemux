@@ -3,13 +3,13 @@ Tests for PRD6 clipboard URL input (-p/--clipboard).
 
 Public-safe: mock pyperclip; never read or assert on real clipboard content.
 """
+
 import os
 import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
 from typer.testing import CliRunner
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -19,7 +19,6 @@ from app.cli.url_input import (  # noqa: E402
     validate_url_like,
     _read_clipboard,
     CLIPBOARD_EMPTY_MSG,
-    CLIPBOARD_NOT_URL_MSG,
     CLIPBOARD_UNSUPPORTED_MSG,
 )
 
@@ -28,7 +27,7 @@ def _seed_temp_config(cfg_dir: Path) -> None:
     cfg_dir.mkdir(parents=True, exist_ok=True)
     (cfg_dir / ".env").write_text("S3_ACCESS_KEY=\nS3_SECRET_KEY=\n")
     (cfg_dir / "config.toml").write_text(
-        "[product]\narcane_terms = true\n\n[paths]\noutput_dir = \"./downloads\"\ntemp_dir = \"./tmp\"\n"
+        '[product]\narcane_terms = true\n\n[paths]\noutput_dir = "./downloads"\ntemp_dir = "./tmp"\n'
     )
 
 

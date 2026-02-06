@@ -1,6 +1,7 @@
 """
 Seal command - Finalizes and validates a media vessel.
 """
+
 from pathlib import Path
 
 import typer
@@ -25,6 +26,7 @@ def seal(
     """
     # Read arcane_terms from env, default True
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 

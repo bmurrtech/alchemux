@@ -3,6 +3,7 @@ Interactive setup wizards for configuration.
 Includes secret masking for sensitive inputs.
 Uses InquirerPy (via app.cli.prompts) for interactive prompts and Rich for panels.
 """
+
 import os
 import sys
 import base64
@@ -15,7 +16,11 @@ from rich.console import Console
 from rich.panel import Panel
 
 from app.cli.prompts import confirm, select, checkbox, text, secret, filepath
-from app.core.config_manager import ConfigManager, write_config_pointer, read_config_pointer
+from app.core.config_manager import (
+    ConfigManager,
+    write_config_pointer,
+    read_config_pointer,
+)
 from app.core.logger import setup_logger
 from app.core.eula import EULAManager, is_packaged_build
 
@@ -65,7 +70,10 @@ def validate_path(path: str) -> Tuple[bool, Optional[str]]:
             parent = path_obj.parent
             if parent.exists():
                 if not os.access(parent, os.W_OK):
-                    return False, f"Parent directory exists but is not writable: {parent}"
+                    return (
+                        False,
+                        f"Parent directory exists but is not writable: {parent}",
+                    )
     except Exception as e:
         return False, f"Invalid path: {e}"
 
@@ -101,8 +109,12 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
     Uses secret+confirm loop per PRD6 for service account key.
     """
     rich_console.print()
-    rich_console.print(Panel.fit("[bold cyan]GCP Cloud Storage Setup[/bold cyan]", border_style="cyan"))
-    rich_console.print("\nThis wizard will help you configure GCP upload functionality.")
+    rich_console.print(
+        Panel.fit("[bold cyan]GCP Cloud Storage Setup[/bold cyan]", border_style="cyan")
+    )
+    rich_console.print(
+        "\nThis wizard will help you configure GCP upload functionality."
+    )
     rich_console.print("You'll need:")
     rich_console.print("  1. A GCP Storage bucket name")
     rich_console.print("  2. A service account key (JSON) encoded as base64")
@@ -126,7 +138,9 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
     current_key = config.get("GCP_SA_KEY_BASE64", "")
     sa_key: Optional[str] = None
     if current_key:
-        rich_console.print(f"\n[dim]Current service account key:[/dim] {mask_secret(current_key)}")
+        rich_console.print(
+            f"\n[dim]Current service account key:[/dim] {mask_secret(current_key)}"
+        )
         use_current = confirm("Use current key?", default=True)
         if use_current:
             sa_key = current_key
@@ -134,10 +148,15 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
         rich_console.print("\nEnter service account key:")
         rich_console.print("  Option 1: Paste base64-encoded JSON key")
         rich_console.print("  Option 2: Enter path to JSON key file (will be encoded)")
-        choice = select("Choice", [("1", "Paste base64 key"), ("2", "Path to JSON key file")], default="1")
+        choice = select(
+            "Choice",
+            [("1", "Paste base64 key"), ("2", "Path to JSON key file")],
+            default="1",
+        )
         if choice is None:
             return False
         if choice == "2":
+
             def _is_file(s: str) -> bool:
                 if not s or not s.strip():
                     return False
@@ -165,7 +184,9 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
                 rich_console.print(f"[red]✗ File not found:[/red] {key_path}")
                 return False
         else:
-            sa_key = _secret_with_confirm("Paste base64-encoded service account key (input hidden)")
+            sa_key = _secret_with_confirm(
+                "Paste base64-encoded service account key (input hidden)"
+            )
             if sa_key is None:
                 return False
 
@@ -178,11 +199,15 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
         decoded = base64.b64decode(sa_key)
         key_json = json.loads(decoded)
         if "type" not in key_json or key_json.get("type") != "service_account":
-            rich_console.print("[yellow]![/yellow]  Warning: Key doesn't appear to be a service account key")
+            rich_console.print(
+                "[yellow]![/yellow]  Warning: Key doesn't appear to be a service account key"
+            )
         else:
             rich_console.print("[green]✓[/green] Key format is valid")
     except Exception as e:
-        rich_console.print(f"[yellow]![/yellow]  Warning: Could not validate key format: {e}")
+        rich_console.print(
+            f"[yellow]![/yellow]  Warning: Could not validate key format: {e}"
+        )
         continue_anyway = confirm("Continue anyway?", default=False)
         if continue_anyway is not True:
             return False
@@ -190,7 +215,7 @@ def interactive_gcp_setup(config: ConfigManager) -> bool:
     rich_console.print("\n[dim]Saving configuration...[/dim]")
     config.set("storage.gcp.bucket", bucket_name)
     config.set("GCP_SA_KEY_BASE64", sa_key)
-    rich_console.print(f"[green]✓[/green] Configuration saved:")
+    rich_console.print("[green]✓[/green] Configuration saved:")
     rich_console.print(f"  Bucket: {bucket_name}")
     rich_console.print(f"  Key: {mask_secret(sa_key)}")
     rich_console.print("\n[green]GCP setup complete![/green]")
@@ -203,8 +228,14 @@ def interactive_s3_setup(config: ConfigManager) -> bool:
     Uses secret+confirm loop per PRD6 for access key and secret key.
     """
     rich_console.print()
-    rich_console.print(Panel.fit("[bold cyan]S3-Compatible Storage Setup[/bold cyan]", border_style="cyan"))
-    rich_console.print("\nThis wizard will help you configure S3-compatible storage upload functionality.")
+    rich_console.print(
+        Panel.fit(
+            "[bold cyan]S3-Compatible Storage Setup[/bold cyan]", border_style="cyan"
+        )
+    )
+    rich_console.print(
+        "\nThis wizard will help you configure S3-compatible storage upload functionality."
+    )
     rich_console.print("You'll need:")
     rich_console.print("  1. S3 endpoint URL (e.g., https://your-minio.cloudron.app)")
     rich_console.print("  2. Access key")
@@ -230,7 +261,9 @@ def interactive_s3_setup(config: ConfigManager) -> bool:
 
     current_access_key = config.get("S3_ACCESS_KEY", "")
     if current_access_key:
-        rich_console.print(f"\n[dim]Current access key:[/dim] {mask_secret(current_access_key)}")
+        rich_console.print(
+            f"\n[dim]Current access key:[/dim] {mask_secret(current_access_key)}"
+        )
         use_current = confirm("Use current access key?", default=True)
         if use_current:
             access_key = current_access_key
@@ -245,7 +278,9 @@ def interactive_s3_setup(config: ConfigManager) -> bool:
 
     current_secret_key = config.get("S3_SECRET_KEY", "")
     if current_secret_key:
-        rich_console.print(f"\n[dim]Current secret key:[/dim] {mask_secret(current_secret_key)}")
+        rich_console.print(
+            f"\n[dim]Current secret key:[/dim] {mask_secret(current_secret_key)}"
+        )
         use_current = confirm("Use current secret key?", default=True)
         if use_current:
             secret_key = current_secret_key
@@ -274,7 +309,11 @@ def interactive_s3_setup(config: ConfigManager) -> bool:
         return False
 
     current_ssl_str = config.get("storage.s3.ssl", "true")
-    current_ssl = current_ssl_str.lower() == "true" if isinstance(current_ssl_str, str) else bool(current_ssl_str)
+    current_ssl = (
+        current_ssl_str.lower() == "true"
+        if isinstance(current_ssl_str, str)
+        else bool(current_ssl_str)
+    )
     rich_console.print(f"\n[dim]Current SSL:[/dim] {current_ssl}")
     ssl_ans = confirm("Enable SSL?", default=current_ssl)
     ssl_enabled = ssl_ans is True
@@ -285,7 +324,7 @@ def interactive_s3_setup(config: ConfigManager) -> bool:
     config.set("storage.s3.ssl", "true" if ssl_enabled else "false")
     config.set("S3_ACCESS_KEY", access_key)
     config.set("S3_SECRET_KEY", secret_key)
-    rich_console.print(f"[green]✓[/green] Configuration saved:")
+    rich_console.print("[green]✓[/green] Configuration saved:")
     rich_console.print(f"  Endpoint: {endpoint}")
     rich_console.print(f"  Bucket: {bucket_name}")
     rich_console.print(f"  Access Key: {mask_secret(access_key)}")
@@ -311,18 +350,25 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
     env_example_path = config.env_path.parent / "env.example"
 
     if not env_exists:
-        rich_console.print("\n[dim]No .env file detected. Creating from env.example...[/dim]")
+        rich_console.print(
+            "\n[dim]No .env file detected. Creating from env.example...[/dim]"
+        )
         try:
             config._create_env_from_example()
             if env_example_path.exists():
-                rich_console.print(f"[green]✓[/green] Created .env from {env_example_path}")
+                rich_console.print(
+                    f"[green]✓[/green] Created .env from {env_example_path}"
+                )
             else:
                 rich_console.print("[green]✓[/green] Created minimal .env file")
             from dotenv import load_dotenv
+
             load_dotenv(config.env_path)
         except (IOError, OSError, PermissionError) as e:
             rich_console.print(f"[red]✗[/red] Failed to create .env file: {e}")
-            rich_console.print(f"[dim]This may be a permission issue. Try running with appropriate permissions or create {config.env_path} manually.[/dim]")
+            rich_console.print(
+                f"[dim]This may be a permission issue. Try running with appropriate permissions or create {config.env_path} manually.[/dim]"
+            )
             return False
         except Exception as e:
             logger.warning(f"Could not create .env: {e}")
@@ -330,17 +376,23 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             return False
 
     if not toml_exists:
-        rich_console.print("\n[dim]No config.toml file detected. Creating from config.toml.example...[/dim]")
+        rich_console.print(
+            "\n[dim]No config.toml file detected. Creating from config.toml.example...[/dim]"
+        )
         try:
             config._create_toml_from_example()
             if config.toml_example_path.exists():
-                rich_console.print(f"[green]✓[/green] Created config.toml from {config.toml_example_path}")
+                rich_console.print(
+                    f"[green]✓[/green] Created config.toml from {config.toml_example_path}"
+                )
             else:
-                rich_console.print(f"[green]✓[/green] Created minimal config.toml file")
+                rich_console.print("[green]✓[/green] Created minimal config.toml file")
         except (IOError, OSError, PermissionError) as e:
             logger.warning(f"Could not create config.toml: {e}")
             rich_console.print(f"[red]✗[/red] Could not create config.toml: {e}")
-            rich_console.print(f"[dim]This may be a permission issue. Try running with appropriate permissions or create {config.toml_path} manually.[/dim]")
+            rich_console.print(
+                f"[dim]This may be a permission issue. Try running with appropriate permissions or create {config.toml_path} manually.[/dim]"
+            )
             return False
         except Exception as e:
             logger.warning(f"Could not create config.toml: {e}")
@@ -359,14 +411,22 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
 
     # Setup refresh wizard (InquirerPy-backed prompts per PRD6)
     rich_console.print()
-    rich_console.print(Panel.fit("[bold cyan]Alchemux Setup Wizard[/bold cyan]", border_style="cyan"))
-    rich_console.print("\n[dim]Configure your preferences. Press Enter to skip or use defaults.[/dim]\n")
+    rich_console.print(
+        Panel.fit("[bold cyan]Alchemux Setup Wizard[/bold cyan]", border_style="cyan")
+    )
+    rich_console.print(
+        "\n[dim]Configure your preferences. Press Enter to skip or use defaults.[/dim]\n"
+    )
 
     # Arcane terminology: select prompt (Arcane vs Technical) with example terms per PRD6
     current_arcane = config.get("product.arcane_terms", "true")
-    arcane_default = "arcane" if current_arcane.lower() in ("true", "1", "yes") else "technical"
+    arcane_default = (
+        "arcane" if current_arcane.lower() in ("true", "1", "yes") else "technical"
+    )
     term_choice = select(
-        message="Choose your terminology preference. (current: arcane enabled)" if arcane_default == "arcane" else "Choose your terminology preference. (current: technical)",
+        message="Choose your terminology preference. (current: arcane enabled)"
+        if arcane_default == "arcane"
+        else "Choose your terminology preference. (current: technical)",
         choices=[
             ("arcane", "Arcane (scribe / scry / distill)"),
             ("technical", "Tech (validate / detect / download)"),
@@ -374,27 +434,45 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         default=arcane_default,
     )
     if term_choice is not None:
-        config.set("product.arcane_terms", "true" if term_choice == "arcane" else "false")
-        rich_console.print("  [green]✓[/green] Terminology set to " + ("arcane" if term_choice == "arcane" else "technical"))
+        config.set(
+            "product.arcane_terms", "true" if term_choice == "arcane" else "false"
+        )
+        rich_console.print(
+            "  [green]✓[/green] Terminology set to "
+            + ("arcane" if term_choice == "arcane" else "technical")
+        )
     rich_console.print("  [dim]See docs/legend.md for full mapping.[/dim]")
 
     # Auto-open folder: confirm prompt
     current_auto_open = config.get("ui.auto_open", "true")
-    current_auto_open_bool = current_auto_open.lower() in ("true", "1", "yes") if isinstance(current_auto_open, str) else bool(current_auto_open)
-    auto_open_ans = confirm("Auto-open folder after download?", default=current_auto_open_bool)
+    current_auto_open_bool = (
+        current_auto_open.lower() in ("true", "1", "yes")
+        if isinstance(current_auto_open, str)
+        else bool(current_auto_open)
+    )
+    auto_open_ans = confirm(
+        "Auto-open folder after download?", default=current_auto_open_bool
+    )
     if auto_open_ans is not None:
         config.set("ui.auto_open", "true" if auto_open_ans else "false")
-        rich_console.print("  [green]✓[/green] Auto-open " + ("enabled" if auto_open_ans else "disabled"))
+        rich_console.print(
+            "  [green]✓[/green] Auto-open "
+            + ("enabled" if auto_open_ans else "disabled")
+        )
 
     # Output directory: filepath prompt with validation (default ./downloads or current)
     default_path = "./downloads"
     current_path = config.get("paths.output_dir", default_path)
-    rich_console.print(f"\n[bold]Output directory[/bold] [dim](current: {current_path})[/dim]")
+    rich_console.print(
+        f"\n[bold]Output directory[/bold] [dim](current: {current_path})[/dim]"
+    )
     example_paths = get_os_example_paths()
     rich_console.print("  [dim]Example paths:[/dim]")
     for ex_path in example_paths:
         rich_console.print(f"    - {ex_path}")
-    rich_console.print("  [dim dim]default: creates folder in same path as Alchemux[/dim dim]")
+    rich_console.print(
+        "  [dim dim]default: creates folder in same path as Alchemux[/dim dim]"
+    )
     new_path = filepath(
         message="Enter path (leave empty and Enter for default)",
         default=current_path or default_path,
@@ -409,26 +487,43 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 expanded = os.path.abspath(os.path.expanduser(new_path.strip()))
                 Path(expanded).mkdir(parents=True, exist_ok=True)
                 config.set("paths.output_dir", expanded)
-                rich_console.print(f"  [green]✓[/green] Output directory set to: {expanded}")
+                rich_console.print(
+                    f"  [green]✓[/green] Output directory set to: {expanded}"
+                )
             else:
-                rich_console.print(f"  [yellow]![/yellow]  {error}, keeping current: {current_path}")
+                rich_console.print(
+                    f"  [yellow]![/yellow]  {error}, keeping current: {current_path}"
+                )
         else:
             config.set("paths.output_dir", default_path)
             rich_console.print(f"  [green]✓[/green] Using default: {default_path}")
 
     # Audio format: confirm then checkbox (PRD6)
     current_audio = config.get("media.audio.format", "mp3")
-    change_audio = confirm(f"Change default audio output? (current: .{current_audio})", default=False)
+    change_audio = confirm(
+        f"Change default audio output? (current: .{current_audio})", default=False
+    )
     if change_audio is True:
         selected_audio = checkbox(
             message="Select audio formats (select/deselect with spacebar)",
-            choices=[("mp3", "MP3"), ("flac", "FLAC"), ("wav", "WAV"), ("aac", "AAC"), ("m4a", "M4A")],
-            default_selected=[current_audio if current_audio in ("mp3", "flac", "wav", "aac", "m4a") else "mp3"],
+            choices=[
+                ("mp3", "MP3"),
+                ("flac", "FLAC"),
+                ("wav", "WAV"),
+                ("aac", "AAC"),
+                ("m4a", "M4A"),
+            ],
+            default_selected=[
+                current_audio
+                if current_audio in ("mp3", "flac", "wav", "aac", "m4a")
+                else "mp3"
+            ],
         )
         if selected_audio and len(selected_audio) > 0:
             config.set("media.audio.format", selected_audio[0])
             # Store enabled list for future multi-format output
             from app.core.toml_config import read_toml, write_toml
+
             tom = read_toml(config.toml_path) if config.toml_path.exists() else {}
             if "media" not in tom:
                 tom["media"] = {}
@@ -437,22 +532,29 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             tom["media"]["audio"]["enabled_formats"] = list(selected_audio)
             write_toml(config.toml_path, tom)
             config._toml_cache = None
-            rich_console.print(f"  [green]✓[/green] Audio format(s): {', '.join(selected_audio)}")
+            rich_console.print(
+                f"  [green]✓[/green] Audio format(s): {', '.join(selected_audio)}"
+            )
 
     # Video: confirm "Save video too?" then optional codec checkbox (PRD6)
     save_video = confirm("Save video file, too?", default=False)
     if save_video is True:
         current_video = config.get("media.video.format", "mp4") or "mp4"
-        change_video = confirm(f"Change default video codec? (current: .{current_video})", default=False)
+        change_video = confirm(
+            f"Change default video codec? (current: .{current_video})", default=False
+        )
         if change_video is True:
             selected_video = checkbox(
                 message="Select video codecs (select/deselect with spacebar)",
                 choices=[("mp4", "MP4"), ("mkv", "MKV"), ("webm", "WebM")],
-                default_selected=[current_video if current_video in ("mp4", "mkv", "webm") else "mp4"],
+                default_selected=[
+                    current_video if current_video in ("mp4", "mkv", "webm") else "mp4"
+                ],
             )
             if selected_video and len(selected_video) > 0:
                 config.set("media.video.format", selected_video[0])
                 from app.core.toml_config import read_toml, write_toml
+
                 tom = read_toml(config.toml_path) if config.toml_path.exists() else {}
                 if "media" not in tom:
                     tom["media"] = {}
@@ -461,13 +563,16 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 tom["media"]["video"]["enabled_formats"] = list(selected_video)
                 write_toml(config.toml_path, tom)
                 config._toml_cache = None
-                rich_console.print(f"  [green]✓[/green] Video codec(s): {', '.join(selected_video)}")
+                rich_console.print(
+                    f"  [green]✓[/green] Video codec(s): {', '.join(selected_video)}"
+                )
         else:
             config.set("media.video.format", current_video)
         rich_console.print("  [green]✓[/green] Video output enabled")
     else:
         config.set("media.video.format", "")
         from app.core.toml_config import read_toml, write_toml
+
         tom = read_toml(config.toml_path) if config.toml_path.exists() else {}
         if "media" not in tom:
             tom["media"] = {}
@@ -490,7 +595,9 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         if keep_next_to_binary is True:
             write_config_pointer(binary_dir)
             config_dir_for_summary = binary_path_display
-            rich_console.print("  [green]✓[/green] Config will stay next to Alchemux binary")
+            rich_console.print(
+                "  [green]✓[/green] Config will stay next to Alchemux binary"
+            )
         elif keep_next_to_binary is False:
             while True:
                 custom = filepath(
@@ -512,11 +619,13 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                     if config.env_path.exists():
                         shutil.copy2(config.env_path, custom_path / ".env")
                     config_dir_for_summary = str(custom_path)
-                    rich_console.print(f"  [green]✓[/green] Config location set to: {custom_path}")
+                    rich_console.print(
+                        f"  [green]✓[/green] Config location set to: {custom_path}"
+                    )
                     break
 
     # Cloud storage: confirm then checkbox (local, s3, gcp); local always on by default
-    current_dest = config.get("storage.destination", "local")
+    _current_dest = config.get("storage.destination", "local")
     configure_cloud = confirm("Configure cloud storage?", default=False)
     if configure_cloud is True:
         selected = checkbox(
@@ -550,7 +659,8 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
 
     # Ensure config.toml has full example content - merge example with current config
     if config.toml_example_path.exists() and config.toml_path.exists():
-        from app.core.toml_config import read_toml, write_toml, get_nested_value, set_nested_value
+        from app.core.toml_config import read_toml, write_toml
+
         # Read current config (has user's changes)
         current_config = read_toml(config.toml_path)
         # Read example config (has all default sections)
@@ -560,8 +670,14 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         # Deep merge: copy all top-level sections from example, then overlay user's changes
         for section_key in example_config:
             if section_key not in merged_config:
-                merged_config[section_key] = example_config[section_key].copy() if isinstance(example_config[section_key], dict) else example_config[section_key]
-            elif isinstance(example_config[section_key], dict) and isinstance(current_config.get(section_key), dict):
+                merged_config[section_key] = (
+                    example_config[section_key].copy()
+                    if isinstance(example_config[section_key], dict)
+                    else example_config[section_key]
+                )
+            elif isinstance(example_config[section_key], dict) and isinstance(
+                current_config.get(section_key), dict
+            ):
                 # Merge nested dicts: example as base, current as overrides
                 merged_section = example_config[section_key].copy()
                 merged_section.update(current_config[section_key])
@@ -592,25 +708,27 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
     summary_config_dir = config_dir_for_summary
 
     rich_console.print()
-    rich_console.print(Panel(
-        f"[bold]Configuration files:[/bold]\n"
-        f"  [dim]-[/dim] config.toml: {summary_config_dir}/config.toml\n"
-        f"  [dim]-[/dim] .env: {summary_config_dir}/.env\n"
-        f"  [dim]-[/dim] Config location: {summary_config_dir}\n\n"
-        f"[bold]Settings:[/bold]\n"
-        f"  [dim]-[/dim] Output directory: {output_dir}\n"
-        f"  [dim]-[/dim] Storage: {storage_dest}\n"
-        f"  [dim]-[/dim] Arcane mode: {'enabled' if arcane_mode == 'true' else 'disabled'}\n\n"
-        f"[bold]Useful commands:[/bold]\n"
-        f"  [cyan]alchemux config show[/cyan]   - View all settings\n"
-        f"  [cyan]alchemux config doctor[/cyan] - Run diagnostics\n"
-        f"  [cyan]alchemux config mv[/cyan] [path] - Relocate config (interactive path if omitted)\n"
-        f"  [cyan]alchemux setup s3[/cyan]      - Configure S3 storage\n"
-        f"  [cyan]alchemux setup gcp[/cyan]     - Configure GCP storage",
-        title="[green]Setup Complete[/green]",
-        border_style="green",
-        padding=(0, 1)
-    ))
+    rich_console.print(
+        Panel(
+            f"[bold]Configuration files:[/bold]\n"
+            f"  [dim]-[/dim] config.toml: {summary_config_dir}/config.toml\n"
+            f"  [dim]-[/dim] .env: {summary_config_dir}/.env\n"
+            f"  [dim]-[/dim] Config location: {summary_config_dir}\n\n"
+            f"[bold]Settings:[/bold]\n"
+            f"  [dim]-[/dim] Output directory: {output_dir}\n"
+            f"  [dim]-[/dim] Storage: {storage_dest}\n"
+            f"  [dim]-[/dim] Arcane mode: {'enabled' if arcane_mode == 'true' else 'disabled'}\n\n"
+            f"[bold]Useful commands:[/bold]\n"
+            f"  [cyan]alchemux config show[/cyan]   - View all settings\n"
+            f"  [cyan]alchemux config doctor[/cyan] - Run diagnostics\n"
+            f"  [cyan]alchemux config mv[/cyan] [path] - Relocate config (interactive path if omitted)\n"
+            f"  [cyan]alchemux setup s3[/cyan]      - Configure S3 storage\n"
+            f"  [cyan]alchemux setup gcp[/cyan]     - Configure GCP storage",
+            title="[green]Setup Complete[/green]",
+            border_style="green",
+            padding=(0, 1),
+        )
+    )
 
     return True
 
@@ -635,6 +753,7 @@ def interactive_setup_minimal(config: ConfigManager) -> bool:
         if env_example_path.exists():
             config._create_env_from_example()
         from dotenv import load_dotenv
+
         load_dotenv(config.env_path)
 
     if not toml_exists:

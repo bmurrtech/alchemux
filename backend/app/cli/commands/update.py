@@ -3,7 +3,7 @@ Update command - Update yt-dlp to latest stable version.
 
 Provides reliable yt-dlp updates without requiring binary reinstallation.
 """
-import os
+
 import sys
 import subprocess
 import json
@@ -84,8 +84,9 @@ def _get_current_ytdlp_version() -> Optional[str]:
     """
     try:
         import yt_dlp
+
         # yt-dlp exposes version via __version__
-        version = getattr(yt_dlp, '__version__', None)
+        version = getattr(yt_dlp, "__version__", None)
         if version:
             return version
 
@@ -163,7 +164,9 @@ def _update_ytdlp_stable() -> Tuple[bool, Optional[str]]:
 
 
 def update(
-    force: bool = typer.Option(False, "--force", help="Force update check even if recently checked"),
+    force: bool = typer.Option(
+        False, "--force", help="Force update check even if recently checked"
+    ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors"),
 ) -> None:
     """
@@ -187,6 +190,7 @@ def update(
     """
     # Ensure output is flushed immediately
     import sys
+
     sys.stdout.flush()
     sys.stderr.flush()
 
@@ -201,7 +205,9 @@ def update(
             last_check_str = last_check_file.read_text().strip()
             last_check = datetime.fromisoformat(last_check_str)
             hours_ago = (datetime.now() - last_check).total_seconds() / 3600
-            console.print(f"[dim]Last checked {hours_ago:.1f} hours ago. Use --force to check again.[/dim]")
+            console.print(
+                f"[dim]Last checked {hours_ago:.1f} hours ago. Use --force to check again.[/dim]"
+            )
             console.print("[dim]Checking anyway for this run...[/dim]")
         except Exception:
             pass
@@ -237,28 +243,34 @@ def update(
 
     if success:
         console.print()
-        console.print(Panel(
-            f"[bold green]✓ Update successful![/bold green]\n\n{message}",
-            title="Success",
-            border_style="green"
-        ))
+        console.print(
+            Panel(
+                f"[bold green]✓ Update successful![/bold green]\n\n{message}",
+                title="Success",
+                border_style="green",
+            )
+        )
         _record_update_check()
 
         # Verify new version
         new_version = _get_current_ytdlp_version()
         if new_version:
-            console.print(f"\n[green]✓[/green] Current version after update: [bold]{new_version}[/bold]")
+            console.print(
+                f"\n[green]✓[/green] Current version after update: [bold]{new_version}[/bold]"
+            )
         console.print()  # Extra line for spacing
         sys.stdout.flush()
     else:
         console.print()
-        console.print(Panel(
-            f"[bold red]✗ Update failed[/bold red]\n\n{message}\n\n"
-            "[dim]You may need to update manually:\n"
-            "  pip install --upgrade yt-dlp[/dim]",
-            title="Error",
-            border_style="red"
-        ))
+        console.print(
+            Panel(
+                f"[bold red]✗ Update failed[/bold red]\n\n{message}\n\n"
+                "[dim]You may need to update manually:\n"
+                "  pip install --upgrade yt-dlp[/dim]",
+                title="Error",
+                border_style="red",
+            )
+        )
         console.print()  # Extra line for spacing
         sys.stdout.flush()
         raise typer.Exit(1)

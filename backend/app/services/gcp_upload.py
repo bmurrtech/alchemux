@@ -2,6 +2,7 @@
 GCP Cloud Storage upload service.
 Handles credential management and file uploads.
 """
+
 import os
 import base64
 import tempfile
@@ -13,7 +14,9 @@ from urllib.parse import quote
 try:
     from google.cloud import storage
 except ImportError:
-    raise ImportError("google-cloud-storage is required. Install with: pip install google-cloud-storage")
+    raise ImportError(
+        "google-cloud-storage is required. Install with: pip install google-cloud-storage"
+    )
 
 from app.core.logger import setup_logger
 from app.core.config_manager import ConfigManager
@@ -34,7 +37,9 @@ class GCPUploader:
         """
         self.config = config
         # Bucket from config.toml (non-secret)
-        self.bucket_name = config.get("storage.gcp.bucket") or config.get("GCP_STORAGE_BUCKET")
+        self.bucket_name = config.get("storage.gcp.bucket") or config.get(
+            "GCP_STORAGE_BUCKET"
+        )
         # Service account key from .env (secret)
         self.sa_key_base64 = config.get("GCP_SA_KEY_BASE64")
         self._creds_file: Optional[str] = None
@@ -51,14 +56,14 @@ class GCPUploader:
 
         try:
             # Strip whitespace and handle padding issues
-            key_b64 = self.sa_key_base64.strip().replace('\n', '').replace(' ', '')
+            key_b64 = self.sa_key_base64.strip().replace("\n", "").replace(" ", "")
             # Add padding if needed (base64 strings should be multiples of 4)
             missing_padding = len(key_b64) % 4
             if missing_padding:
-                key_b64 += '=' * (4 - missing_padding)
+                key_b64 += "=" * (4 - missing_padding)
 
             sa_key_json = base64.b64decode(key_b64).decode("utf-8")
-            tmp = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json")
+            tmp = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".json")
             tmp.write(sa_key_json)
             tmp.close()
             self._creds_file = tmp.name
@@ -67,14 +72,18 @@ class GCPUploader:
 
         except Exception as e:
             logger.error(f"Error decoding GCP credentials: {e}")
-            raise ValueError(f"Failed to decode GCP_SA_KEY_BASE64: {str(e)}. Please check that the base64 string is valid.")
+            raise ValueError(
+                f"Failed to decode GCP_SA_KEY_BASE64: {str(e)}. Please check that the base64 string is valid."
+            )
 
     def _cleanup_credentials(self) -> None:
         """Clean up temporary credentials file."""
         if self._creds_file and os.path.exists(self._creds_file):
             try:
                 os.remove(self._creds_file)
-                logger.debug(f"Cleaned up temporary credentials file: {self._creds_file}")
+                logger.debug(
+                    f"Cleaned up temporary credentials file: {self._creds_file}"
+                )
             except Exception as e:
                 logger.warning(f"Could not remove temporary credentials file: {e}")
 
@@ -88,10 +97,7 @@ class GCPUploader:
         return bool(self.bucket_name and self.sa_key_base64)
 
     def upload(
-        self,
-        file_path: str,
-        filename: str,
-        source_type: str
+        self, file_path: str, filename: str, source_type: str
     ) -> Tuple[bool, Optional[str]]:
         """
         Upload file to GCP Cloud Storage.

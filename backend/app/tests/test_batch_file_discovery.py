@@ -3,14 +3,12 @@ Tests for batch file discovery (config dir scan, .txt/.csv only, display formatt
 
 Public-safe: temp config dir; no real credentials.
 """
-import os
+
 import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pytest
-import typer
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -43,7 +41,7 @@ def test_collect_urls_from_files_no_txt_csv_returns_empty() -> None:
     """When config dir has no .txt/.csv files, expect empty list."""
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp)
-        (cfg_dir / "config.toml").write_text("[paths]\noutput_dir = \".\"")
+        (cfg_dir / "config.toml").write_text('[paths]\noutput_dir = "."')
         (cfg_dir / ".env").write_text("")
         (cfg_dir / "other.pdf").write_text("")
         with patch("app.core.config_manager.ConfigManager") as MockConfig:
@@ -58,7 +56,7 @@ def test_collect_urls_from_files_one_txt_extracts_urls() -> None:
     """When one .txt file exists and user 'selects' it (mocked), URLs are extracted."""
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp)
-        (cfg_dir / "config.toml").write_text("[paths]\noutput_dir = \".\"")
+        (cfg_dir / "config.toml").write_text('[paths]\noutput_dir = "."')
         (cfg_dir / ".env").write_text("")
         batch_txt = cfg_dir / "urls.txt"
         batch_txt.write_text("https://a.com\nhttps://b.com\n")

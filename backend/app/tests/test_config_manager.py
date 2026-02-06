@@ -1,6 +1,7 @@
 """
 Tests for config_manager.py - config discovery, pointer files, and platformdirs integration.
 """
+
 import os
 import sys
 import tempfile
@@ -19,7 +20,6 @@ from app.core.config_manager import (
     write_config_pointer,
     get_config_location,
     ConfigManager,
-    PLATFORMDIRS_AVAILABLE,
 )
 
 
@@ -80,7 +80,7 @@ class TestPointerFile:
     def test_read_config_pointer_returns_none_when_missing(self):
         """Should return None when pointer file doesn't exist."""
         # Use a mock to ensure pointer file doesn't exist
-        with mock.patch('app.core.config_manager.get_pointer_file_path') as mock_path:
+        with mock.patch("app.core.config_manager.get_pointer_file_path") as mock_path:
             mock_path.return_value = Path("/nonexistent/path/config_path.txt")
             result = read_config_pointer()
             assert result is None
@@ -92,7 +92,9 @@ class TestPointerFile:
             test_config_dir.mkdir()
             pointer_file = Path(tmpdir) / "pointer" / "config_path.txt"
 
-            with mock.patch('app.core.config_manager.get_pointer_file_path') as mock_path:
+            with mock.patch(
+                "app.core.config_manager.get_pointer_file_path"
+            ) as mock_path:
                 mock_path.return_value = pointer_file
 
                 # Write pointer
@@ -111,7 +113,9 @@ class TestPointerFile:
             # Write a path that doesn't exist
             pointer_file.write_text("/nonexistent/config/directory")
 
-            with mock.patch('app.core.config_manager.get_pointer_file_path') as mock_path:
+            with mock.patch(
+                "app.core.config_manager.get_pointer_file_path"
+            ) as mock_path:
                 mock_path.return_value = pointer_file
                 result = read_config_pointer()
                 assert result is None
@@ -136,10 +140,14 @@ class TestGetConfigLocationPriority:
             test_config_dir.mkdir()
 
             # Ensure no env var
-            env_without_config = {k: v for k, v in os.environ.items() if k != "ALCHEMUX_CONFIG_DIR"}
+            env_without_config = {
+                k: v for k, v in os.environ.items() if k != "ALCHEMUX_CONFIG_DIR"
+            }
 
             with mock.patch.dict(os.environ, env_without_config, clear=True):
-                with mock.patch('app.core.config_manager.read_config_pointer') as mock_read:
+                with mock.patch(
+                    "app.core.config_manager.read_config_pointer"
+                ) as mock_read:
                     mock_read.return_value = test_config_dir
 
                     result = get_config_location()
@@ -148,18 +156,20 @@ class TestGetConfigLocationPriority:
     def test_falls_back_to_default_when_no_pointer(self):
         """Should use default OS config when no env var or pointer."""
         # Clear env var and mock no pointer
-        env_without_config = {k: v for k, v in os.environ.items() if k != "ALCHEMUX_CONFIG_DIR"}
+        env_without_config = {
+            k: v for k, v in os.environ.items() if k != "ALCHEMUX_CONFIG_DIR"
+        }
 
         with mock.patch.dict(os.environ, env_without_config, clear=True):
-            with mock.patch('app.core.config_manager.read_config_pointer') as mock_read:
+            with mock.patch("app.core.config_manager.read_config_pointer") as mock_read:
                 mock_read.return_value = None
 
                 # For source mode (not frozen), it tries find_dotenv first
                 # We mock that to return None to test the fallback
-                with mock.patch('app.core.config_manager.find_dotenv') as mock_find:
+                with mock.patch("app.core.config_manager.find_dotenv") as mock_find:
                     mock_find.return_value = None
 
-                    with mock.patch('pathlib.Path.exists') as mock_exists:
+                    with mock.patch("pathlib.Path.exists") as mock_exists:
                         mock_exists.return_value = False
 
                         # Just verify it doesn't crash and returns a path
@@ -231,6 +241,7 @@ class TestNoSecretsInLogs:
 
             # Get the logger and add our capture handler
             import app.core.config_manager
+
             test_logger = logging.getLogger(app.core.config_manager.__name__)
             original_level = test_logger.level
             test_logger.setLevel(logging.DEBUG)

@@ -6,23 +6,24 @@ section headers, status panels, and inline yes/no prompts.
 
 Inspired by modern CLI UX patterns adapted to Alchemux's arcane theme.
 """
-from typing import List, Optional, Tuple, Dict, Any
+
+from typing import List, Optional, Tuple, Dict
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Prompt
 
 console = Console()
 
 # Alchemux-themed selection indicators (arcane variant)
-SELECTED_INDICATOR = "◉"      # Filled circle for selected
-UNSELECTED_INDICATOR = "○"    # Empty circle for unselected
-SECTION_MARKER = "◇"          # Diamond for section headers (matches attune sigil)
-SECTION_MARKER_ACTIVE = "◆"   # Filled diamond for active sections
+SELECTED_INDICATOR = "◉"  # Filled circle for selected
+UNSELECTED_INDICATOR = "○"  # Empty circle for unselected
+SECTION_MARKER = "◇"  # Diamond for section headers (matches attune sigil)
+SECTION_MARKER_ACTIVE = "◆"  # Filled diamond for active sections
 
 # Phase state indicators
-PHASE_COMPLETE = "◆"     # Filled diamond
-PHASE_CURRENT = "◇"      # Empty diamond (active)
-PHASE_PENDING = "○"      # Empty circle (not started)
+PHASE_COMPLETE = "◆"  # Filled diamond
+PHASE_CURRENT = "◇"  # Empty diamond (active)
+PHASE_PENDING = "○"  # Empty circle (not started)
 
 
 def render_selection_list(
@@ -68,7 +69,7 @@ def interactive_select(
     options: List[Tuple[str, str]],
     default_index: int = 0,
     context_info: Optional[Dict[int, str]] = None,
-    show_panel: bool = True
+    show_panel: bool = True,
 ) -> Tuple[str, int]:
     """
     Interactive single-select with numbered input fallback.
@@ -96,13 +97,14 @@ def interactive_select(
         context = ""
         if context_info and i in context_info:
             context = f" [cyan]({context_info[i]})[/cyan]"
-        console.print(f"  {style}{marker}[/{end_style.strip('[/')}] [{i+1}] {label}{context}")
+        console.print(
+            f"  {style}{marker}[/{end_style.strip('[/')}] [{i+1}] {label}{context}"
+        )
 
     # Get selection
     try:
         choice = Prompt.ask(
-            f"\n  Enter number [1-{len(options)}]",
-            default=str(default_index + 1)
+            f"\n  Enter number [1-{len(options)}]", default=str(default_index + 1)
         )
 
         idx = int(choice) - 1
@@ -114,11 +116,7 @@ def interactive_select(
     return options[default_index][0], default_index
 
 
-def inline_yes_no(
-    prompt: str,
-    default: bool = True,
-    show_marker: bool = True
-) -> bool:
+def inline_yes_no(prompt: str, default: bool = True, show_marker: bool = True) -> bool:
     """
     Compact inline Yes/No with visual indicators.
 
@@ -151,9 +149,7 @@ def inline_yes_no(
 
 
 def print_section_header(
-    title: str,
-    subtitle: Optional[str] = None,
-    marker: str = SECTION_MARKER
+    title: str, subtitle: Optional[str] = None, marker: str = SECTION_MARKER
 ) -> None:
     """
     Print section header with optional subtitle and hierarchy bar.
@@ -175,9 +171,7 @@ def print_section_header(
 
 
 def print_status_panel(
-    title: str,
-    content_lines: List[str],
-    border_style: str = "dim"
+    title: str, content_lines: List[str], border_style: str = "dim"
 ) -> None:
     """
     Print a status panel with key-value pairs.
@@ -196,20 +190,18 @@ def print_status_panel(
         border_style: Border color/style
     """
     content = "\n".join(content_lines)
-    console.print(Panel(
-        content,
-        title=f"[bold]{title}[/bold]",
-        title_align="left",
-        border_style=border_style,
-        padding=(0, 1)
-    ))
+    console.print(
+        Panel(
+            content,
+            title=f"[bold]{title}[/bold]",
+            title_align="left",
+            border_style=border_style,
+            padding=(0, 1),
+        )
+    )
 
 
-def print_hierarchy_item(
-    text: str,
-    is_last: bool = False,
-    indent: int = 0
-) -> None:
+def print_hierarchy_item(text: str, is_last: bool = False, indent: int = 0) -> None:
     """
     Print item with hierarchy indicator.
 
@@ -224,9 +216,7 @@ def print_hierarchy_item(
 
 
 def print_phase_indicator(
-    phases: List[str],
-    current_phase: int,
-    phase_status: Optional[List[str]] = None
+    phases: List[str], current_phase: int, phase_status: Optional[List[str]] = None
 ) -> None:
     """
     Print multi-phase progress indicator.
@@ -258,9 +248,7 @@ def print_phase_indicator(
 
 
 def print_info_panel(
-    title: str,
-    instructions: List[str],
-    docs_link: Optional[str] = None
+    title: str, instructions: List[str], docs_link: Optional[str] = None
 ) -> None:
     """
     Print informational panel with instructions.
@@ -282,7 +270,9 @@ def print_info_panel(
         instructions: List of instruction lines
         docs_link: Optional documentation link
     """
-    console.print(f"\n[cyan]{SECTION_MARKER}[/cyan] [bold]{title}[/bold] [dim]{'─' * 30}[/dim]")
+    console.print(
+        f"\n[cyan]{SECTION_MARKER}[/cyan] [bold]{title}[/bold] [dim]{'─' * 30}[/dim]"
+    )
     console.print()
     for instruction in instructions:
         console.print(f"  {instruction}")

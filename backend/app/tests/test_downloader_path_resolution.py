@@ -23,9 +23,7 @@ def test_find_downloaded_file_prefers_expected_ext() -> None:
         cfg_dir.mkdir(parents=True, exist_ok=True)
         (cfg_dir / ".env").write_text("")
         (cfg_dir / "config.toml").write_text(
-            "[paths]\n"
-            f'output_dir = "{cfg_dir.as_posix()}"\n'
-            'temp_dir = "./tmp"\n'
+            "[paths]\n" f'output_dir = "{cfg_dir.as_posix()}"\n' 'temp_dir = "./tmp"\n'
         )
 
         # Point ConfigManager to a temp .env so no real user config is touched.

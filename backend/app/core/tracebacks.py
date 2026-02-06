@@ -8,8 +8,8 @@ SECURITY NOTE: By default, locals are NOT shown in tracebacks to prevent
 accidental exposure of secrets (API keys, tokens, passwords).
 To enable locals in debug mode, set ALCHEMUX_TRACEBACK_LOCALS=1 (use with caution).
 """
+
 import os
-import sys
 from typing import Optional
 from rich.console import Console
 from rich.traceback import install as install_rich_traceback
@@ -33,7 +33,11 @@ def install_traceback_handler(debug: bool = False) -> None:
 
     # Only show locals if explicitly opted-in via env var
     # This prevents accidental exposure of secrets in variables
-    show_locals = os.getenv("ALCHEMUX_TRACEBACK_LOCALS", "").lower() in ("1", "true", "yes")
+    show_locals = os.getenv("ALCHEMUX_TRACEBACK_LOCALS", "").lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
     if show_locals:
         # Log a warning that locals display is enabled
@@ -48,17 +52,15 @@ def install_traceback_handler(debug: bool = False) -> None:
         locals_max_length=10 if show_locals else 0,
         locals_max_string=80 if show_locals else 0,
         suppress=[],  # Don't suppress any modules
-        width=None,   # Use terminal width
+        width=None,  # Use terminal width
         extra_lines=3 if debug else 1,
-        theme=None,   # Use default theme
+        theme=None,  # Use default theme
         word_wrap=True,
     )
 
 
 def print_fracture_summary(
-    stage: str,
-    error: Exception,
-    console: Optional[Console] = None
+    stage: str, error: Exception, console: Optional[Console] = None
 ) -> None:
     """
     Print user-friendly error summary (fracture detected format).
@@ -78,15 +80,15 @@ def print_fracture_summary(
     error_msg = str(error)
 
     # Basic sanitization - mask anything that looks like a secret
-    secret_patterns = ['key=', 'token=', 'password=', 'secret=']
+    secret_patterns = ["key=", "token=", "password=", "secret="]
     for pattern in secret_patterns:
         if pattern in error_msg.lower():
             # Find the value after the pattern and mask it
             idx = error_msg.lower().find(pattern)
-            end_idx = error_msg.find(' ', idx + len(pattern))
+            end_idx = error_msg.find(" ", idx + len(pattern))
             if end_idx == -1:
                 end_idx = len(error_msg)
-            error_msg = error_msg[:idx + len(pattern)] + '***' + error_msg[end_idx:]
+            error_msg = error_msg[: idx + len(pattern)] + "***" + error_msg[end_idx:]
 
     console.print(f"[bold red]<x> {stage} | fracture detected[/bold red]")
     console.print(f"[red]    cause: {error_msg}[/red]")

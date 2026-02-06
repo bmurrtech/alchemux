@@ -2,12 +2,13 @@
 Audio metadata writing using mutagen.
 Injects source URL into MP3 ID3 tags and FLAC Vorbis comments.
 """
+
 import os
 from pathlib import Path
 from typing import Optional
 
 try:
-    from mutagen.id3 import ID3, TXXX, TIT2, TPE1, TALB
+    from mutagen.id3 import ID3, TXXX, TIT2, TPE1, TALB  # noqa: F401 (TIT2, TPE1, TALB for availability)
     from mutagen.mp3 import MP3
     from mutagen.flac import FLAC
     from mutagen import File as MutagenFile
@@ -104,7 +105,7 @@ def _write_generic_metadata(file_path: str, source_url: str) -> bool:
             return False
 
         # Try to add source URL (format-dependent)
-        if hasattr(audio_file, 'tags'):
+        if hasattr(audio_file, "tags"):
             if audio_file.tags is None:
                 # Some formats don't support tags
                 logger.debug(f"File format does not support tags: {file_path}")
@@ -121,7 +122,9 @@ def _write_generic_metadata(file_path: str, source_url: str) -> bool:
                 except (KeyError, AttributeError):
                     continue
 
-        logger.warning(f"Could not write metadata to {file_path} (format may not support tags)")
+        logger.warning(
+            f"Could not write metadata to {file_path} (format may not support tags)"
+        )
         return False
 
     except Exception as e:
@@ -206,7 +209,7 @@ def _read_generic_metadata(file_path: str) -> Optional[str]:
         if audio_file is None:
             return None
 
-        if hasattr(audio_file, 'tags') and audio_file.tags:
+        if hasattr(audio_file, "tags") and audio_file.tags:
             # Try common tag names
             tag_names = ["SOURCE_URL", "SOURCE", "URL", "SOURCEURL"]
             for tag_name in tag_names:

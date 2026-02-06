@@ -5,6 +5,7 @@ Used by GitHub Actions; lives in scripts/ (committed). Local builds use pm/scrip
 Creates a single-file executable with bundled ffmpeg/ffprobe.
 Requires DIST_DIR in CI; defaults to repo root/dist when run locally.
 """
+
 import os
 import sys
 import shutil
@@ -15,7 +16,11 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 BACKEND_DIR = PROJECT_ROOT / "backend"
 # CI sets DIST_DIR (e.g. $GITHUB_WORKSPACE/dist); local test defaults to repo root/dist
-DIST_DIR = Path(os.environ["DIST_DIR"]).resolve() if os.environ.get("DIST_DIR") else (PROJECT_ROOT / "dist")
+DIST_DIR = (
+    Path(os.environ["DIST_DIR"]).resolve()
+    if os.environ.get("DIST_DIR")
+    else (PROJECT_ROOT / "dist")
+)
 BUILD_DIR = PROJECT_ROOT / "build"
 
 
@@ -51,25 +56,45 @@ def build_binary():
     binary_name = "alchemux"
 
     cmd = [
-        sys.executable, "-m", "PyInstaller",
-        "--name", binary_name,
+        sys.executable,
+        "-m",
+        "PyInstaller",
+        "--name",
+        binary_name,
         "--onefile",
         "--clean",
         "--noconfirm",
-        "--distpath", str(DIST_DIR),
-        "--workpath", str(BUILD_DIR / binary_name),
-        "--specpath", str(BUILD_DIR / binary_name),
+        "--distpath",
+        str(DIST_DIR),
+        "--workpath",
+        str(BUILD_DIR / binary_name),
+        "--specpath",
+        str(BUILD_DIR / binary_name),
         str(BACKEND_DIR / "app" / "main.py"),
     ]
 
     hidden_imports = [
-        "yt_dlp", "mutagen", "mutagen.id3", "mutagen.mp3", "mutagen.flac",
-        "google.cloud.storage", "dotenv", "platformdirs", "tomlkit",
-        "InquirerPy", "InquirerPy.prompts", "InquirerPy.prompts.list",
-        "InquirerPy.prompts.input", "InquirerPy.prompts.filepath",
-        "InquirerPy.validator", "InquirerPy.base.control",
-        "prompt_toolkit", "prompt_toolkit.application", "prompt_toolkit.key_binding",
-        "prompt_toolkit.formatted_text", "prompt_toolkit.completion",
+        "yt_dlp",
+        "mutagen",
+        "mutagen.id3",
+        "mutagen.mp3",
+        "mutagen.flac",
+        "google.cloud.storage",
+        "dotenv",
+        "platformdirs",
+        "tomlkit",
+        "InquirerPy",
+        "InquirerPy.prompts",
+        "InquirerPy.prompts.list",
+        "InquirerPy.prompts.input",
+        "InquirerPy.prompts.filepath",
+        "InquirerPy.validator",
+        "InquirerPy.base.control",
+        "prompt_toolkit",
+        "prompt_toolkit.application",
+        "prompt_toolkit.key_binding",
+        "prompt_toolkit.formatted_text",
+        "prompt_toolkit.completion",
         "prompt_toolkit.completion.filesystem",
     ]
     for imp in hidden_imports:
@@ -77,11 +102,13 @@ def build_binary():
 
     try:
         import InquirerPy  # noqa: F401
+
         cmd.extend(["--collect-all", "InquirerPy"])
     except ImportError:
         pass
     try:
         import prompt_toolkit  # noqa: F401
+
         cmd.extend(["--collect-all", "prompt_toolkit"])
     except ImportError:
         pass
@@ -116,6 +143,7 @@ def main():
     print("=" * 70)
     try:
         import PyInstaller
+
         print(f"[OK] PyInstaller {PyInstaller.__version__}")
     except ImportError:
         print("[X] PyInstaller not found. pip install pyinstaller")
@@ -127,7 +155,9 @@ def main():
     if sys.platform == "darwin":
         create_launchers()
 
-    alchemux_path = DIST_DIR / ("alchemux.exe" if sys.platform == "win32" else "alchemux")
+    alchemux_path = DIST_DIR / (
+        "alchemux.exe" if sys.platform == "win32" else "alchemux"
+    )
     if alchemux_path.exists():
         print(f"\n[OK] Build successful: {alchemux_path}")
         return 0

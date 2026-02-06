@@ -1,6 +1,7 @@
 """
 Verbose command - Toggle verbose logging in config.toml.
 """
+
 import typer
 from rich.console import Console
 
@@ -29,7 +30,11 @@ def verbose_command(
     try:
         # Get current verbose setting (check logging.debug as verbose is typically same as debug)
         current_verbose = config.get("logging.debug", "false")
-        current_verbose_bool = current_verbose.lower() in ("true", "1", "yes") if isinstance(current_verbose, str) else bool(current_verbose)
+        current_verbose_bool = (
+            current_verbose.lower() in ("true", "1", "yes")
+            if isinstance(current_verbose, str)
+            else bool(current_verbose)
+        )
 
         # Toggle the setting
         new_value = "false" if current_verbose_bool else "true"

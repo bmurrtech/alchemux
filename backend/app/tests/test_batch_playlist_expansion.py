@@ -3,11 +3,11 @@ Tests for batch playlist expansion (_expand_playlist_urls).
 
 Public-safe: mock yt_dlp; no network.
 """
+
 import sys
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

@@ -3,6 +3,7 @@ Batch URL extraction from text, CSV, and raw value lists.
 
 Pure functions for easy testing. Used by batch command for TXT/CSV files and paste input.
 """
+
 import csv
 import io
 from typing import Iterable, List, Union

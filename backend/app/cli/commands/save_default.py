@@ -1,9 +1,8 @@
 """
 Save default storage command - Interactive default storage selection.
 """
-from typing import Optional
+
 import typer
-from rich.console import Console
 from rich.prompt import Prompt
 
 from app.cli.output import ArcaneConsole
@@ -23,6 +22,7 @@ def save_default(
     """
     # Read arcane_terms from env, default True
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
@@ -41,7 +41,9 @@ def save_default(
         current_default = "Local"
 
     # Display current setting
-    console.console.print(f"\n[bold]Current default storage:[/bold] [cyan]{current_default}[/cyan]")
+    console.console.print(
+        f"\n[bold]Current default storage:[/bold] [cyan]{current_default}[/cyan]"
+    )
     console.console.print("\nSelect new default storage destination:\n")
 
     # Show options
@@ -60,7 +62,9 @@ def save_default(
     choice = Prompt.ask(
         "Select option (1-3)",
         choices=["1", "2", "3"],
-        default="1" if current_default == "Local" else ("2" if current_default == "GCP" else "3")
+        default="1"
+        if current_default == "Local"
+        else ("2" if current_default == "GCP" else "3"),
     )
 
     # Update configuration based on selection
@@ -75,15 +79,27 @@ def save_default(
         config_manager.set("GCP_UPLOAD_ENABLED", "true")
         config_manager.set("S3_UPLOAD_ENABLED", "false")
         console.print_success("config", "Default storage set to GCP")
-        console.console.print("  Files will be uploaded to Google Cloud Platform by default")
-        console.console.print("  [dim]Note: GCP must be configured with 'alchemux setup gcp'[/dim]")
+        console.console.print(
+            "  Files will be uploaded to Google Cloud Platform by default"
+        )
+        console.console.print(
+            "  [dim]Note: GCP must be configured with 'alchemux setup gcp'[/dim]"
+        )
     elif choice == "3":
         # S3
         config_manager.set("GCP_UPLOAD_ENABLED", "false")
         config_manager.set("S3_UPLOAD_ENABLED", "true")
         console.print_success("config", "Default storage set to S3")
-        console.console.print("  Files will be uploaded to S3-compatible storage by default")
-        console.console.print("  [dim]Note: S3 must be configured with 'alchemux setup s3'[/dim]")
+        console.console.print(
+            "  Files will be uploaded to S3-compatible storage by default"
+        )
+        console.console.print(
+            "  [dim]Note: S3 must be configured with 'alchemux setup s3'[/dim]"
+        )
 
-    console.console.print(f"\n[dim]Configuration saved to: {config_manager.env_path}[/dim]")
-    console.console.print("[dim]You can override this default per-run using --gcp, --s3, or --local flags[/dim]")
+    console.console.print(
+        f"\n[dim]Configuration saved to: {config_manager.env_path}[/dim]"
+    )
+    console.console.print(
+        "[dim]You can override this default per-run using --gcp, --s3, or --local flags[/dim]"
+    )

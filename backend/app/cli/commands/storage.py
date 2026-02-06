@@ -1,8 +1,8 @@
 """
 Storage command - Manage storage settings.
 """
+
 import typer
-from typing import Optional
 
 from app.cli.output import ArcaneConsole
 from app.core.config_manager import ConfigManager
@@ -25,6 +25,7 @@ def storage_status(
     and output directory settings.
     """
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
@@ -43,31 +44,47 @@ def storage_status(
 
     # Get storage policy
     fallback = config_manager.get("storage.fallback", "local")
-    keep_local = config_manager.get("storage.keep_local_copy", "false").lower() == "true"
+    keep_local = (
+        config_manager.get("storage.keep_local_copy", "false").lower() == "true"
+    )
 
     # Display status
     console.console.print("\n[bold]Storage Configuration[/bold]\n")
 
     console.console.print(f"Destination: [cyan]{destination}[/cyan]")
     console.console.print(f"Fallback: [cyan]{fallback}[/cyan]")
-    console.console.print(f"Keep local copy: [cyan]{'yes' if keep_local else 'no'}[/cyan]\n")
+    console.console.print(
+        f"Keep local copy: [cyan]{'yes' if keep_local else 'no'}[/cyan]\n"
+    )
 
     console.console.print("[bold]Provider Status:[/bold]")
-    console.console.print(f"  Local: [green]always available[/green]")
-    console.console.print(f"  S3:   {'[green]configured[/green]' if s3_configured else '[dim]not configured[/dim]'}")
-    console.console.print(f"  GCP:  {'[green]configured[/green]' if gcp_configured else '[dim]not configured[/dim]'}\n")
+    console.console.print("  Local: [green]always available[/green]")
+    console.console.print(
+        f"  S3:   {'[green]configured[/green]' if s3_configured else '[dim]not configured[/dim]'}"
+    )
+    console.console.print(
+        f"  GCP:  {'[green]configured[/green]' if gcp_configured else '[dim]not configured[/dim]'}\n"
+    )
 
     console.console.print("[bold]Paths:[/bold]")
     console.console.print(f"  Output: [cyan]{output_dir}[/cyan]")
     console.console.print(f"  Temp:   [cyan]{temp_dir}[/cyan]\n")
 
-    if destination != "local" and not (destination == "s3" and s3_configured) and not (destination == "gcp" and gcp_configured):
-        console.console.print(f"[yellow]⚠[/yellow]  Destination '{destination}' is not configured. Will fallback to '{fallback}'")
+    if (
+        destination != "local"
+        and not (destination == "s3" and s3_configured)
+        and not (destination == "gcp" and gcp_configured)
+    ):
+        console.console.print(
+            f"[yellow]⚠[/yellow]  Destination '{destination}' is not configured. Will fallback to '{fallback}'"
+        )
 
 
 @app.command("set")
 def storage_set(
-    path: str = typer.Argument(..., help="Output directory path (where downloaded files are saved)"),
+    path: str = typer.Argument(
+        ..., help="Output directory path (where downloaded files are saved)"
+    ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
     """
@@ -99,21 +116,37 @@ def storage_set(
 
         if sys.platform == "win32":
             if len(expanded) > 260:
-                return False, f"Path too long (Windows limit: 260 characters). Current: {len(expanded)}"
-            invalid_chars = ['<', '>', ':', '"', '|', '?', '*']
+                return (
+                    False,
+                    f"Path too long (Windows limit: 260 characters). Current: {len(expanded)}",
+                )
+            invalid_chars = ["<", ">", ":", '"', "|", "?", "*"]
             if any(char in expanded for char in invalid_chars):
-                return False, f"Path contains invalid characters for Windows: {', '.join(invalid_chars)}"
-            reserved = ['CON', 'PRN', 'AUX', 'NUL'] + [f'COM{i}' for i in range(1, 10)] + [f'LPT{i}' for i in range(1, 10)]
+                return (
+                    False,
+                    f"Path contains invalid characters for Windows: {', '.join(invalid_chars)}",
+                )
+            reserved = (
+                ["CON", "PRN", "AUX", "NUL"]
+                + [f"COM{i}" for i in range(1, 10)]
+                + [f"LPT{i}" for i in range(1, 10)]
+            )
             path_parts = Path(expanded).parts
             for part in path_parts:
-                if part.upper().rstrip('.') in reserved:
+                if part.upper().rstrip(".") in reserved:
                     return False, f"Path contains reserved Windows name: {part}"
         elif sys.platform == "darwin":
             if len(expanded) > 1024:
-                return False, f"Path too long (macOS limit: 1024 characters). Current: {len(expanded)}"
+                return (
+                    False,
+                    f"Path too long (macOS limit: 1024 characters). Current: {len(expanded)}",
+                )
         else:
             if len(expanded) > 4096:
-                return False, f"Path too long (Linux limit: 4096 characters). Current: {len(expanded)}"
+                return (
+                    False,
+                    f"Path too long (Linux limit: 4096 characters). Current: {len(expanded)}",
+                )
 
         try:
             path_obj = Path(expanded)
@@ -124,7 +157,10 @@ def storage_set(
                 parent = path_obj.parent
                 if parent.exists():
                     if not os.access(parent, os.W_OK):
-                        return False, f"Parent directory exists but is not writable: {parent}"
+                        return (
+                            False,
+                            f"Parent directory exists but is not writable: {parent}",
+                        )
                 else:
                     try:
                         parent.mkdir(parents=True, exist_ok=True)
@@ -170,9 +206,15 @@ def storage_set(
         config_manager.set("paths.output_dir", absolute_path)
 
         console.print_success("storage", f"Output directory set to: {absolute_path}")
-        console.console.print(f"  Downloaded files will be saved to this location by default")
-        console.console.print(f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]")
-        console.console.print("[dim]You can override this per-run using --save-path flag[/dim]")
+        console.console.print(
+            "  Downloaded files will be saved to this location by default"
+        )
+        console.console.print(
+            f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]"
+        )
+        console.console.print(
+            "[dim]You can override this per-run using --save-path flag[/dim]"
+        )
     except Exception as e:
         console.print_fracture("storage", f"Failed to update configuration: {e}")
         raise typer.Exit(code=1)
@@ -194,6 +236,7 @@ def storage_use(
         alchemux storage use gcp
     """
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
@@ -213,18 +256,28 @@ def storage_use(
     try:
         # Use config.toml for storage.destination (non-secret)
         config_manager.set("storage.destination", target)
-        console.print_success("storage", f"Default storage destination set to {target.upper()}")
+        console.print_success(
+            "storage", f"Default storage destination set to {target.upper()}"
+        )
 
         console.console.print(f"  Files will be saved to {target} by default")
-        console.console.print(f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]")
+        console.console.print(
+            f"  [dim]Configuration saved to: {config_manager.toml_path}[/dim]"
+        )
 
         # Warn if target is not configured
         if target == "s3" and not config_manager.is_s3_configured():
-            console.console.print(f"  [yellow]⚠[/yellow]  S3 is not configured. Run 'alchemux setup s3' to configure it.")
+            console.console.print(
+                "  [yellow]⚠[/yellow]  S3 is not configured. Run 'alchemux setup s3' to configure it."
+            )
         elif target == "gcp" and not config_manager.is_gcp_configured():
-            console.console.print(f"  [yellow]⚠[/yellow]  GCP is not configured. Run 'alchemux setup gcp' to configure it.")
+            console.console.print(
+                "  [yellow]⚠[/yellow]  GCP is not configured. Run 'alchemux setup gcp' to configure it."
+            )
 
-        console.console.print("[dim]You can override this per-run using --local, --s3, or --gcp flags[/dim]")
+        console.console.print(
+            "[dim]You can override this per-run using --local, --s3, or --gcp flags[/dim]"
+        )
     except Exception as e:
         console.print_fracture("storage", f"Failed to update configuration: {e}")
         raise typer.Exit(code=1)

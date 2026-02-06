@@ -3,10 +3,10 @@ Tests for batch URL parsing (TXT/CSV and filter_url_candidates).
 
 Public-safe: pure functions only; no network or config.
 """
+
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 

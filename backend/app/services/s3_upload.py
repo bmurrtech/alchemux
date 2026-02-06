@@ -2,6 +2,7 @@
 S3-compatible storage upload service.
 Handles credential management and file uploads.
 """
+
 import os
 import time
 from pathlib import Path
@@ -36,7 +37,11 @@ class S3Uploader:
         self.endpoint = config.get("storage.s3.endpoint") or config.get("S3_ENDPOINT")
         self.bucket_name = config.get("storage.s3.bucket") or config.get("S3_BUCKET")
         s3_ssl_str = config.get("storage.s3.ssl") or config.get("S3_SSL", "true")
-        self.use_ssl = s3_ssl_str.lower() == "true" if isinstance(s3_ssl_str, str) else bool(s3_ssl_str)
+        self.use_ssl = (
+            s3_ssl_str.lower() == "true"
+            if isinstance(s3_ssl_str, str)
+            else bool(s3_ssl_str)
+        )
         # Secrets from .env
         self.access_key = config.get("S3_ACCESS_KEY")
         self.secret_key = config.get("S3_SECRET_KEY")
@@ -52,13 +57,13 @@ class S3Uploader:
         if self._client is None:
             # Parse endpoint URL
             endpoint_url = self.endpoint
-            if endpoint_url and not endpoint_url.startswith(('http://', 'https://')):
+            if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
                 # Add protocol if missing
                 endpoint_url = f"{'https' if self.use_ssl else 'http'}://{endpoint_url}"
 
             # Create S3 client
             self._client = boto3.client(
-                's3',
+                "s3",
                 endpoint_url=endpoint_url,
                 aws_access_key_id=self.access_key,
                 aws_secret_access_key=self.secret_key,
@@ -76,17 +81,11 @@ class S3Uploader:
             True if all required credentials are configured
         """
         return bool(
-            self.endpoint and
-            self.access_key and
-            self.secret_key and
-            self.bucket_name
+            self.endpoint and self.access_key and self.secret_key and self.bucket_name
         )
 
     def upload(
-        self,
-        file_path: str,
-        filename: str,
-        source_type: str
+        self, file_path: str, filename: str, source_type: str
     ) -> Tuple[bool, Optional[str]]:
         """
         Upload file to S3-compatible storage.
@@ -130,14 +129,18 @@ class S3Uploader:
                 client.head_object(Bucket=self.bucket_name, Key=object_key)
                 # Object exists - construct public URL
                 if self.endpoint:
-                    endpoint_parsed = urlparse(self.endpoint if self.endpoint.startswith(('http://', 'https://')) else f"{'https' if self.use_ssl else 'http'}://{self.endpoint}")
+                    endpoint_parsed = urlparse(
+                        self.endpoint
+                        if self.endpoint.startswith(("http://", "https://"))
+                        else f"{'https' if self.use_ssl else 'http'}://{self.endpoint}"
+                    )
                     public_url = f"{endpoint_parsed.scheme}://{endpoint_parsed.netloc}/{self.bucket_name}/{object_key}"
                 else:
                     public_url = f"s3://{self.bucket_name}/{object_key}"
                 logger.info(f"File already exists: {public_url}")
                 return True, public_url
             except ClientError as e:
-                if e.response['Error']['Code'] != '404':
+                if e.response["Error"]["Code"] != "404":
                     # Some other error occurred
                     raise
 
@@ -149,18 +152,22 @@ class S3Uploader:
                 self.bucket_name,
                 object_key,
                 ExtraArgs={
-                    'ContentType': content_type,
-                    'Metadata': {
-                        'upload_complete': 'true',
-                        'upload_timestamp': str(int(time.time())),
-                        'source_type': source_type,
-                    }
-                }
+                    "ContentType": content_type,
+                    "Metadata": {
+                        "upload_complete": "true",
+                        "upload_timestamp": str(int(time.time())),
+                        "source_type": source_type,
+                    },
+                },
             )
 
             # Construct public URL
             if self.endpoint:
-                endpoint_parsed = urlparse(self.endpoint if self.endpoint.startswith(('http://', 'https://')) else f"{'https' if self.use_ssl else 'http'}://{self.endpoint}")
+                endpoint_parsed = urlparse(
+                    self.endpoint
+                    if self.endpoint.startswith(("http://", "https://"))
+                    else f"{'https' if self.use_ssl else 'http'}://{self.endpoint}"
+                )
                 public_url = f"{endpoint_parsed.scheme}://{endpoint_parsed.netloc}/{self.bucket_name}/{object_key}"
             else:
                 public_url = f"s3://{self.bucket_name}/{object_key}"
@@ -173,7 +180,7 @@ class S3Uploader:
             logger.error(error_msg)
             return False, error_msg
         except ClientError as e:
-            error_code = e.response.get('Error', {}).get('Code', 'Unknown')
+            error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_msg = f"S3 upload error ({error_code}): {str(e)}"
             logger.exception(error_msg)
             return False, error_msg

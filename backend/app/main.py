@@ -3,6 +3,7 @@
 Alchemux - URL to MP3 Converter CLI
 Main entry point with Typer CLI and ALCHEMUX stylized output.
 """
+
 import sys
 import os
 import warnings
@@ -15,6 +16,7 @@ import typer
 
 # Import Rich traceback handler
 from app.core.tracebacks import install_traceback_handler, print_fracture_summary
+
 
 # Suppress google.api_core FutureWarning unless GCP is actually configured
 # Check if GCP is configured before suppressing warnings
@@ -37,9 +39,11 @@ def should_suppress_gcp_warning() -> bool:
     # Try to load config to check (only if .env might exist)
     try:
         from app.core.config_manager import get_config_location
+
         config_path = get_config_location()
         if config_path.exists():
             from dotenv import load_dotenv
+
             load_dotenv(config_path)
             if os.getenv("GCP_STORAGE_BUCKET") or os.getenv("GCP_SA_KEY_BASE64"):
                 return False  # GCP is configured in .env
@@ -49,13 +53,16 @@ def should_suppress_gcp_warning() -> bool:
     # GCP is not configured, suppress warning to debug level
     return True
 
+
 # Suppress FutureWarning from google.api_core if GCP is not configured
 if should_suppress_gcp_warning():
     # Filter FutureWarning from google.api_core - suppress by default, show only in debug mode
     warnings.filterwarnings("ignore", category=FutureWarning, module="google.api_core")
     # Also capture warnings to logging and filter there
     import logging
+
     logging.captureWarnings(True)
+
     # Create a custom filter for google.api_core warnings in the warnings logger
     class GCPWarningFilter(logging.Filter):
         def filter(self, record):
@@ -64,13 +71,14 @@ if should_suppress_gcp_warning():
             if "google.api_core" in msg or "Python version" in msg:
                 return os.getenv("LOG_LEVEL", "").lower() == "debug"
             return True
+
     # Apply filter to warnings logger
     warnings_logger = logging.getLogger("py.warnings")
     if not any(isinstance(f, GCPWarningFilter) for f in warnings_logger.filters):
         warnings_logger.addFilter(GCPWarningFilter())
 
-from app.cli import app
-from app.cli.output import ArcaneConsole
+from app.cli import app  # noqa: E402
+from app.cli.output import ArcaneConsole  # noqa: E402
 
 # Track if banner has been shown (only show once per session)
 _banner_shown = False
@@ -86,19 +94,29 @@ if __name__ == "__main__":
         # Check for "config" with no subcommand: run config wizard and exit
         if "config" in sys.argv:
             config_idx = sys.argv.index("config")
-            rest = [a for a in sys.argv[config_idx + 1 :] if a and not a.startswith("-")]
+            rest = [
+                a for a in sys.argv[config_idx + 1 :] if a and not a.startswith("-")
+            ]
             if not rest:
                 from app.core.config_manager import ConfigManager
                 from app.core.config_wizard import interactive_config_wizard
-                plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in ("1", "true", "yes")
-                if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":
+
+                plain_mode = "--plain" in sys.argv or os.getenv(
+                    "NO_COLOR", ""
+                ).lower() in ("1", "true", "yes")
+                if (
+                    not _banner_shown
+                    and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
+                ):
                     if not any(arg in sys.argv for arg in ["--version", "-v"]):
                         console = ArcaneConsole(plain=plain_mode)
                         console.print_banner()
                         _banner_shown = True
                 config_manager = ConfigManager()
                 if not config_manager.check_toml_file_exists():
-                    ArcaneConsole(plain=plain_mode).print_fracture("config", "config.toml not found. Run 'alchemux setup' first.")
+                    ArcaneConsole(plain=plain_mode).print_fracture(
+                        "config", "config.toml not found. Run 'alchemux setup' first."
+                    )
                     sys.exit(1)
                 try:
                     success = interactive_config_wizard(config_manager)
@@ -115,17 +133,27 @@ if __name__ == "__main__":
         if "setup" in sys.argv:
             setup_idx = sys.argv.index("setup")
             # Check if there's a target after "setup" (like "gcp" or "s3")
-            if setup_idx + 1 < len(sys.argv) and not sys.argv[setup_idx + 1].startswith("-"):
+            if setup_idx + 1 < len(sys.argv) and not sys.argv[setup_idx + 1].startswith(
+                "-"
+            ):
                 target = sys.argv[setup_idx + 1]
             else:
                 target = None
 
             # Import and run setup directly, bypassing Typer's argument parsing
             from app.cli.commands.setup import setup as setup_cmd
-            plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in ("1", "true", "yes")
+
+            plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
 
             # Print banner if needed
-            if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":
+            if (
+                not _banner_shown
+                and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
+            ):
                 should_skip = any(arg in sys.argv for arg in ["--version", "-v"])
                 if not should_skip:
                     console = ArcaneConsole(plain=plain_mode)
@@ -151,12 +179,17 @@ if __name__ == "__main__":
                 sys.exit(1)
 
         # Print banner only once on initial startup (not for every command)
-        if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":
+        if (
+            not _banner_shown
+            and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
+        ):
             # Skip banner only for --version flag (keep it for --help)
             should_skip = any(arg in sys.argv for arg in ["--version", "-v"])
             if not should_skip:
                 # Check for --plain flag early
-                plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in ("1", "true", "yes")
+                plain_mode = "--plain" in sys.argv or os.getenv(
+                    "NO_COLOR", ""
+                ).lower() in ("1", "true", "yes")
                 console = ArcaneConsole(plain=plain_mode)
                 console.print_banner()
                 _banner_shown = True
@@ -165,6 +198,7 @@ if __name__ == "__main__":
         app()
     except KeyboardInterrupt:
         from rich.console import Console
+
         Console(stderr=True).print("\n\n[dim]Interrupted by user. Goodbye![/dim]")
         sys.exit(130)
     except SystemExit:

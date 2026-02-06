@@ -1,6 +1,7 @@
 """
 Inspect command - Display metadata from a media file.
 """
+
 from pathlib import Path
 
 import typer
@@ -27,6 +28,7 @@ def inspect(
     """
     # Read arcane_terms from env, default True
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
@@ -48,7 +50,9 @@ def inspect(
     ext = file.suffix.lower()
 
     # Create table
-    table = Table(title="Media Vessel Inspection", show_header=True, header_style="bold cyan")
+    table = Table(
+        title="Media Vessel Inspection", show_header=True, header_style="bold cyan"
+    )
     table.add_column("Property", style="cyan")
     table.add_column("Value", style="green")
 

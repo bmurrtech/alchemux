@@ -4,8 +4,9 @@ Batch command - Process multiple URLs from files, paste, or playlist.
 PRD 009: Batch Mode v1. Reuses existing invoke/distill pipeline per URL;
 batch-only pacing via yt-dlp sleep options. No report file by default.
 """
+
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 import typer
 
@@ -58,7 +59,9 @@ def batch() -> None:
         raise typer.Exit(code=1)
 
     if inquirer is None:
-        typer.echo("Batch mode requires InquirerPy. Install with: pip install InquirerPy")
+        typer.echo(
+            "Batch mode requires InquirerPy. Install with: pip install InquirerPy"
+        )
         raise typer.Exit(code=1)
 
     _run_batch_flow()
@@ -92,6 +95,7 @@ def _run_batch_flow() -> None:
 
     # Reuse PRD6 overrides confirm + checkbox
     from app.cli.url_input import _interactive_overrides_prompt
+
     try:
         overrides = _interactive_overrides_prompt()
     except typer.Exit as e:
@@ -132,16 +136,24 @@ def _collect_urls_from_files() -> List[str]:
     config = ConfigManager()
     config_dir = config.env_path.parent
     if not config_dir.exists():
-        typer.echo(f"No batch files found in {config_dir}. Place a .txt or .csv there or use Paste mode.")
+        typer.echo(
+            f"No batch files found in {config_dir}. Place a .txt or .csv there or use Paste mode."
+        )
         return []
 
     allowed_suffixes = (".txt", ".csv")
     files = sorted(
-        [p for p in config_dir.iterdir() if p.is_file() and p.suffix.lower() in allowed_suffixes],
+        [
+            p
+            for p in config_dir.iterdir()
+            if p.is_file() and p.suffix.lower() in allowed_suffixes
+        ],
         key=lambda p: p.name,
     )
     if not files:
-        typer.echo(f"No batch files found in {config_dir}. Place a .txt or .csv there or use Paste mode.")
+        typer.echo(
+            f"No batch files found in {config_dir}. Place a .txt or .csv there or use Paste mode."
+        )
         return []
 
     # Build choices: filename + mtime + size
@@ -151,7 +163,12 @@ def _collect_urls_from_files() -> List[str]:
             stat = p.stat()
             mtime = stat.st_mtime
             from datetime import datetime
-            mtime_str = datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M") if mtime else "?"
+
+            mtime_str = (
+                datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
+                if mtime
+                else "?"
+            )
             size_str = _format_file_size(stat.st_size)
             display = f"{p.name}  ({mtime_str}, {size_str})"
         except OSError:
@@ -194,7 +211,9 @@ def _collect_urls_from_files() -> List[str]:
 
 PASTE_INSTRUCTIONS = "Paste URLs (one per line). Submit an empty line to finish."
 PASTE_EMPTY_MSG = "Paste one or more links. Tip: one link per line is easiest."
-PASTE_NONE_VALID_MSG = "None of the pasted items look like links (must start with https://)."
+PASTE_NONE_VALID_MSG = (
+    "None of the pasted items look like links (must start with https://)."
+)
 
 
 def _collect_urls_from_paste() -> List[str]:
@@ -254,7 +273,11 @@ def _expand_playlist_urls(playlist_url: str) -> List[str]:
             if not isinstance(entry, dict):
                 continue
             u = entry.get("webpage_url") or entry.get("url") or entry.get("id")
-            if u and isinstance(u, str) and (u.startswith("http://") or u.startswith("https://")):
+            if (
+                u
+                and isinstance(u, str)
+                and (u.startswith("http://") or u.startswith("https://"))
+            ):
                 urls.append(u)
         return urls
     except Exception:
@@ -271,8 +294,12 @@ def _collect_urls_from_playlist() -> List[str]:
     if not playlist_url or not playlist_url.strip():
         return []
     playlist_url = playlist_url.strip()
-    if not playlist_url.startswith("http://") and not playlist_url.startswith("https://"):
-        typer.echo("That doesn't look like a URL. Paste a link that starts with https://")
+    if not playlist_url.startswith("http://") and not playlist_url.startswith(
+        "https://"
+    ):
+        typer.echo(
+            "That doesn't look like a URL. Paste a link that starts with https://"
+        )
         return []
 
     urls = _expand_playlist_urls(playlist_url)
@@ -282,7 +309,9 @@ def _collect_urls_from_playlist() -> List[str]:
 
     typer.echo(PLAYLIST_EXPAND_FAILED_MSG)
     try:
-        as_single = inquirer.confirm(message=PLAYLIST_AS_SINGLE_MSG, default=False).execute()
+        as_single = inquirer.confirm(
+            message=PLAYLIST_AS_SINGLE_MSG, default=False
+        ).execute()
     except (KeyboardInterrupt, Exception):
         raise typer.Exit(130)
     if as_single:
@@ -300,6 +329,7 @@ def _run_batch_execution(urls: List[str], overrides: dict) -> None:
     failures = 0
     # Signal batch context so downloader can add yt-dlp sleep options (see H)
     import os
+
     prev_batch = os.environ.get("ALCHEMUX_BATCH")
     os.environ["ALCHEMUX_BATCH"] = "1"
     try:
@@ -332,4 +362,6 @@ def _run_batch_execution(urls: List[str], overrides: dict) -> None:
         else:
             os.environ["ALCHEMUX_BATCH"] = prev_batch
 
-    typer.echo(f"Batch complete: {successes} succeeded, {failures} failed, {total} total.")
+    typer.echo(
+        f"Batch complete: {successes} succeeded, {failures} failed, {total} total."
+    )

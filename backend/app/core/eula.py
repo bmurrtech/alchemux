@@ -1,14 +1,13 @@
 """
 EULA acceptance logic with dual storage strategy (eula_config.json + .env).
 """
-import os
+
 import sys
-import json
 import hashlib
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from .config_manager import ConfigManager
 from .logger import setup_logger
@@ -26,7 +25,7 @@ def is_packaged_build() -> bool:
     Returns:
         True if running from a PyInstaller bundle, False if running from source
     """
-    return getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS')
+    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
 
 
 class EULAManager:
@@ -110,12 +109,14 @@ and indemnify the Provider and contributors."""
 
         # Display EULA summary in a panel
         console.print()
-        console.print(Panel(
-            self.display_eula_summary(),
-            title="[bold yellow]EULA Acceptance Required[/bold yellow]",
-            border_style="yellow",
-            padding=(1, 2)
-        ))
+        console.print(
+            Panel(
+                self.display_eula_summary(),
+                title="[bold yellow]EULA Acceptance Required[/bold yellow]",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
         console.print()
 
         # y/n confirmation via prompt wrapper (InquirerPy or Rich fallback)
@@ -129,7 +130,9 @@ and indemnify the Provider and contributors."""
 
         if accepted:
             self.accept("user_input")
-            console.print("\n[green]>[/green] EULA accepted. You may now use Alchemux.\n")
+            console.print(
+                "\n[green]>[/green] EULA accepted. You may now use Alchemux.\n"
+            )
             return True
         else:
             console.print("\n[yellow]![/yellow] EULA not accepted.")
@@ -138,7 +141,9 @@ and indemnify the Provider and contributors."""
             console.print()
             return False
 
-    def check_and_require_acceptance(self, accept_flag: bool = False, env_var: bool = False) -> bool:
+    def check_and_require_acceptance(
+        self, accept_flag: bool = False, env_var: bool = False
+    ) -> bool:
         """
         Check EULA acceptance and require it if not accepted.
 
@@ -153,11 +158,14 @@ and indemnify the Provider and contributors."""
             True if EULA is accepted (or was just accepted), False if user declined
         """
         from rich.console import Console
+
         console = Console()
 
         # Skip EULA enforcement when running from source (not packaged)
         if not is_packaged_build():
-            logger.debug("Running from source - EULA enforcement skipped (Apache 2.0 license applies)")
+            logger.debug(
+                "Running from source - EULA enforcement skipped (Apache 2.0 license applies)"
+            )
             return True
 
         # EULA enforcement only for packaged builds

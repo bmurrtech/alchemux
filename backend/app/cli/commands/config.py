@@ -3,6 +3,7 @@ Config command - Manage configuration location and diagnostics.
 
 Provides subcommands for viewing, diagnosing, and relocating configuration.
 """
+
 import os
 import sys
 import shutil
@@ -18,13 +19,11 @@ from app.cli.output import ArcaneConsole
 from app.cli.prompts import confirm, checkbox, filepath
 from app.core.config_manager import (
     ConfigManager,
-    get_user_config_dir,
-    get_config_location,
     get_pointer_file_path,
     write_config_pointer,
     get_default_output_dir,
 )
-from app.core.toml_config import read_toml, write_toml
+from app.core.toml_config import read_toml
 from app.core.eula import is_packaged_build
 
 # Create Typer app for config subcommands
@@ -67,7 +66,9 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
     console.print("[dim]Creating backup before repairs...[/dim]")
     backup_dir = config.create_backup()
     if not backup_dir:
-        console.print("[red]✗[/red] Failed to create backup. Aborting repairs for safety.")
+        console.print(
+            "[red]✗[/red] Failed to create backup. Aborting repairs for safety."
+        )
         return
 
     console.print(f"[green]✓[/green] Backup created at {backup_dir}")
@@ -80,27 +81,36 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
             if repair_id == "create_config_dir":
                 config_dir = config.env_path.parent
                 config_dir.mkdir(parents=True, exist_ok=True)
-                console.print(f"[green]✓[/green] Created config directory: {config_dir}")
+                console.print(
+                    f"[green]✓[/green] Created config directory: {config_dir}"
+                )
 
             elif repair_id == "recreate_toml":
                 config._create_toml_from_example()
-                console.print(f"[green]✓[/green] Recreated config.toml from example")
+                console.print("[green]✓[/green] Recreated config.toml from example")
 
             elif repair_id == "restore_toml":
                 if config.has_backup():
                     if config.restore_from_backup():
-                        console.print(f"[green]✓[/green] Restored config.toml from backup")
+                        console.print(
+                            "[green]✓[/green] Restored config.toml from backup"
+                        )
                     else:
-                        console.print(f"[red]✗[/red] Failed to restore from backup")
+                        console.print("[red]✗[/red] Failed to restore from backup")
                         repair_success = False
                 else:
-                    console.print(f"[yellow]![/yellow] No backup available, recreating from example")
+                    console.print(
+                        "[yellow]![/yellow] No backup available, recreating from example"
+                    )
                     config._create_toml_from_example()
-                    console.print(f"[green]✓[/green] Recreated config.toml from example")
+                    console.print("[green]✓[/green] Recreated config.toml from example")
 
             elif repair_id == "fix_output_path":
                 from app.cli.prompts import filepath as prompt_filepath
-                current_output = config.get("paths.output_dir", str(get_default_output_dir()))
+
+                current_output = config.get(
+                    "paths.output_dir", str(get_default_output_dir())
+                )
                 console.print(f"\nCurrent output directory: {current_output}")
                 new_path = prompt_filepath(
                     message="Enter new output directory path",
@@ -110,6 +120,7 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                 )
                 if new_path and new_path.strip():
                     from app.core.config_wizard import validate_path
+
                     is_valid, error = validate_path(new_path)
                     if is_valid:
                         expanded = os.path.abspath(os.path.expanduser(new_path))
@@ -122,6 +133,7 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
 
             elif repair_id == "fix_temp_path":
                 from app.cli.prompts import filepath as prompt_filepath
+
                 current_temp = config.get("paths.temp_dir", "./tmp")
                 console.print(f"\nCurrent temp directory: {current_temp}")
                 new_path = prompt_filepath(
@@ -132,6 +144,7 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                 )
                 if new_path and new_path.strip():
                     from app.core.config_wizard import validate_path
+
                     is_valid, error = validate_path(new_path)
                     if is_valid:
                         expanded = os.path.abspath(os.path.expanduser(new_path))
@@ -145,7 +158,9 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
             elif repair_id == "fix_pointer":
                 config_dir = config.env_path.parent
                 write_config_pointer(config_dir)
-                console.print(f"[green]✓[/green] Updated pointer to current config directory")
+                console.print(
+                    "[green]✓[/green] Updated pointer to current config directory"
+                )
 
         except Exception as e:
             console.print(f"[red]✗[/red] Repair '{repair_id}' failed: {e}")
@@ -163,7 +178,9 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                 console.print("[red]✗[/red] Failed to restore from backup")
     else:
         console.print()
-        console.print("[bold green]All selected repairs completed successfully![/bold green]")
+        console.print(
+            "[bold green]All selected repairs completed successfully![/bold green]"
+        )
 
 
 @app.command("show")
@@ -243,24 +260,28 @@ def config_doctor(
         repair_options.append(("create_config_dir", "Create config directory"))
 
     # Check config.toml
-    toml_valid = False
-    toml_corrupted = False
+    _toml_valid = False
+    _toml_corrupted = False
     if config.toml_path.exists():
         try:
             toml_data = read_toml(config.toml_path)
             if toml_data:
-                console.print(f"[green]>[/green] config.toml exists and valid")
-                toml_valid = True
+                console.print("[green]>[/green] config.toml exists and valid")
+                _toml_valid = True
             else:
-                console.print(f"[yellow]![/yellow] config.toml is empty")
+                console.print("[yellow]![/yellow] config.toml is empty")
                 issues.append(("toml_empty", "config.toml is empty"))
-                repair_options.append(("recreate_toml", "Recreate config.toml from example"))
+                repair_options.append(
+                    ("recreate_toml", "Recreate config.toml from example")
+                )
         except Exception as e:
             console.print(f"[red]x[/red] config.toml parse error: {e}")
             issues.append(("toml_invalid", f"config.toml invalid: {e}"))
-            repair_options.append(("recreate_toml", "Recreate config.toml from example"))
+            repair_options.append(
+                ("recreate_toml", "Recreate config.toml from example")
+            )
             repair_options.append(("restore_toml", "Restore config.toml from backup"))
-            toml_corrupted = True
+            _toml_corrupted = True
     else:
         console.print(f"[red]x[/red] config.toml missing: {config.toml_path}")
         issues.append(("toml_missing", "config.toml does not exist"))
@@ -268,69 +289,84 @@ def config_doctor(
 
     # Check .env
     if config.env_path.exists():
-        console.print(f"[green]>[/green] .env exists")
+        console.print("[green]>[/green] .env exists")
     else:
-        console.print(f"[yellow]![/yellow] .env missing (may be created on first use)")
+        console.print("[yellow]![/yellow] .env missing (may be created on first use)")
 
     # Check output directory
     output_dir = config.get("paths.output_dir", str(get_default_output_dir()))
     output_path = Path(output_dir)
-    output_writable = False
+    _output_writable = False
     if output_path.exists():
         if os.access(output_path, os.W_OK):
             console.print(f"[green]>[/green] Output directory writable: {output_dir}")
-            output_writable = True
+            _output_writable = True
         else:
             console.print(f"[red]x[/red] Output directory not writable: {output_dir}")
-            issues.append(("output_not_writable", f"Output directory not writable: {output_dir}"))
+            issues.append(
+                ("output_not_writable", f"Output directory not writable: {output_dir}")
+            )
             repair_options.append(("fix_output_path", "Set new output directory path"))
     else:
         # Check if parent is writable (can create)
         parent = output_path.parent
         if parent.exists() and os.access(parent, os.W_OK):
-            console.print(f"[yellow]![/yellow] Output directory will be created: {output_dir}")
-            output_writable = True
+            console.print(
+                f"[yellow]![/yellow] Output directory will be created: {output_dir}"
+            )
+            _output_writable = True
         else:
             console.print(f"[red]x[/red] Cannot create output directory: {output_dir}")
-            issues.append(("output_cannot_create", f"Cannot create output directory: {output_dir}"))
+            issues.append(
+                (
+                    "output_cannot_create",
+                    f"Cannot create output directory: {output_dir}",
+                )
+            )
             repair_options.append(("fix_output_path", "Set new output directory path"))
 
     # Check temp directory
     temp_dir = config.get("paths.temp_dir", "./tmp")
     temp_path = Path(temp_dir)
-    temp_writable = False
+    _temp_writable = False
     if temp_path.exists():
         if os.access(temp_path, os.W_OK):
             console.print(f"[green]>[/green] Temp directory writable: {temp_dir}")
-            temp_writable = True
+            _temp_writable = True
         else:
             console.print(f"[red]x[/red] Temp directory not writable: {temp_dir}")
-            issues.append(("temp_not_writable", f"Temp directory not writable: {temp_dir}"))
+            issues.append(
+                ("temp_not_writable", f"Temp directory not writable: {temp_dir}")
+            )
             repair_options.append(("fix_temp_path", "Set new temp directory path"))
     else:
         parent = temp_path.parent
         if parent.exists() and os.access(parent, os.W_OK):
-            console.print(f"[yellow]![/yellow] Temp directory will be created: {temp_dir}")
-            temp_writable = True
+            console.print(
+                f"[yellow]![/yellow] Temp directory will be created: {temp_dir}"
+            )
+            _temp_writable = True
         else:
             console.print(f"[red]x[/red] Cannot create temp directory: {temp_dir}")
-            issues.append(("temp_cannot_create", f"Cannot create temp directory: {temp_dir}"))
+            issues.append(
+                ("temp_cannot_create", f"Cannot create temp directory: {temp_dir}")
+            )
             repair_options.append(("fix_temp_path", "Set new temp directory path"))
 
     # Check storage credentials if configured
     storage_dest = config.get("storage.destination", "local")
     if storage_dest == "s3":
         if config.is_s3_configured():
-            console.print(f"[green]>[/green] S3 credentials configured")
+            console.print("[green]>[/green] S3 credentials configured")
         else:
-            console.print(f"[red]x[/red] S3 selected but credentials missing")
+            console.print("[red]x[/red] S3 selected but credentials missing")
             issues.append(("s3_credentials_missing", "S3 credentials missing"))
             # Note: Not adding repair option here - user should run setup s3
     elif storage_dest == "gcp":
         if config.is_gcp_configured():
-            console.print(f"[green]>[/green] GCP credentials configured")
+            console.print("[green]>[/green] GCP credentials configured")
         else:
-            console.print(f"[red]x[/red] GCP selected but credentials missing")
+            console.print("[red]x[/red] GCP selected but credentials missing")
             issues.append(("gcp_credentials_missing", "GCP credentials missing"))
             # Note: Not adding repair option here - user should run setup gcp
 
@@ -341,11 +377,20 @@ def config_doctor(
         if Path(pointer_target).exists():
             console.print(f"[green]>[/green] Pointer file valid: {pointer_target}")
         else:
-            console.print(f"[yellow]![/yellow] Pointer file target missing: {pointer_target}")
-            issues.append(("pointer_invalid", f"Pointer file points to non-existent directory: {pointer_target}"))
-            repair_options.append(("fix_pointer", "Update pointer to current config directory"))
+            console.print(
+                f"[yellow]![/yellow] Pointer file target missing: {pointer_target}"
+            )
+            issues.append(
+                (
+                    "pointer_invalid",
+                    f"Pointer file points to non-existent directory: {pointer_target}",
+                )
+            )
+            repair_options.append(
+                ("fix_pointer", "Update pointer to current config directory")
+            )
     else:
-        console.print(f"[dim]-[/dim] No pointer file (using default config location)")
+        console.print("[dim]-[/dim] No pointer file (using default config location)")
 
     # Summary
     console.print()
@@ -361,14 +406,18 @@ def config_doctor(
             if repair_now:
                 _run_repair_menu(config, repair_options, issues)
         else:
-            console.print("[dim]No automatic repairs available. Please fix issues manually.[/dim]")
+            console.print(
+                "[dim]No automatic repairs available. Please fix issues manually.[/dim]"
+            )
     else:
         console.print("[bold green]All checks passed![/bold green]")
 
 
 @app.command("mv")
 def config_mv(
-    destination: Optional[str] = typer.Argument(None, help="Destination directory (prompted with path completion if omitted)"),
+    destination: Optional[str] = typer.Argument(
+        None, help="Destination directory (prompted with path completion if omitted)"
+    ),
     move: bool = typer.Option(False, "--move", help="Move files instead of copy"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors"),
 ) -> None:
@@ -381,8 +430,14 @@ def config_mv(
     """
     config = ConfigManager()
     src_dir = config.env_path.parent
-    if destination is None or (isinstance(destination, str) and not destination.strip()):
-        default_dir = str(Path(sys.executable).resolve().parent) if is_packaged_build() else str(src_dir)
+    if destination is None or (
+        isinstance(destination, str) and not destination.strip()
+    ):
+        default_dir = (
+            str(Path(sys.executable).resolve().parent)
+            if is_packaged_build()
+            else str(src_dir)
+        )
         destination = filepath(
             message="Enter path to save configs (directory):",
             default=default_dir,
@@ -401,19 +456,27 @@ def config_mv(
 
     # Check if source and destination are the same
     if src_dir.resolve() == dest_dir:
-        console.print("[yellow]![/yellow] Source and destination are the same. Nothing to do.")
+        console.print(
+            "[yellow]![/yellow] Source and destination are the same. Nothing to do."
+        )
         raise typer.Exit(code=0)
 
     # Create destination if needed (with confirmation)
     if not dest_dir.exists():
-        if confirm(f"Create destination directory {dest_dir}?", default=True) is not True:
+        if (
+            confirm(f"Create destination directory {dest_dir}?", default=True)
+            is not True
+        ):
             console.print("[yellow]Cancelled.[/yellow]")
             raise typer.Exit(code=0)
         console.print(f"[dim]Creating directory: {dest_dir}[/dim]")
         dest_dir.mkdir(parents=True, exist_ok=True)
 
     operation = "Moving" if move else "Copying"
-    if confirm(f"Proceed with {operation.lower()} to {dest_dir}?", default=True) is not True:
+    if (
+        confirm(f"Proceed with {operation.lower()} to {dest_dir}?", default=True)
+        is not True
+    ):
         console.print("[yellow]Cancelled.[/yellow]")
         raise typer.Exit(code=0)
 
@@ -438,27 +501,31 @@ def config_mv(
     if dest_toml.exists():
         try:
             read_toml(dest_toml)
-            console.print(f"[green]>[/green] config.toml validated")
+            console.print("[green]>[/green] config.toml validated")
         except Exception as e:
             console.print(f"[red]x[/red] config.toml validation failed: {e}")
             raise typer.Exit(code=1)
 
     # Update pointer file (with confirmation)
     if confirm("Update config pointer to new location?", default=True) is not True:
-        console.print("[yellow]Pointer not updated. Config relocated but pointer still points to old location.[/yellow]")
+        console.print(
+            "[yellow]Pointer not updated. Config relocated but pointer still points to old location.[/yellow]"
+        )
     else:
         write_config_pointer(dest_dir)
-        console.print(f"[green]>[/green] Updated config pointer")
+        console.print("[green]>[/green] Updated config pointer")
 
     # Summary
     console.print()
-    console.print(Panel(
-        f"[bold green]Configuration relocated![/bold green]\n\n"
-        f"New location: {dest_dir}\n"
-        f"Pointer file: {get_pointer_file_path()}",
-        title="Success",
-        border_style="green"
-    ))
+    console.print(
+        Panel(
+            f"[bold green]Configuration relocated![/bold green]\n\n"
+            f"New location: {dest_dir}\n"
+            f"Pointer file: {get_pointer_file_path()}",
+            title="Success",
+            border_style="green",
+        )
+    )
 
 
 # Keep existing wizard as default when no subcommand
@@ -482,12 +549,16 @@ def config_callback(
         config_manager = ConfigManager()
 
         # Use config.toml product.arcane_terms with env fallback (PRD6 regression prevention)
-        arcane_terms_str = config_manager.get("product.arcane_terms") or os.getenv("ARCANE_TERMS", "true")
+        arcane_terms_str = config_manager.get("product.arcane_terms") or os.getenv(
+            "ARCANE_TERMS", "true"
+        )
         arcane_terms = arcane_terms_str.lower() in ("1", "true", "yes")
         arcane_console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
         if not config_manager.check_toml_file_exists():
-            arcane_console.print_fracture("config", "config.toml not found. Run 'alchemux setup' first.")
+            arcane_console.print_fracture(
+                "config", "config.toml not found. Run 'alchemux setup' first."
+            )
             raise typer.Exit(code=1)
 
         from app.core.config_wizard import interactive_config_wizard
@@ -515,12 +586,16 @@ def config_command(
     config_manager = ConfigManager()
 
     # Use config.toml product.arcane_terms with env fallback (PRD6 regression prevention)
-    arcane_terms_str = config_manager.get("product.arcane_terms") or os.getenv("ARCANE_TERMS", "true")
+    arcane_terms_str = config_manager.get("product.arcane_terms") or os.getenv(
+        "ARCANE_TERMS", "true"
+    )
     arcane_terms = arcane_terms_str.lower() in ("1", "true", "yes")
     arcane_console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
     if not config_manager.check_toml_file_exists():
-        arcane_console.print_fracture("config", "config.toml not found. Run 'alchemux setup' first.")
+        arcane_console.print_fracture(
+            "config", "config.toml not found. Run 'alchemux setup' first."
+        )
         raise typer.Exit(code=1)
 
     from app.core.config_wizard import interactive_config_wizard

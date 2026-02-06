@@ -60,7 +60,12 @@ prek run --all-files
 | `prek run --refresh`           | Force fresh project discovery (e.g. after editing `.prekignore`) |
 
 
-**Config:** Hooks are defined in `**prek.toml**` at the repo root. Prek also writes a log file to `~/.cache/prek/prek.log` by default.
+**Config:**
+
+- **prek.toml** at the repo root defines hooks (built-in hygiene + [Ruff](https://docs.astral.sh/ruff/) for Python lint and format). Ruff runs as `ruff --fix` and `ruff-format` via the `astral-sh/ruff-pre-commit` repo.
+- **pyproject.toml** at the repo root configures Ruff: `[tool.ruff]` (e.g. `target-version`, `line-length`, `src` for the backend), `[tool.ruff.format]`, and `[tool.ruff.lint]` (exclude patterns). This ensures consistent formatting and lint rules locally and in CI.
+
+Prek also writes a log file to `~/.cache/prek/prek.log` by default.
 
 ---
 

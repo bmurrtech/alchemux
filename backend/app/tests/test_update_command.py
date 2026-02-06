@@ -3,14 +3,13 @@ Tests for update command (public-safe, no network required for basic tests).
 
 Tests verify update logic without actually performing network operations.
 """
+
 import os
 import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta
 
-import pytest
 from typer.testing import CliRunner
 
 # Ensure `app.*` imports work when running from repo root
@@ -33,7 +32,7 @@ def test_update_check_throttling():
         (cfg_dir / ".env").write_text("")
 
         # Mock ConfigManager to return our temp dir
-        with patch('app.cli.commands.update.ConfigManager') as mock_config:
+        with patch("app.cli.commands.update.ConfigManager") as mock_config:
             mock_instance = MagicMock()
             mock_instance.env_path.parent = cfg_dir
             mock_config.return_value = mock_instance
@@ -58,7 +57,7 @@ def test_update_check_file_creation():
         cfg_dir.mkdir(parents=True, exist_ok=True)
         (cfg_dir / ".env").write_text("")
 
-        with patch('app.cli.commands.update.ConfigManager') as mock_config:
+        with patch("app.cli.commands.update.ConfigManager") as mock_config:
             mock_instance = MagicMock()
             mock_instance.env_path.parent = cfg_dir
             mock_config.return_value = mock_instance
@@ -84,7 +83,7 @@ def test_update_command_invocation():
     runner = CliRunner()
 
     # Mock the update function to avoid actual network calls
-    with patch('app.cli.commands.update.update') as mock_update:
+    with patch("app.cli.commands.update.update") as _mock_update:
         # Set up environment for isolated testing
         with tempfile.TemporaryDirectory() as tmp:
             cfg_dir = Path(tmp) / "cfg"
@@ -111,4 +110,7 @@ def test_update_command_invocation():
             # Command should be recognized (either runs update or shows help)
             # If update was mocked, it should have been called
             # If not mocked, it might fail for other reasons (network, etc.) but NOT URL validation
-            assert result.exit_code != 1 or "invalid URL format" not in (result.stdout + result.stderr).lower()
+            assert (
+                result.exit_code != 1
+                or "invalid URL format" not in (result.stdout + result.stderr).lower()
+            )

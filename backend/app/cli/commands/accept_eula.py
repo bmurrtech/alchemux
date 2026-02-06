@@ -1,6 +1,7 @@
 """
 Accept EULA command - Accept EULA non-interactively.
 """
+
 import typer
 from rich.console import Console
 

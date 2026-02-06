@@ -4,6 +4,7 @@ CI helper: print platform and CPU arch for artifact naming.
 Output: two lines, platform then arch (e.g. darwin\\narm64).
 Used by .github/workflows/release.yml. ASCII-only for Windows cp1252.
 """
+
 import platform
 import sys
 

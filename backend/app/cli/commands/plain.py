@@ -1,6 +1,7 @@
 """
 Plain command - Toggle plain mode (disable colors/animations) in config.toml.
 """
+
 import typer
 from rich.console import Console
 
@@ -29,7 +30,11 @@ def plain_command(
     try:
         # Get current plain setting
         current_plain = config.get("ui.plain", "false")
-        current_plain_bool = current_plain.lower() in ("true", "1", "yes") if isinstance(current_plain, str) else bool(current_plain)
+        current_plain_bool = (
+            current_plain.lower() in ("true", "1", "yes")
+            if isinstance(current_plain, str)
+            else bool(current_plain)
+        )
 
         # Toggle the setting
         new_value = "false" if current_plain_bool else "true"

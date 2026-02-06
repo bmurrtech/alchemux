@@ -1,6 +1,7 @@
 """
 Distill command - Downloads and converts media from URLs.
 """
+
 import os
 import time
 from pathlib import Path
@@ -15,11 +16,16 @@ from app.core.logger import setup_logger
 from app.core.downloader import MediaDownloader
 from app.services.gcp_upload import GCPUploader
 from app.services.s3_upload import S3Uploader
-from app.utils.file_utils import get_download_path, sanitize_filename, detect_source_type
+from app.utils.file_utils import (
+    get_download_path,
+    sanitize_filename,
+    detect_source_type,
+)
 from app.utils.metadata import write_source_url_to_metadata
 
 # Logger will be re-initialized with console after console is created
 logger = None
+
 
 def is_valid_url(url: str) -> bool:
     """Validate URL format."""
@@ -59,14 +65,30 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
 
 def distill(
     url: str = typer.Argument(..., help="Source URL to distill"),
-    audio_format: Optional[str] = typer.Option(None, "--audio-format", "-a", help="Audio codec/format"),
-    video_format: Optional[str] = typer.Option(None, "--video-format", help="Video container"),
+    audio_format: Optional[str] = typer.Option(
+        None, "--audio-format", "-a", help="Audio codec/format"
+    ),
+    video_format: Optional[str] = typer.Option(
+        None, "--video-format", help="Video container"
+    ),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
-    save_path: Optional[str] = typer.Option(None, "--save-path", help="Custom output directory for this run (one-time override)"),
-    local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
-    s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
-    gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
-    debug: bool = typer.Option(False, "--debug", help="Enable debug mode with full tracebacks"),
+    save_path: Optional[str] = typer.Option(
+        None,
+        "--save-path",
+        help="Custom output directory for this run (one-time override)",
+    ),
+    local: bool = typer.Option(
+        False, "--local", help="Save to local storage (one-time override)"
+    ),
+    s3: bool = typer.Option(
+        False, "--s3", help="Upload to S3 storage (one-time override)"
+    ),
+    gcp: bool = typer.Option(
+        False, "--gcp", help="Upload to GCP storage (one-time override)"
+    ),
+    debug: bool = typer.Option(
+        False, "--debug", help="Enable debug mode with full tracebacks"
+    ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
     """
@@ -85,7 +107,9 @@ def distill(
     config = ConfigManager()
 
     # Initialize console: arcane_terms from config.toml (product.arcane_terms) then env fallback
-    arcane_terms_str = (config.get("product.arcane_terms") or config.get("ARCANE_TERMS") or "true").lower()
+    arcane_terms_str = (
+        config.get("product.arcane_terms") or config.get("ARCANE_TERMS") or "true"
+    ).lower()
     arcane_terms = arcane_terms_str in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 
@@ -101,6 +125,7 @@ def distill(
     # Check EULA acceptance first (only enforced for packaged builds)
     # EULA must be accepted manually via setup wizard, not via flags
     from app.core.eula import is_packaged_build, EULAManager
+
     if is_packaged_build():
         eula = EULAManager(config)
         if not eula.is_accepted():
@@ -118,6 +143,7 @@ def distill(
             config._create_env_from_example()
             # Reload env vars
             from dotenv import load_dotenv
+
             load_dotenv(config.env_path)
         except Exception as e:
             logger.warning(f"Could not create .env: {e}")
@@ -133,8 +159,12 @@ def distill(
     required_vars = ["paths.output_dir"]
     is_valid, missing = config.validate_required(required_vars)
     if not is_valid:
-        console.err_console.print(f"⚠️  Missing required configuration: {', '.join(missing)}")
-        console.err_console.print("   Please run 'alchemux setup' to repair configuration.\n")
+        console.err_console.print(
+            f"⚠️  Missing required configuration: {', '.join(missing)}"
+        )
+        console.err_console.print(
+            "   Please run 'alchemux setup' to repair configuration.\n"
+        )
         raise typer.Exit(code=1)
 
     # Determine output directory (--save-path override or config default)
@@ -183,7 +213,9 @@ def distill(
     # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
     video_format_config = config.get("media.video.format", "")
     video_enabled_formats = config.get_list("media.video.enabled_formats") or []
-    video_enabled_in_config = bool(video_format_config and video_format_config.strip()) or bool(video_enabled_formats)
+    video_enabled_in_config = bool(
+        video_format_config and video_format_config.strip()
+    ) or bool(video_enabled_formats)
     if video_format and video_enabled_in_config:
         formats_to_produce = [video_format]  # one video run (only if enabled in config)
     elif flac:
@@ -193,41 +225,59 @@ def distill(
     else:
         # Check if video formats are enabled in config (for multi-format production)
         if video_enabled_in_config:
-            video_formats = video_enabled_formats if video_enabled_formats else ([video_format_config] if video_format_config else [])
+            video_formats = (
+                video_enabled_formats
+                if video_enabled_formats
+                else ([video_format_config] if video_format_config else [])
+            )
             enabled_audio = config.get_list("media.audio.enabled_formats")
-            audio_formats = enabled_audio if enabled_audio else [config.get("media.audio.format", "mp3")]
+            audio_formats = (
+                enabled_audio
+                if enabled_audio
+                else [config.get("media.audio.format", "mp3")]
+            )
             formats_to_produce = audio_formats + video_formats
         else:
             # Video disabled - only audio formats
             enabled = config.get_list("media.audio.enabled_formats")
-            formats_to_produce = enabled if enabled else [config.get("media.audio.format", "mp3")]
+            formats_to_produce = (
+                enabled if enabled else [config.get("media.audio.format", "mp3")]
+            )
 
     logger.debug(f"Formats to produce: {formats_to_produce}")
 
     # Determine storage destinations from flags (before loop so we know upload_to_* once)
     # If multiple flags are set AND all are configured, save to all indicated places
     # Otherwise, use priority: flags > config.toml storage.destination > fallback
-    flags_set = [flag for flag, value in [("local", local), ("s3", s3), ("gcp", gcp)] if value]
+    flags_set = [
+        flag for flag, value in [("local", local), ("s3", s3), ("gcp", gcp)] if value
+    ]
 
     if len(flags_set) > 1:
         # Multiple flags set - check if all are configured
         all_configured = True
         if "s3" in flags_set and not config.is_s3_configured():
             all_configured = False
-            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, skipping S3 upload")
+            console.console.print(
+                "[yellow]⚠[/yellow]  S3 not configured, skipping S3 upload"
+            )
         if "gcp" in flags_set and not config.is_gcp_configured():
             all_configured = False
-            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, skipping GCP upload")
+            console.console.print(
+                "[yellow]⚠[/yellow]  GCP not configured, skipping GCP upload"
+            )
 
         if all_configured:
             # All flags set and all configured - save to all indicated places
-            upload_to_local = "local" in flags_set
+            _upload_to_local = "local" in flags_set
             upload_to_s3 = "s3" in flags_set
             upload_to_gcp = "gcp" in flags_set
-            console.console.print(f"[dim]Saving to all specified destinations: {', '.join(flags_set)}[/dim]")
+            console.console.print(
+                f"[dim]Saving to all specified destinations: {', '.join(flags_set)}[/dim]"
+            )
         else:
             # Some not configured - use only configured ones
-            upload_to_local = "local" in flags_set  # Local is always available
+            _upload_to_local = "local" in flags_set  # Local is always available
             upload_to_s3 = "s3" in flags_set and config.is_s3_configured()
             upload_to_gcp = "gcp" in flags_set and config.is_gcp_configured()
     elif len(flags_set) == 1:
@@ -235,16 +285,20 @@ def distill(
         storage_dest = flags_set[0]
         if storage_dest == "s3" and not config.is_s3_configured():
             fallback = config.get("storage.fallback", "local")
-            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}")
+            console.console.print(
+                f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}"
+            )
             storage_dest = fallback if fallback != "error" else "local"
         elif storage_dest == "gcp" and not config.is_gcp_configured():
             fallback = config.get("storage.fallback", "local")
-            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
+            console.console.print(
+                f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}"
+            )
             storage_dest = fallback if fallback != "error" else "local"
 
-        upload_to_local = (storage_dest == "local")
-        upload_to_s3 = (storage_dest == "s3")
-        upload_to_gcp = (storage_dest == "gcp")
+        _upload_to_local = storage_dest == "local"
+        upload_to_s3 = storage_dest == "s3"
+        upload_to_gcp = storage_dest == "gcp"
     else:
         # No flags set - use config.toml storage.destination
         storage_dest = config.get_storage_destination()
@@ -252,18 +306,22 @@ def distill(
         # Validate destination and check if configured
         if storage_dest == "s3" and not config.is_s3_configured():
             fallback = config.get("storage.fallback", "local")
-            console.console.print(f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}")
+            console.console.print(
+                f"[yellow]⚠[/yellow]  S3 not configured, falling back to: {fallback}"
+            )
             storage_dest = fallback if fallback != "error" else "local"
         elif storage_dest == "gcp" and not config.is_gcp_configured():
             fallback = config.get("storage.fallback", "local")
-            console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
+            console.console.print(
+                f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}"
+            )
             storage_dest = fallback if fallback != "error" else "local"
 
-        upload_to_local = (storage_dest == "local")
-        upload_to_s3 = (storage_dest == "s3")
-        upload_to_gcp = (storage_dest == "gcp")
+        _upload_to_local = storage_dest == "local"
+        upload_to_s3 = storage_dest == "s3"
+        upload_to_gcp = storage_dest == "gcp"
 
-    keep_local_copy = config.get("storage.keep_local_copy", "false").lower() == "true"
+    _keep_local_copy = config.get("storage.keep_local_copy", "false").lower() == "true"
 
     # GCP/S3 setup once (so uploaders exist for the per-format loop)
     gcp_uploader = None
@@ -273,6 +331,7 @@ def distill(
         if not gcp_uploader.is_configured():
             console.err_console.print("⚠️  GCP not configured. Running setup wizard...")
             from app.core.setup_wizard import interactive_gcp_setup
+
             if interactive_gcp_setup(config):
                 console.print_success("setup", "GCP configuration complete")
                 gcp_uploader = GCPUploader(config)
@@ -287,6 +346,7 @@ def distill(
         if not s3_uploader.is_configured():
             console.err_console.print("⚠️  S3 not configured. Running setup wizard...")
             from app.core.setup_wizard import interactive_s3_setup
+
             if interactive_s3_setup(config):
                 console.print_success("setup", "S3 configuration complete")
                 s3_uploader = S3Uploader(config)
@@ -297,13 +357,32 @@ def distill(
     seal_items = []  # [(ext, path_or_url), ...] for successful saves only
     fractured_entries = []  # [(ext, cause), ...] for failed saves
     first_file_path = None
-    title_display = os.path.splitext(sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title))[0]
+    title_display = os.path.splitext(
+        sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
+    )[0]
     is_video_run = bool(video_format)
-    video_ext_map = {"mp4": ".mp4", "mkv": ".mkv", "webm": ".webm", "mov": ".mov", "avi": ".avi", "flv": ".flv", "gif": ".gif"}
-    audio_ext_map = {"aac": ".aac", "alac": ".m4a", "m4a": ".m4a", "opus": ".opus", "vorbis": ".ogg", "wav": ".wav"}
+    video_ext_map = {
+        "mp4": ".mp4",
+        "mkv": ".mkv",
+        "webm": ".webm",
+        "mov": ".mov",
+        "avi": ".avi",
+        "flv": ".flv",
+        "gif": ".gif",
+    }
+    audio_ext_map = {
+        "aac": ".aac",
+        "alac": ".m4a",
+        "m4a": ".m4a",
+        "opus": ".opus",
+        "vorbis": ".ogg",
+        "wav": ".wav",
+    }
 
     for fmt in formats_to_produce:
-        base = sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
+        base = sanitize_filename(
+            f"{title}.mp3" if not title.endswith(".mp3") else title
+        )
         base = os.path.splitext(base)[0]
         if is_video_run:
             ext = video_ext_map.get((fmt or "").lower(), ".mp4")
@@ -330,9 +409,17 @@ def distill(
             )
         if not success:
             # If video download failed, try audio-only fallback
-            if is_video_run and ("403" in (error_msg or "").lower() or "video data" in (error_msg or "").lower() or "forbidden" in (error_msg or "").lower()):
-                logger.warning(f"Video download failed ({error_msg}), attempting audio-only fallback...")
-                console.console.print(f"[yellow]⚠[/yellow]  Video download failed, attempting audio-only extraction...")
+            if is_video_run and (
+                "403" in (error_msg or "").lower()
+                or "video data" in (error_msg or "").lower()
+                or "forbidden" in (error_msg or "").lower()
+            ):
+                logger.warning(
+                    f"Video download failed ({error_msg}), attempting audio-only fallback..."
+                )
+                console.console.print(
+                    "[yellow]⚠[/yellow]  Video download failed, attempting audio-only extraction..."
+                )
                 # Try audio-only extraction
                 audio_fmt = config.get("media.audio.format", "mp3")
                 success, file_path, error_msg = downloader.download(
@@ -350,11 +437,16 @@ def distill(
                     output_path = get_download_path(output_dir, source, filename)
                     # Update is_video_run for this iteration
                     is_video_run = False
-                    console.console.print(f"[green]✓[/green]  Audio extraction succeeded")
+                    console.console.print(
+                        "[green]✓[/green]  Audio extraction succeeded"
+                    )
                 else:
                     cause = _normalize_fracture_cause(error_msg)
                     fractured_entries.append((ext.lstrip(".") or fmt or "file", cause))
-                    console.print_fracture("distill", error_msg or "download failed (video and audio fallback)")
+                    console.print_fracture(
+                        "distill",
+                        error_msg or "download failed (video and audio fallback)",
+                    )
                     continue
             else:
                 cause = _normalize_fracture_cause(error_msg)
@@ -376,12 +468,16 @@ def distill(
                 console.stage_ok("mux", "inscription complete")
                 logger.debug("Source URL written to metadata")
             else:
-                logger.debug("Failed to write source URL to metadata (continuing anyway)")
+                logger.debug(
+                    "Failed to write source URL to metadata (continuing anyway)"
+                )
 
         this_display = None
         if upload_to_gcp and gcp_uploader and file_path:
             with console.stage_status("evaporate", "evaporating artifact..."):
-                up_ok, up_res = gcp_uploader.upload(file_path, Path(file_path).name, source)
+                up_ok, up_res = gcp_uploader.upload(
+                    file_path, Path(file_path).name, source
+                )
             if up_ok:
                 console.stage_ok("evaporate", "transfer complete")
                 this_display = up_res
@@ -390,7 +486,9 @@ def distill(
                 this_display = file_path
         if upload_to_s3 and s3_uploader and file_path:
             with console.stage_status("evaporate", "evaporating artifact..."):
-                up_ok, up_res = s3_uploader.upload(file_path, Path(file_path).name, source)
+                up_ok, up_res = s3_uploader.upload(
+                    file_path, Path(file_path).name, source
+                )
             if up_ok:
                 console.stage_ok("evaporate", "transfer complete")
                 if this_display is None:
@@ -418,7 +516,11 @@ def distill(
 
     # Auto-open folder if enabled
     auto_open_str = config.get("ui.auto_open") or config.get("AUTO_OPEN", "false")
-    auto_open = auto_open_str.lower() == "true" if isinstance(auto_open_str, str) else bool(auto_open_str)
+    auto_open = (
+        auto_open_str.lower() == "true"
+        if isinstance(auto_open_str, str)
+        else bool(auto_open_str)
+    )
     path_for_open = first_file_path or (seal_items[0][1] if seal_items else None)
     if auto_open and path_for_open and os.path.exists(path_for_open):
         try:

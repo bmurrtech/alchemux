@@ -3,9 +3,8 @@ Tests for batch command (CLI registration, prereq gating, non-TTY exit).
 
 Public-safe: temp config dir; mocks for InquirerPy; no network.
 """
-import os
+
 import sys
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 

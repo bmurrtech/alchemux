@@ -2,9 +2,10 @@
 TOML configuration file management.
 Handles reading and writing config.toml for non-secret configuration.
 """
+
 import sys
 from pathlib import Path
-from typing import Optional, Dict, Any, Union
+from typing import Optional, Dict, Any
 
 from .logger import setup_logger
 
@@ -13,6 +14,7 @@ logger = setup_logger(__name__)
 # Try to import TOML Kit (preserves comments), fallback to stdlib/tomli
 try:
     import tomlkit
+
     TOMLKIT_AVAILABLE = True
 except ImportError:
     TOMLKIT_AVAILABLE = False
@@ -21,11 +23,13 @@ except ImportError:
 try:
     if sys.version_info >= (3, 11):
         import tomllib
+
         TOML_READ_AVAILABLE = True
         TOML_READ_FUNC = tomllib.load
     else:
         try:
             import tomli as tomllib
+
             TOML_READ_AVAILABLE = True
             TOML_READ_FUNC = tomllib.load
         except ImportError:
@@ -38,6 +42,7 @@ except ImportError:
 # Try to import TOML write library
 try:
     import tomli_w
+
     TOML_WRITE_AVAILABLE = True
     TOML_WRITE_FUNC = tomli_w.dumps
 except ImportError:
@@ -60,6 +65,7 @@ def get_toml_path(env_path: Optional[Path] = None) -> Path:
 
     # Use same logic as get_config_location for .env
     from .config_manager import get_config_location
+
     env_location = get_config_location()
     return env_location.parent / "config.toml"
 
@@ -81,18 +87,20 @@ def read_toml(toml_path: Path) -> Dict[str, Any]:
     # Prefer TOMLKit for comment preservation
     if TOMLKIT_AVAILABLE:
         try:
-            with open(toml_path, 'r', encoding='utf-8') as f:
+            with open(toml_path, "r", encoding="utf-8") as f:
                 return tomlkit.load(f)
         except Exception as e:
             logger.warning(f"TOMLKit read failed, falling back: {e}")
             pass
 
     if not TOML_READ_AVAILABLE:
-        logger.warning("TOML read library not available. Install tomli for Python < 3.11")
+        logger.warning(
+            "TOML read library not available. Install tomli for Python < 3.11"
+        )
         return {}
 
     try:
-        with open(toml_path, 'rb') as f:
+        with open(toml_path, "rb") as f:
             return TOML_READ_FUNC(f)
     except Exception as e:
         logger.error(f"Error reading config.toml: {e}")
@@ -113,7 +121,7 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
 
         # Prefer TOMLKit for comment preservation
         if TOMLKIT_AVAILABLE:
-            with open(toml_path, 'w', encoding='utf-8') as f:
+            with open(toml_path, "w", encoding="utf-8") as f:
                 tomlkit.dump(config, f)
             logger.debug(f"Wrote config.toml to {toml_path} (tomlkit)")
             return
@@ -126,8 +134,8 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
         toml_content = TOML_WRITE_FUNC(config)
 
         # Write to file
-        with open(toml_path, 'wb') as f:
-            f.write(toml_content.encode('utf-8'))
+        with open(toml_path, "wb") as f:
+            f.write(toml_content.encode("utf-8"))
 
         logger.debug(f"Wrote config.toml to {toml_path}")
     except Exception as e:
@@ -147,7 +155,7 @@ def get_nested_value(config: Dict[str, Any], key_path: str, default: Any = None)
     Returns:
         Value at key path, or default
     """
-    keys = key_path.split('.')
+    keys = key_path.split(".")
     current = config
 
     for key in keys:
@@ -168,7 +176,7 @@ def set_nested_value(config: Dict[str, Any], key_path: str, value: Any) -> None:
         key_path: Dot-separated key path (e.g., "audio.format")
         value: Value to set
     """
-    keys = key_path.split('.')
+    keys = key_path.split(".")
     current = config
 
     # Navigate/create nested structure

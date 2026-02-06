@@ -1,6 +1,7 @@
 """
 File management utilities for save path, directory creation, and file organization.
 """
+
 import os
 import sys
 import shutil
@@ -109,13 +110,13 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
     import re
 
     # Remove or replace invalid characters
-    filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
+    filename = re.sub(r'[<>:"/\\|?*]', "_", filename)
     # Remove leading/trailing dots and spaces
-    filename = filename.strip('. ')
+    filename = filename.strip(". ")
     # Limit length
     if len(filename) > max_length:
         name, ext = os.path.splitext(filename)
-        filename = name[:max_length - len(ext)] + ext
+        filename = name[: max_length - len(ext)] + ext
 
     logger.debug(f"Sanitized filename: {filename}")
     return filename
@@ -234,7 +235,9 @@ def get_ffmpeg_location() -> Optional[str]:
                 logger.debug(f"Using FFMPEG_PATH from environment (file): {env_path}")
                 return str(env_path.parent)
             elif env_path.is_dir():
-                logger.debug(f"Using FFMPEG_PATH from environment (directory): {env_path}")
+                logger.debug(
+                    f"Using FFMPEG_PATH from environment (directory): {env_path}"
+                )
                 return str(env_path)
             else:
                 logger.warning(f"FFMPEG_PATH set but path not found: {ffmpeg_env}")

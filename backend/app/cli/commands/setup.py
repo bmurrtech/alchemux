@@ -1,6 +1,7 @@
 """
 Setup command - Interactive configuration wizard.
 """
+
 from typing import Optional
 import os
 import typer
@@ -12,14 +13,18 @@ from app.core.config_manager import ConfigManager
 from app.core.setup_wizard import (
     interactive_gcp_setup,
     interactive_s3_setup,
-    interactive_setup_refresh,
     smart_setup,
 )
 
 
 def setup(
-    target: Optional[str] = typer.Argument(default=None, help="Setup target: 'gcp' or 's3' for cloud storage, or omit for minimal setup"),
-    reset: bool = typer.Option(False, "--reset", help="Restore default configuration (deletes existing config)"),
+    target: Optional[str] = typer.Argument(
+        default=None,
+        help="Setup target: 'gcp' or 's3' for cloud storage, or omit for minimal setup",
+    ),
+    reset: bool = typer.Option(
+        False, "--reset", help="Restore default configuration (deletes existing config)"
+    ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
     """
@@ -49,8 +54,10 @@ def setup(
     # Handle --reset flag first
     if reset:
         rich_console.print()
-        rich_console.print("[bold yellow]This will reset all configuration to defaults.[/bold yellow]")
-        rich_console.print(f"Config files to delete:")
+        rich_console.print(
+            "[bold yellow]This will reset all configuration to defaults.[/bold yellow]"
+        )
+        rich_console.print("Config files to delete:")
         rich_console.print(f"  - {config_manager.toml_path}")
         rich_console.print(f"  - {config_manager.env_path}")
         rich_console.print()
@@ -59,27 +66,33 @@ def setup(
             # Delete existing config files
             if config_manager.toml_path.exists():
                 config_manager.toml_path.unlink()
-                rich_console.print(f"[green]>[/green] Removed {config_manager.toml_path}")
+                rich_console.print(
+                    f"[green]>[/green] Removed {config_manager.toml_path}"
+                )
             if config_manager.env_path.exists():
                 config_manager.env_path.unlink()
-                rich_console.print(f"[green]>[/green] Removed {config_manager.env_path}")
+                rich_console.print(
+                    f"[green]>[/green] Removed {config_manager.env_path}"
+                )
 
             # Recreate from templates
             try:
                 config_manager._create_toml_from_example()
-                rich_console.print(f"[green]>[/green] Created config.toml from template")
+                rich_console.print("[green]>[/green] Created config.toml from template")
             except Exception as e:
-                rich_console.print(f"[yellow]![/yellow] Could not create config.toml: {e}")
+                rich_console.print(
+                    f"[yellow]![/yellow] Could not create config.toml: {e}"
+                )
 
             try:
                 config_manager._create_env_from_example()
-                rich_console.print(f"[green]>[/green] Created .env from template")
+                rich_console.print("[green]>[/green] Created .env from template")
             except Exception as e:
                 rich_console.print(f"[yellow]![/yellow] Could not create .env: {e}")
 
             rich_console.print()
             rich_console.print("[green]>[/green] Configuration reset to defaults")
-            rich_console.print(f"[dim]Run 'alchemux setup' to reconfigure.[/dim]")
+            rich_console.print("[dim]Run 'alchemux setup' to reconfigure.[/dim]")
         else:
             rich_console.print("[yellow]Reset cancelled.[/yellow]")
         raise typer.Exit(code=0)
@@ -124,5 +137,6 @@ def setup(
                 error_msg = str(e) if e else "Unknown error"
                 console.print_fracture("setup", f"Setup error: {error_msg}")
                 import traceback
+
                 traceback.print_exc()
             raise typer.Exit(code=1)

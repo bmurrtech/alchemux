@@ -1,6 +1,7 @@
 """
 Mux command - Inscribes metadata into media files.
 """
+
 from pathlib import Path
 from typing import Optional
 
@@ -15,7 +16,9 @@ logger = setup_logger(__name__)
 
 def mux(
     file_path: str = typer.Argument(..., help="Path to media file"),
-    source_url: Optional[str] = typer.Option(None, "--source-url", help="Source URL to inscribe"),
+    source_url: Optional[str] = typer.Option(
+        None, "--source-url", help="Source URL to inscribe"
+    ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
 ) -> None:
     """
@@ -28,6 +31,7 @@ def mux(
     """
     # Read arcane_terms from env, default True
     import os
+
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
 

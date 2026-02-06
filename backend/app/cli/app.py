@@ -1,14 +1,16 @@
 """
 Root Typer app for Alchemux CLI.
 """
-import sys
+
 import os
+import sys
 import typer
 from typing import Optional
 from pathlib import Path
 
 # Version constant (shared with main.py)
 VERSION = "0.1.2-rc1"
+
 
 # Detect app name from binary invocation
 # When invoked as symlink, sys.argv[0] contains the symlink name
@@ -18,12 +20,13 @@ def get_app_name() -> str:
         # Get the binary name from argv[0]
         binary_name = Path(sys.argv[0]).name
         # Remove extension if present (.exe on Windows)
-        binary_name = binary_name.replace('.exe', '')
+        binary_name = binary_name.replace(".exe", "")
         # Accept either 'amx' or 'alchemux'
-        if binary_name in ('amx', 'alchemux'):
+        if binary_name in ("amx", "alchemux"):
             return binary_name
     # Default fallback
     return "alchemux"
+
 
 APP_NAME = get_app_name()
 
@@ -37,7 +40,7 @@ app = typer.Typer(
 
 # Import commands (but don't register as visible subcommands)
 # These are internal/linear processing stages, not standalone commands
-from app.cli.commands import distill, invoke, mux, seal, inspect, setup
+from app.cli.commands import distill, invoke, mux, seal, inspect, setup  # noqa: E402
 
 # Register commands as hidden subcommands (for internal use only)
 # They won't appear in --help but can still be invoked programmatically
@@ -50,20 +53,28 @@ app.command("inspect", hidden=True)(inspect.inspect)
 app.command("setup")(setup.setup)
 
 # Import and register config command
-from app.cli.commands import config, update, doctor, batch
+from app.cli.commands import config, update, doctor, batch  # noqa: E402
+
 # Config is now a Typer sub-app with subcommands (show, mv) + wizard default
-app.add_typer(config.app, name="config", help="Manage configuration location and diagnostics")
+app.add_typer(
+    config.app, name="config", help="Manage configuration location and diagnostics"
+)
 # Doctor command (standalone, moved from config doctor)
-app.command("doctor", help="Run configuration diagnostics and guided repairs")(doctor.doctor)
+app.command("doctor", help="Run configuration diagnostics and guided repairs")(
+    doctor.doctor
+)
 # Update command for yt-dlp
 app.command("update", help="Update yt-dlp to latest stable version")(update.update)
 # Batch command (PRD 009): files / paste / playlist → per-URL pipeline
-app.command("batch", help="Process multiple URLs from files, paste, or playlist")(batch.batch)
+app.command("batch", help="Process multiple URLs from files, paste, or playlist")(
+    batch.batch
+)
 
 # Note: Removed commands per simplified CLI design (pm/notes/simplified-cli-design.md):
 # - audio-format, video-format: Use `alchemux config` wizard instead
 # - debug, verbose, plain: Use flags (--debug, --verbose, --plain) or `alchemux config` wizard
 # - storage: Use `alchemux config` wizard instead
+
 
 # Version callback
 def version_callback(value: bool) -> None:
@@ -72,6 +83,7 @@ def version_callback(value: bool) -> None:
         # Always display as Alchemux
         typer.echo(f"Alchemux {VERSION}")
         raise typer.Exit()
+
 
 @app.callback(invoke_without_command=True)
 def main(
@@ -103,13 +115,27 @@ def main(
     ),
     # Backward compatibility: accept old-style arguments at root
     url: Optional[str] = typer.Argument(None, help="Source URL to transmute"),
-    flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion (one-time override)"),
-    local: bool = typer.Option(False, "--local", help="Save to local storage (one-time override)"),
-    s3: bool = typer.Option(False, "--s3", help="Upload to S3 storage (one-time override)"),
-    gcp: bool = typer.Option(False, "--gcp", help="Upload to GCP storage (one-time override)"),
-    verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging (one-time override)"),
-    plain: bool = typer.Option(False, "--plain", help="Disable colors and animations (one-time override)"),
-    clipboard: bool = typer.Option(False, "--clipboard", "-p", help="Use URL from clipboard"),
+    flac: bool = typer.Option(
+        False, "--flac", help="FLAC 16kHz mono conversion (one-time override)"
+    ),
+    local: bool = typer.Option(
+        False, "--local", help="Save to local storage (one-time override)"
+    ),
+    s3: bool = typer.Option(
+        False, "--s3", help="Upload to S3 storage (one-time override)"
+    ),
+    gcp: bool = typer.Option(
+        False, "--gcp", help="Upload to GCP storage (one-time override)"
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", help="Enable verbose logging (one-time override)"
+    ),
+    plain: bool = typer.Option(
+        False, "--plain", help="Disable colors and animations (one-time override)"
+    ),
+    clipboard: bool = typer.Option(
+        False, "--clipboard", "-p", help="Use URL from clipboard"
+    ),
     # Note: Removed --audio-format, --video-format, --save-path per simplified CLI design
     # Use `alchemux config` wizard for persistent configuration changes
 ) -> None:
@@ -123,7 +149,6 @@ def main(
     For backward compatibility, you can use the old argument style:
     alchemux --flac <url>  # Routes to invoke command
     """
-    import os
     if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
@@ -179,16 +204,28 @@ def main(
     # Only process URL if we have a valid URL and no command was invoked
     if url and ctx.invoked_subcommand is None:
         # Check if URL is actually a command name
-        command_names = ["setup", "config", "doctor", "update", "batch", "distill", "invoke", "mux", "seal", "inspect"]
+        command_names = [
+            "setup",
+            "config",
+            "doctor",
+            "update",
+            "batch",
+            "distill",
+            "invoke",
+            "mux",
+            "seal",
+            "inspect",
+        ]
         if url not in command_names:
             # Route to invoke (audio_format and video_format now come from config, not flags)
             from app.cli.commands.invoke import invoke
+
             invoke(
                 url=url,
                 audio_format=None,  # Always use config default (per simplified CLI design)
-                video_format=None,   # Always use config default (per simplified CLI design)
+                video_format=None,  # Always use config default (per simplified CLI design)
                 flac=flac,
-                save_path=None,      # Removed per simplified CLI design (use config wizard)
+                save_path=None,  # Removed per simplified CLI design (use config wizard)
                 local=local,
                 s3=s3,
                 gcp=gcp,
@@ -201,14 +238,17 @@ def main(
         # Dispatch to the intended command so batch/doctor/update work from the CLI.
         if url == "batch":
             from app.cli.commands.batch import batch
+
             batch()
             return
         if url == "doctor":
             from app.cli.commands.doctor import doctor
+
             doctor()
             return
         if url == "update":
             from app.cli.commands.update import update
+
             update()
             return
         # config/setup are handled elsewhere; other names fall through to help below
@@ -236,6 +276,7 @@ def main(
         plain_final = plain or overrides.get("plain", False)
 
         from app.cli.commands.invoke import invoke
+
         invoke(
             url=resolved_url,
             audio_format=None,

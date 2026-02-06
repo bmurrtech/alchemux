@@ -3,6 +3,7 @@ Structured logging with DEBUG/INFO levels via LOG_LEVEL env var.
 Includes yt-dlp logger adapter for verbose output.
 Uses RichHandler for clean, styled log output that doesn't interfere with progress bars.
 """
+
 import os
 import logging
 from typing import Optional
@@ -10,6 +11,7 @@ from typing import Optional
 try:
     from rich.logging import RichHandler
     from rich.console import Console
+
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
@@ -20,6 +22,7 @@ class YTDLLogger:
     Logger adapter so yt-dlp can call .debug/.info/.warning/.error methods
     which will be forwarded to the module logger. Enabled when LOG_LEVEL=debug.
     """
+
     def __init__(self, logger: logging.Logger):
         self.logger = logger
 
@@ -36,7 +39,9 @@ class YTDLLogger:
         self.logger.error(msg)
 
 
-def setup_logger(name: str = __name__, console: Optional[Console] = None, verbose: bool = False) -> logging.Logger:
+def setup_logger(
+    name: str = __name__, console: Optional[Console] = None, verbose: bool = False
+) -> logging.Logger:
     """
     Set up structured logging with LOG_LEVEL env var support.
     Uses RichHandler for clean, styled output that doesn't interfere with progress bars.
@@ -87,10 +92,7 @@ def setup_logger(name: str = __name__, console: Optional[Console] = None, verbos
         else:
             # Fallback to standard handler if Rich not available
             handler = logging.StreamHandler()
-            formatter = logging.Formatter(
-                "%(message)s",
-                datefmt="[%X]"
-            )
+            formatter = logging.Formatter("%(message)s", datefmt="[%X]")
             handler.setFormatter(formatter)
 
         handler.setLevel(log_level)
@@ -103,7 +105,10 @@ def setup_logger(name: str = __name__, console: Optional[Console] = None, verbos
             # Allow warnings from our own code, but suppress yt-dlp warnings
             if record.levelno == logging.WARNING:
                 # Check if it's from yt-dlp (usually has [youtube] or similar tags)
-                if "[youtube]" in record.getMessage() or "yt-dlp" in record.name.lower():
+                if (
+                    "[youtube]" in record.getMessage()
+                    or "yt-dlp" in record.name.lower()
+                ):
                     return False
             return True
 

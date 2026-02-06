@@ -4,6 +4,7 @@ URL input acquisition layer for PRD6: interactive mode and clipboard (-p/--clipb
 Priority: (1) positional URL handled by caller; (2) clipboard if -p/--clipboard;
 (3) interactive if TTY else exit with hint. Never persists overrides; never logs clipboard.
 """
+
 import sys
 from typing import Optional, Tuple
 from urllib.parse import urlparse
@@ -30,19 +31,21 @@ OVERRIDE_KEYS = ("debug", "flac", "local", "s3", "gcp", "verbose", "plain")
 STORAGE_KEYS = ("local", "s3", "gcp")
 
 # User-facing messages (PRD6)
-SETUP_REQUIRED_MSG = (
-    "It looks like Alchemux isn't set up yet. Run alchemux setup to accept the EULA and create your configuration."
+SETUP_REQUIRED_MSG = "It looks like Alchemux isn't set up yet. Run alchemux setup to accept the EULA and create your configuration."
+URL_INVALID_MSG = (
+    "That doesn't look like a URL. Paste a full link starting with https://"
 )
-URL_INVALID_MSG = "That doesn't look like a URL. Paste a full link starting with https://"
-CANCEL_HINT_MSG = 'Canceled. Tip: You can also run alchemux -- "URL" if your link contains & or ?.'
-CLIPBOARD_EMPTY_MSG = "Clipboard is empty. Copy a media URL first, or run alchemux to paste it manually."
-CLIPBOARD_NOT_URL_MSG = (
-    "Clipboard doesn't look like a URL. Copy a link that starts with https://\nRun alchemux to paste it manually."
+CANCEL_HINT_MSG = (
+    'Canceled. Tip: You can also run alchemux -- "URL" if your link contains & or ?.'
 )
-CLIPBOARD_UNSUPPORTED_MSG = (
-    'Clipboard unsupported. Retry with `alchemux` or `alchemux "https://your_URL_here"` instead.'
+CLIPBOARD_EMPTY_MSG = (
+    "Clipboard is empty. Copy a media URL first, or run alchemux to paste it manually."
 )
-NO_URL_NONINTERACTIVE_MSG = "No URL provided. In non-interactive mode, pass a URL as an argument."
+CLIPBOARD_NOT_URL_MSG = "Clipboard doesn't look like a URL. Copy a link that starts with https://\nRun alchemux to paste it manually."
+CLIPBOARD_UNSUPPORTED_MSG = 'Clipboard unsupported. Retry with `alchemux` or `alchemux "https://your_URL_here"` instead.'
+NO_URL_NONINTERACTIVE_MSG = (
+    "No URL provided. In non-interactive mode, pass a URL as an argument."
+)
 STORAGE_ONE_ONLY_MSG = "Choose only one storage destination override."
 
 
@@ -148,8 +151,12 @@ def _interactive_overrides_prompt() -> dict:
         Choice("local", name="--local — Save to local storage (one-time override)"),
         Choice("s3", name="--s3 — Upload to S3 storage (one-time override)"),
         Choice("gcp", name="--gcp — Upload to GCP storage (one-time override)"),
-        Choice("verbose", name="--verbose — Enable verbose logging (one-time override)"),
-        Choice("plain", name="--plain — Disable colors and animations (one-time override)"),
+        Choice(
+            "verbose", name="--verbose — Enable verbose logging (one-time override)"
+        ),
+        Choice(
+            "plain", name="--plain — Disable colors and animations (one-time override)"
+        ),
     ]
 
     while True:

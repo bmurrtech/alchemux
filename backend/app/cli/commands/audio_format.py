@@ -1,7 +1,7 @@
 """
 Audio format command - Interactive audio format selection using Rich.
 """
-import os
+
 import typer
 from rich.console import Console
 from rich.prompt import Prompt
@@ -46,8 +46,12 @@ def audio_format_command(
 
     # Display selection UI
     console.print()
-    console.print(Panel.fit("[bold cyan]Audio Format Selection[/bold cyan]", border_style="cyan"))
-    console.print(f"\n[dim]Current default format:[/dim] [bold]{current_format}[/bold]\n")
+    console.print(
+        Panel.fit("[bold cyan]Audio Format Selection[/bold cyan]", border_style="cyan")
+    )
+    console.print(
+        f"\n[dim]Current default format:[/dim] [bold]{current_format}[/bold]\n"
+    )
     console.print("[bold]Supported audio formats:[/bold]\n")
 
     for i, fmt in enumerate(SUPPORTED_AUDIO_FORMATS, 1):
@@ -85,7 +89,9 @@ def audio_format_command(
             selected_format = choice_lower
             break
 
-        console.print(f"[red]Invalid selection. Please enter a number (1-{len(SUPPORTED_AUDIO_FORMATS)}) or format name.[/red]")
+        console.print(
+            f"[red]Invalid selection. Please enter a number (1-{len(SUPPORTED_AUDIO_FORMATS)}) or format name.[/red]"
+        )
 
     # Save to config if changed
     if selected_format != current_format:
@@ -94,7 +100,9 @@ def audio_format_command(
 
             # Show confirmation
             console.print()
-            console.print(f"[green]✓[/green] Default audio format set to: [bold]{selected_format}[/bold]")
+            console.print(
+                f"[green]✓[/green] Default audio format set to: [bold]{selected_format}[/bold]"
+            )
             console.print(f"[dim]Configuration saved to: {config.toml_path}[/dim]")
             console.print()
         except Exception as e:

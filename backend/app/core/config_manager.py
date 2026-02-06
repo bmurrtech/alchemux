@@ -3,6 +3,7 @@ Secure .env file management with chmod 600 permissions, validation, and auto-upd
 Supports portable binaries with hybrid config location detection.
 Uses platformdirs for cross-platform user config paths.
 """
+
 import os
 import stat
 import sys
@@ -15,6 +16,7 @@ from dotenv import load_dotenv, set_key, find_dotenv
 # Reference: https://platformdirs.readthedocs.io/en/latest/api.html
 try:
     from platformdirs import user_config_path, user_downloads_path
+
     PLATFORMDIRS_AVAILABLE = True
 except ImportError:
     PLATFORMDIRS_AVAILABLE = False
@@ -49,10 +51,7 @@ def get_user_config_dir() -> Path:
     if PLATFORMDIRS_AVAILABLE:
         # roaming=True for Windows to use %APPDATA% (Roaming) instead of %LOCALAPPDATA%
         config_dir = user_config_path(
-            appname=APP_NAME,
-            appauthor=APP_AUTHOR,
-            roaming=True,
-            ensure_exists=True
+            appname=APP_NAME, appauthor=APP_AUTHOR, roaming=True, ensure_exists=True
         )
         return config_dir
 
@@ -60,7 +59,9 @@ def get_user_config_dir() -> Path:
     if sys.platform == "darwin":  # macOS
         config_dir = Path.home() / "Library" / "Application Support" / "Alchemux"
     elif sys.platform == "win32":  # Windows - use APPDATA (Roaming)
-        config_dir = Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming")) / "Alchemux"
+        config_dir = (
+            Path(os.getenv("APPDATA", Path.home() / "AppData" / "Roaming")) / "Alchemux"
+        )
     else:  # Linux and others - XDG compliant
         xdg_config = os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")
         config_dir = Path(xdg_config) / "alchemux"
@@ -118,7 +119,9 @@ def read_config_pointer() -> Optional[Path]:
                 if pointer_path.exists():
                     return pointer_path
                 else:
-                    logger.warning(f"Config pointer target does not exist: {pointer_path}")
+                    logger.warning(
+                        f"Config pointer target does not exist: {pointer_path}"
+                    )
         except Exception as e:
             logger.warning(f"Could not read config pointer: {e}")
     return None
@@ -171,17 +174,21 @@ def get_config_location() -> Path:
         return config_path
 
     # Detect if running as packaged binary
-    if getattr(sys, 'frozen', False):
+    if getattr(sys, "frozen", False):
         # Running as PyInstaller binary: default to same path as binary
         binary_path = Path(sys.executable)
         binary_dir = binary_path.parent
         if os.access(binary_dir, os.W_OK):
             portable_env = binary_dir / ".env"
-            logger.debug(f"Using config next to binary (default for portable): {portable_env}")
+            logger.debug(
+                f"Using config next to binary (default for portable): {portable_env}"
+            )
             return portable_env
         # Fallback if binary dir not writable
         user_config = get_user_config_dir() / ".env"
-        logger.debug(f"Binary dir not writable, using OS config directory: {user_config}")
+        logger.debug(
+            f"Binary dir not writable, using OS config directory: {user_config}"
+        )
         return user_config
     else:
         # Running from source: prioritize existing .env, then project root, then CWD
@@ -195,14 +202,18 @@ def get_config_location() -> Path:
                 return env_path
             else:
                 # find_dotenv() found a path but file doesn't exist - use its parent directory
-                logger.debug(f"Running from source, using .env location from find_dotenv: {env_path}")
+                logger.debug(
+                    f"Running from source, using .env location from find_dotenv: {env_path}"
+                )
                 return env_path
 
         # No .env found - check if we're in a project root (has env.example)
         cwd = Path.cwd()
         env_example_in_cwd = cwd / "env.example"
         if env_example_in_cwd.exists():
-            logger.debug(f"Running from source, using project root (has env.example): {cwd / '.env'}")
+            logger.debug(
+                f"Running from source, using project root (has env.example): {cwd / '.env'}"
+            )
             return cwd / ".env"
 
         # Default to current working directory
@@ -223,12 +234,12 @@ class ConfigManager:
         # Ensure env_path is a string (handle Typer OptionInfo objects)
         if env_path is not None:
             # Check if it's an OptionInfo object (when option not provided)
-            if hasattr(env_path, '__class__') and 'OptionInfo' in str(type(env_path)):
+            if hasattr(env_path, "__class__") and "OptionInfo" in str(type(env_path)):
                 # OptionInfo object means option was not provided, treat as None
                 self.env_path = get_config_location()
             elif isinstance(env_path, str):
                 # Check if string is OptionInfo representation
-                if env_path.startswith('<typer.models.OptionInfo'):
+                if env_path.startswith("<typer.models.OptionInfo"):
                     # String representation of OptionInfo, treat as None
                     self.env_path = get_config_location()
                 elif env_path.strip():
@@ -240,7 +251,7 @@ class ConfigManager:
             else:
                 # Try to convert to string, but check result
                 env_path_str = str(env_path)
-                if env_path_str.startswith('<typer.models.OptionInfo'):
+                if env_path_str.startswith("<typer.models.OptionInfo"):
                     # Conversion resulted in OptionInfo representation, treat as None
                     self.env_path = get_config_location()
                 elif env_path_str.strip():
@@ -253,7 +264,7 @@ class ConfigManager:
             self.env_path = get_config_location()
 
         # For env.example, try binary directory first, then user config, then .env parent
-        if getattr(sys, 'frozen', False):
+        if getattr(sys, "frozen", False):
             binary_dir = Path(sys.executable).parent
             self.env_example_path = binary_dir / "env.example"
             if not self.env_example_path.exists():
@@ -282,7 +293,7 @@ class ConfigManager:
             return
 
         try:
-            if os.name != 'nt':  # Unix-like systems
+            if os.name != "nt":  # Unix-like systems
                 # Set to 600 (read/write for owner only)
                 os.chmod(self.env_path, stat.S_IRUSR | stat.S_IWUSR)
                 logger.debug(f"Set secure permissions on {self.env_path}")
@@ -306,8 +317,16 @@ class ConfigManager:
             True if key is a secret and should go in .env
         """
         secret_patterns = [
-            'KEY', 'SECRET', 'TOKEN', 'PASSWORD', 'CREDENTIAL',
-            'COOKIE', 'OAUTH', 'SA_KEY', 'ACCESS_KEY', 'SECRET_KEY'
+            "KEY",
+            "SECRET",
+            "TOKEN",
+            "PASSWORD",
+            "CREDENTIAL",
+            "COOKIE",
+            "OAUTH",
+            "SA_KEY",
+            "ACCESS_KEY",
+            "SECRET_KEY",
         ]
         key_upper = key.upper()
         return any(pattern in key_upper for pattern in secret_patterns)
@@ -339,13 +358,17 @@ class ConfigManager:
             toml_value = get_nested_value(toml_config, key)
             if toml_value is not None:
                 # Convert to string for consistency
-                value = str(toml_value) if not isinstance(toml_value, str) else toml_value
+                value = (
+                    str(toml_value) if not isinstance(toml_value, str) else toml_value
+                )
                 logger.debug(f"Config get (toml): {key} = {value}")
                 return value
 
         # Fallback to .env
         value = os.getenv(key, default)
-        logger.debug(f"Config get (env): {key} = {'***' if 'key' in key.lower() or 'secret' in key.lower() else value}")
+        logger.debug(
+            f"Config get (env): {key} = {'***' if 'key' in key.lower() or 'secret' in key.lower() else value}"
+        )
         return value
 
     def get_list(self, key: str, default: Optional[list] = None) -> list:
@@ -377,8 +400,10 @@ class ConfigManager:
 
             if not self.env_example_path.exists():
                 # Create minimal .env with same placeholder keys as env.example (secrets only)
-                with open(self.env_path, 'w') as f:
-                    f.write("# Alchemux .env (secrets only). Non-secret settings go in config.toml.\n")
+                with open(self.env_path, "w") as f:
+                    f.write(
+                        "# Alchemux .env (secrets only). Non-secret settings go in config.toml.\n"
+                    )
                     f.write("# OAUTH\nOAUTH_CLIENT_ID=\nOAUTH_CLIENT_SECRET=\n")
                     f.write("# GCP\nGCP_SA_KEY_BASE64=\n")
                     f.write("# S3\nS3_ACCESS_KEY=\nS3_SECRET_KEY=\n")
@@ -390,13 +415,18 @@ class ConfigManager:
 
             # Copy the full example file
             import shutil
+
             shutil.copy2(self.env_example_path, self.env_path)
 
             self._ensure_secure_permissions()
-            logger.info(f"Created .env file at {self.env_path} from {self.env_example_path}")
+            logger.info(
+                f"Created .env file at {self.env_path} from {self.env_example_path}"
+            )
         except (IOError, OSError, PermissionError) as e:
             logger.error(f"Failed to create .env file at {self.env_path}: {e}")
-            raise IOError(f"Cannot create .env file: {e}. Check permissions for {self.env_path.parent}")
+            raise IOError(
+                f"Cannot create .env file: {e}. Check permissions for {self.env_path.parent}"
+            )
 
     def _create_toml_from_example(self) -> None:
         """
@@ -406,6 +436,7 @@ class ConfigManager:
         if not self.toml_example_path.exists():
             # If example doesn't exist, create minimal config.toml
             from .toml_config import write_toml
+
             minimal_config = {
                 "product": {"arcane_terms": True},
                 "ui": {"auto_open": True, "plain": False},
@@ -413,8 +444,13 @@ class ConfigManager:
                 "eula": {"accepted": False, "accepted_at": "", "acceptance_hash": ""},
                 "paths": {"output_dir": "./downloads", "temp_dir": "./tmp"},
                 "media": {
-                    "audio": {"format": "mp3", "quality": "192k", "sample_rate": 0, "channels": 0},
-                    "video": {"format": "", "codec": "", "restrict_filenames": True}
+                    "audio": {
+                        "format": "mp3",
+                        "quality": "192k",
+                        "sample_rate": 0,
+                        "channels": 0,
+                    },
+                    "video": {"format": "", "codec": "", "restrict_filenames": True},
                 },
                 "presets": {
                     "flac": {"override": False, "sample_rate": 16000, "channels": 1}
@@ -424,8 +460,8 @@ class ConfigManager:
                 "storage": {
                     "destination": "local",
                     "fallback": "local",
-                    "keep_local_copy": False
-                }
+                    "keep_local_copy": False,
+                },
             }
             try:
                 write_toml(self.toml_path, minimal_config)
@@ -437,6 +473,7 @@ class ConfigManager:
         # Copy example file to config.toml
         try:
             import shutil
+
             shutil.copy2(self.toml_example_path, self.toml_path)
             logger.info(f"Created config.toml from {self.toml_example_path}")
         except Exception as e:
@@ -456,7 +493,7 @@ class ConfigManager:
         """
         # Check for required config keys
         bucket = self.get("storage.s3.bucket")
-        endpoint = self.get("storage.s3.endpoint")
+        _endpoint = self.get("storage.s3.endpoint")
 
         # S3 requires bucket, endpoint is optional (can be inferred)
         if not bucket:
@@ -593,7 +630,7 @@ Expected location: {self.env_path}"""
         # Check for required configuration (paths.output_dir in config.toml or DOWNLOAD_PATH in .env)
         output_dir = self.get("paths.output_dir") or self.get("DOWNLOAD_PATH")
         if not output_dir or not output_dir.strip():
-            return f"""❌ Missing required configuration: paths.output_dir
+            return """❌ Missing required configuration: paths.output_dir
 
 To fix:
 1. Run setup wizard: alchemux setup
@@ -668,14 +705,14 @@ To fix:
             backup_toml = backup_dir / "config.toml"
             if backup_toml.exists():
                 shutil.copy2(backup_toml, self.toml_path)
-                logger.info(f"Restored config.toml from backup")
+                logger.info("Restored config.toml from backup")
 
             # Restore .env if backup exists
             backup_env = backup_dir / ".env"
             if backup_env.exists():
                 shutil.copy2(backup_env, self.env_path)
                 self._ensure_secure_permissions()
-                logger.info(f"Restored .env from backup")
+                logger.info("Restored .env from backup")
 
             # Invalidate cache to force reload
             self._toml_cache = None
