@@ -15,7 +15,7 @@ def save_default(
 ) -> None:
     """
     Set default storage destination interactively.
-    
+
     This rite allows you to configure the default storage destination for all
     future transmutations. You can choose to save locally, upload to GCP, or
     upload to S3 by default. This setting can be overridden per-run using
@@ -25,13 +25,13 @@ def save_default(
     import os
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
-    
+
     config_manager = ConfigManager()
-    
+
     # Get current defaults
     gcp_enabled = config_manager.get("GCP_UPLOAD_ENABLED", "false").lower() == "true"
     s3_enabled = config_manager.get("S3_UPLOAD_ENABLED", "false").lower() == "true"
-    
+
     # Determine current default
     if gcp_enabled:
         current_default = "GCP"
@@ -39,22 +39,22 @@ def save_default(
         current_default = "S3"
     else:
         current_default = "Local"
-    
+
     # Display current setting
     console.console.print(f"\n[bold]Current default storage:[/bold] [cyan]{current_default}[/cyan]")
     console.console.print("\nSelect new default storage destination:\n")
-    
+
     # Show options
     options = [
         ("1", "Local", "Save files locally only (no cloud upload)"),
         ("2", "GCP", "Upload to Google Cloud Platform by default"),
         ("3", "S3", "Upload to S3-compatible storage by default"),
     ]
-    
+
     for num, name, desc in options:
         marker = "→" if name == current_default else " "
         console.console.print(f"  {marker} {num}. {name:<6} - {desc}")
-    
+
     # Get user selection
     console.console.print()
     choice = Prompt.ask(
@@ -62,7 +62,7 @@ def save_default(
         choices=["1", "2", "3"],
         default="1" if current_default == "Local" else ("2" if current_default == "GCP" else "3")
     )
-    
+
     # Update configuration based on selection
     if choice == "1":
         # Local
@@ -84,7 +84,6 @@ def save_default(
         console.print_success("config", "Default storage set to S3")
         console.console.print("  Files will be uploaded to S3-compatible storage by default")
         console.console.print("  [dim]Note: S3 must be configured with 'alchemux setup s3'[/dim]")
-    
+
     console.console.print(f"\n[dim]Configuration saved to: {config_manager.env_path}[/dim]")
     console.console.print("[dim]You can override this default per-run using --gcp, --s3, or --local flags[/dim]")
-

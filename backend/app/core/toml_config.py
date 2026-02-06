@@ -48,16 +48,16 @@ except ImportError:
 def get_toml_path(env_path: Optional[Path] = None) -> Path:
     """
     Get path to config.toml file.
-    
+
     Args:
         env_path: Path to .env file (config.toml will be in same directory)
-        
+
     Returns:
         Path to config.toml
     """
     if env_path:
         return env_path.parent / "config.toml"
-    
+
     # Use same logic as get_config_location for .env
     from .config_manager import get_config_location
     env_location = get_config_location()
@@ -67,17 +67,17 @@ def get_toml_path(env_path: Optional[Path] = None) -> Path:
 def read_toml(toml_path: Path) -> Dict[str, Any]:
     """
     Read config.toml file.
-    
+
     Args:
         toml_path: Path to config.toml
-        
+
     Returns:
         Dictionary of configuration values
     """
     if not toml_path.exists():
         logger.debug(f"config.toml not found at {toml_path}")
         return {}
-        
+
     # Prefer TOMLKit for comment preservation
     if TOMLKIT_AVAILABLE:
         try:
@@ -90,7 +90,7 @@ def read_toml(toml_path: Path) -> Dict[str, Any]:
     if not TOML_READ_AVAILABLE:
         logger.warning("TOML read library not available. Install tomli for Python < 3.11")
         return {}
-    
+
     try:
         with open(toml_path, 'rb') as f:
             return TOML_READ_FUNC(f)
@@ -102,7 +102,7 @@ def read_toml(toml_path: Path) -> Dict[str, Any]:
 def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
     """
     Write config.toml file.
-    
+
     Args:
         toml_path: Path to config.toml
         config: Dictionary of configuration values (nested structure)
@@ -110,7 +110,7 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
     try:
         # Ensure parent directory exists
         toml_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Prefer TOMLKit for comment preservation
         if TOMLKIT_AVAILABLE:
             with open(toml_path, 'w', encoding='utf-8') as f:
@@ -121,14 +121,14 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
         if not TOML_WRITE_AVAILABLE:
             logger.warning("TOML write library not available. Install tomli-w")
             raise ImportError("tomli-w is required for writing config.toml")
-        
+
         # Convert dict to TOML string
         toml_content = TOML_WRITE_FUNC(config)
-        
+
         # Write to file
         with open(toml_path, 'wb') as f:
             f.write(toml_content.encode('utf-8'))
-        
+
         logger.debug(f"Wrote config.toml to {toml_path}")
     except Exception as e:
         logger.error(f"Error writing config.toml: {e}")
@@ -138,31 +138,31 @@ def write_toml(toml_path: Path, config: Dict[str, Any]) -> None:
 def get_nested_value(config: Dict[str, Any], key_path: str, default: Any = None) -> Any:
     """
     Get a nested value from config dict using dot notation.
-    
+
     Args:
         config: Configuration dictionary
         key_path: Dot-separated key path (e.g., "audio.format" or "storage.default")
         default: Default value if key not found
-        
+
     Returns:
         Value at key path, or default
     """
     keys = key_path.split('.')
     current = config
-    
+
     for key in keys:
         if isinstance(current, dict) and key in current:
             current = current[key]
         else:
             return default
-    
+
     return current
 
 
 def set_nested_value(config: Dict[str, Any], key_path: str, value: Any) -> None:
     """
     Set a nested value in config dict using dot notation.
-    
+
     Args:
         config: Configuration dictionary (modified in place)
         key_path: Dot-separated key path (e.g., "audio.format")
@@ -170,7 +170,7 @@ def set_nested_value(config: Dict[str, Any], key_path: str, value: Any) -> None:
     """
     keys = key_path.split('.')
     current = config
-    
+
     # Navigate/create nested structure
     for i, key in enumerate(keys[:-1]):
         if key not in current:
@@ -179,8 +179,7 @@ def set_nested_value(config: Dict[str, Any], key_path: str, value: Any) -> None:
             # Convert existing value to dict if needed
             current[key] = {}
         current = current[key]
-    
+
     # Set final value
     final_key = keys[-1]
     current[final_key] = value
-

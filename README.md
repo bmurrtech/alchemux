@@ -3,6 +3,7 @@
 **Magically intuitive and interactive CLI wrapper for yt-dlp & FFmpeg** with **cloud upload** optionality (S3-compatible, GCP Buckets). Download & convert YouTube videos + 1K more sources — it's alchemy media magic!
 
 ## CLI Showcase
+
 ![transmuting](https://i.imgur.com/coG2REg.png)
 ![usage](https://i.imgur.com/iDFjVCw.png)
 
@@ -33,11 +34,13 @@ Alchemux is distributed as a Python CLI from PyPI. Installing with **uv** avoids
 #### 1) Install uv (one-time)
 
 **macOS/Linux:**
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 **Windows (PowerShell):**
+
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
@@ -92,13 +95,28 @@ For a complete legend of arcane terminology and their technical equivalents, see
 
 **Root Cause**: YouTube's anti-bot detection measures. This affects video downloads.
 
-## Contributing
+## Contributors welcome
 
-Feature requests, bug reports, and contributions are welcome!
+Feature requests, bug reports, and contributions are welcome. We use **[prek](https://github.com/j178/prek)** for pre-commit hooks so CI and local checks stay in sync.
+
+**Before you start:** See **[docs/contributors.md](docs/contributors.md)** for:
+
+- Installing prek and running the test suite
+- Pre-commit best practice (`prek install --install-hooks`, `prek run --all-files`)
+- [Tests README](backend/app/tests/README.md)
+
+**Submitting a PR (best practice):**
+
+1. **Run hooks locally** so CI passes: `prek run --all-files` (from repo root).
+2. **Run the test suite**: `pytest backend/app/tests -q` (see [backend/app/tests/README.md](backend/app/tests/README.md)).
+3. **Keep PRs focused** — one logical change per PR; reference any related issue.
+4. **No secrets** — never commit credentials, API keys, or tokens; use `env.example` as a template.
+5. **Branch from `main`** and ensure your branch is up to date before opening the PR.
 
 ## Troubleshooting
 
 **Get help:**
+
 ```bash
 alchemux -h
 # or
@@ -111,7 +129,8 @@ amx -h
 
 **Problem**: Downloads fail
 
-**Solution**: 
+**Solution**:
+
 1. Try audio extraction instead: `alchemux --audio-format mp3 "URL"`
 2. Update yt-dlp: `alchemux update`
 3. If issues persist, this may be YouTube anti-bot detection (see Known Issues above)
@@ -127,6 +146,7 @@ Alchemux relies on these excellent projects:
 - **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Media downloader and converter (core functionality)
 - **[FFmpeg](https://ffmpeg.org/)** - Audio and video conversion (system install required)
 - **[uv](https://docs.astral.sh/uv/)** (Astral) - Python package and project manager; install and run Alchemux via `uv tool install` / `uvx`
+- **[prek](https://github.com/j178/prek)** - Pre-commit replacement (Rust); runs format, lint, and repo-hygiene hooks in CI and locally ([docs/contributors.md](docs/contributors.md))
 - **[PyPI](https://pypi.org/)** - Python package index for distribution
 - **[Typer](https://typer.tiangolo.com/)** - Modern CLI framework
 - **[Rich](https://github.com/Textualize/rich)** - Terminal output, progress bars, and styling
@@ -135,7 +155,7 @@ Alchemux relies on these excellent projects:
 - **[mutagen](https://github.com/quodlibet/mutagen)** - Audio metadata handling
 - **[python-dotenv](https://github.com/theskumar/python-dotenv)** - Environment variable management
 
-## 📄 License
+## License
 
-Open source under the **GNU AGPLv3**—see [`LICENSE`](LICENSE) for terms.  
+Open source under the **GNU AGPLv3**—see `[LICENSE](LICENSE)` for terms.
 Commercial licensing available—contact maintainers for details.

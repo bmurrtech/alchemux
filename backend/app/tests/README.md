@@ -35,7 +35,19 @@ These are **repo-tracked templates** you can use as reference while testing:
 
 - **Commands**: `docs/commands.md`
 - **Install**: `docs/install.md`
+- **Contributors (prek, test suite, refs)**: `docs/contributors.md`
 - **Legend/terminology**: `docs/legend.md`
+
+---
+
+## prek (pre-commit) and the test suite
+
+The repo uses **[prek](https://github.com/j178/prek)** for pre-commit hooks (format, lint, repo hygiene). CI runs `prek run --all-files` on push/PR. Recommended flow before committing:
+
+1. **Run hooks:** `prek run --all-files` (from repo root). Fix any failures.
+2. **Run tests:** `pytest backend/app/tests -q` (with venv activated and deps installed).
+
+See [docs/contributors.md](../../docs/contributors.md) for prek install ([installation](https://github.com/j178/prek?tab=readme-ov-file#installation)), `prek install --install-hooks`, and the full CLI reference ([prek.j178.dev/cli](https://prek.j178.dev/cli/)).
 
 ---
 
@@ -104,9 +116,10 @@ Common one-run flags you may use during CLI smoke checks:
 
 ## Running the unit tests
 
-Install dependencies with **uv** (see “Safe local run” above), then from repo root:
+Install dependencies with **uv** (see “Safe local run” above), then from repo root. Recommended: run prek first (see "prek (pre-commit) and the test suite" above):
 
 ```bash
+prek run --all-files    # optional but recommended before pushing
 pytest backend/app/tests -q
 ```
 
@@ -220,4 +233,3 @@ When reporting failures, include:
 - **Exit code** and **stdout/stderr** (redact anything that looks like a secret).
 - The **temp config dir path** you used (safe to share).
 - `python --version`, and whether you ran inside a virtualenv.
-

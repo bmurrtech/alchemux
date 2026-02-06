@@ -15,21 +15,21 @@ def accept_eula_command(
 ) -> None:
     """
     Accept EULA non-interactively.
-    
+
     Records EULA acceptance in both eula_config.json and config.toml.
     """
     config = ConfigManager()
-    
+
     # Ensure config files exist
     if not config.check_env_file_exists():
         config._create_env_from_example()
     if not config.check_toml_file_exists():
         config._create_toml_from_example()
-    
+
     # Accept EULA
     eula_manager = EULAManager(config)
     eula_manager.accept("command")
-    
+
     # Show confirmation
     console.print()
     console.print("[green]✓[/green] EULA accepted")

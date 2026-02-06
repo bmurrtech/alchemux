@@ -21,7 +21,7 @@ console = Console()
 def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) -> None:
     """
     Run interactive repair menu.
-    
+
     Args:
         config: ConfigManager instance
         repair_options: List of (repair_id, description) tuples
@@ -30,21 +30,21 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
     if not repair_options:
         console.print("[dim]No repairs available.[/dim]")
         return
-    
+
     console.print()
     console.print("[bold]Available Repairs:[/bold]")
-    
+
     # Present repair options as checkbox list
     selected_repairs = checkbox(
         message="Select repairs to apply:",
         choices=[(opt_id, desc) for opt_id, desc in repair_options],
         default=[opt_id for opt_id, _ in repair_options],  # Select all by default
     )
-    
+
     if not selected_repairs:
         console.print("[yellow]No repairs selected.[/yellow]")
         return
-    
+
     # Create backup before repairs
     console.print()
     console.print("[dim]Creating backup before repairs...[/dim]")
@@ -53,7 +53,7 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
         console.print(f"[green]✓[/green] Backup created: {backup_path}")
     else:
         console.print("[yellow]![/yellow]  Could not create backup, proceeding anyway...")
-    
+
     # Apply selected repairs
     repair_success = True
     for repair_id in selected_repairs:
@@ -62,11 +62,11 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                 config_dir = config.env_path.parent
                 config_dir.mkdir(parents=True, exist_ok=True)
                 console.print(f"[green]✓[/green] Created config directory: {config_dir}")
-            
+
             elif repair_id == "recreate_toml":
                 config._create_toml_from_example()
                 console.print(f"[green]✓[/green] Recreated config.toml from example")
-            
+
             elif repair_id == "restore_toml":
                 if config.has_backup():
                     if config.restore_from_backup():
@@ -76,12 +76,12 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                         repair_success = False
                 else:
                     console.print(f"[yellow]![/yellow]  No backup available for restore")
-            
+
             elif repair_id == "fix_output_path":
                 default_path = str(get_default_output_dir())
                 config.set("paths.output_dir", default_path)
                 console.print(f"[green]✓[/green] Set output directory to default: {default_path}")
-            
+
             elif repair_id == "fix_pointer":
                 current_config_dir = config.env_path.parent
                 pointer_path = get_config_location()
@@ -90,14 +90,14 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
                     console.print(f"[green]✓[/green] Updated pointer file")
                 else:
                     console.print(f"[yellow]![/yellow]  Could not update pointer file")
-            
+
             else:
                 console.print(f"[yellow]![/yellow]  Unknown repair: {repair_id}")
-        
+
         except Exception as e:
             console.print(f"[red]✗[/red] Repair '{repair_id}' failed: {e}")
             repair_success = False
-    
+
     # If repairs failed, offer restore
     if not repair_success and backup_path:
         console.print()
@@ -112,22 +112,22 @@ def _run_repair_menu(config: ConfigManager, repair_options: list, issues: list) 
 def doctor() -> None:
     """
     Run diagnostics on configuration and offer guided repairs.
-    
+
     Checks for common issues like missing files, invalid TOML, and missing credentials.
     If issues are found, offers interactive repair options with automatic backup.
     """
     config = ConfigManager()
     issues = []
     repair_options = []
-    
+
     # Initialize console
     arcane_terms_str = config.get("product.arcane_terms") or os.getenv("ARCANE_TERMS", "true")
     arcane_terms = arcane_terms_str.lower() in ("1", "true", "yes")
     arcane_console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
-    
+
     console.print(Panel("[bold]Configuration Diagnostics[/bold]", border_style="cyan"))
     console.print()
-    
+
     # Check config directory
     config_dir = config.env_path.parent
     if config_dir.exists():
@@ -136,7 +136,7 @@ def doctor() -> None:
         console.print(f"[red]x[/red] Config directory missing: {config_dir}")
         issues.append(("config_dir_missing", "Config directory does not exist"))
         repair_options.append(("create_config_dir", "Create config directory"))
-    
+
     # Check config.toml
     toml_valid = False
     toml_corrupted = False
@@ -160,13 +160,13 @@ def doctor() -> None:
         console.print(f"[red]x[/red] config.toml missing: {config.toml_path}")
         issues.append(("toml_missing", "config.toml does not exist"))
         repair_options.append(("recreate_toml", "Create config.toml from example"))
-    
+
     # Check .env
     if config.env_path.exists():
         console.print(f"[green]>[/green] .env exists")
     else:
         console.print(f"[yellow]![/yellow] .env missing (may be created on first use)")
-    
+
     # Check output directory
     output_dir = config.get("paths.output_dir", str(get_default_output_dir()))
     output_path = Path(output_dir)
@@ -192,7 +192,7 @@ def doctor() -> None:
             console.print(f"[red]x[/red] Invalid output directory path: {output_dir}")
             issues.append(("output_invalid", f"Invalid output directory path: {output_dir}"))
             repair_options.append(("fix_output_path", "Set output directory to default"))
-    
+
     # Check pointer file
     from app.core.config_manager import get_pointer_file_path
     pointer_file = get_pointer_file_path()
@@ -206,14 +206,14 @@ def doctor() -> None:
             repair_options.append(("fix_pointer", "Update pointer to current config directory"))
     else:
         console.print(f"[dim]-[/dim] No pointer file (using default config location)")
-    
+
     # Summary
     console.print()
     if issues:
         console.print(f"[bold yellow]Found {len(issues)} issue(s):[/bold yellow]")
         for issue_id, issue_msg in issues:
             console.print(f"  [yellow]-[/yellow] {issue_msg}")
-        
+
         # Offer repair menu (PRD7 FR-4)
         console.print()
         if repair_options:
@@ -224,5 +224,5 @@ def doctor() -> None:
             console.print("[dim]No automatic repairs available. Please fix issues manually.[/dim]")
     else:
         console.print("[bold green]All checks passed![/bold green]")
-    
+
     console.print()  # Extra spacing

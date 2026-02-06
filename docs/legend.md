@@ -2,14 +2,14 @@
 
 **Arcane Terminology Reference**
 
-This document explains the arcane terminology used in Alchemux's output.  
+This document explains the arcane terminology used in Alchemux's output.
 For the complete visual legend with sigils and formatting.
 
 ---
 
 ## Stage Terminology
 
-Alchemux uses arcane-themed terminology throughout its interface.  
+Alchemux uses arcane-themed terminology throughout its interface.
 Each stage has both an arcane name and a technical equivalent:
 
 | Arcane Term | Technical Term | Description |
@@ -69,11 +69,11 @@ When using technical mode (`ARCANE_TERMS=false`), messages are translated:
 
 Major phases use bracketed headers with consistent tense:
 
-- ⟦⟁ SCRYING⟧ → ⟦⟁ DETECTING⟧  
-- ⟦⚗ DISTILLING⟧ → ⟦⚗ DOWNLOADING⟧  
-- ⟦◇ ATTUNING⟧ → ⟦◇ LOCATING⟧  
-- ⟦⌘ MUXING⟧ → ⟦⌘ EMBEDDING⟧  
-- ╔═ SEAL COMPLETE ═╗ → ╔═ SAVE COMPLETE ═╗  
+- ⟦⟁ SCRYING⟧ → ⟦⟁ DETECTING⟧
+- ⟦⚗ DISTILLING⟧ → ⟦⚗ DOWNLOADING⟧
+- ⟦◇ ATTUNING⟧ → ⟦◇ LOCATING⟧
+- ⟦⌘ MUXING⟧ → ⟦⌘ EMBEDDING⟧
+- ╔═ SEAL COMPLETE ═╗ → ╔═ SAVE COMPLETE ═╗
 
 (when `ARCANE_TERMS=false`)
 

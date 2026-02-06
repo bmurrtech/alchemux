@@ -19,10 +19,10 @@ logger = setup_logger(__name__)
 def is_packaged_build() -> bool:
     """
     Check if the application is running from a packaged build (PyInstaller).
-    
+
     EULA enforcement only applies to packaged releases, not source code.
     Source code is licensed under Apache 2.0 and doesn't require EULA acceptance.
-    
+
     Returns:
         True if running from a PyInstaller bundle, False if running from source
     """
@@ -31,56 +31,56 @@ def is_packaged_build() -> bool:
 
 class EULAManager:
     """Manages EULA acceptance using config.toml."""
-    
+
     EULA_VERSION = "1.0"
     LICENSE_FILES = ["LICENSE.MD", "EULA.md"]
-    
+
     def __init__(self, config_manager: ConfigManager, root_dir: Optional[Path] = None):
         """
         Initialize EULA Manager.
-        
+
         Args:
             config_manager: ConfigManager instance
             root_dir: Ignored (legacy parameter)
         """
         self.config = config_manager
-    
+
     def _generate_acceptance_hash(self) -> str:
         """Generate a unique hash for EULA acceptance verification."""
         return hashlib.sha256(
             f"{uuid.uuid4()}{datetime.now(timezone.utc).isoformat()}".encode()
         ).hexdigest()[:16]
-    
+
     def is_accepted(self) -> bool:
         """
         Check if EULA has been accepted.
-        
+
         Returns:
             True if EULA is accepted, False otherwise
         """
         return self.config.get("eula.accepted", "").lower() == "true"
-    
+
     def accept(self, accepted_by: str = "user_input") -> None:
         """
         Record EULA acceptance in config.toml.
-        
+
         Args:
             accepted_by: How acceptance was recorded (e.g., "user_input", "flag", "env_var")
         """
         acceptance_hash = self._generate_acceptance_hash()
         accepted_at = datetime.now(timezone.utc).isoformat()
-        
+
         # Write to config.toml
         self.config.set("eula.accepted", "true")
         self.config.set("eula.accepted_at", accepted_at)
         self.config.set("eula.acceptance_hash", acceptance_hash)
-        
+
         logger.info("EULA acceptance recorded in config.toml")
-    
+
     def display_eula_summary(self) -> str:
         """
         Display EULA summary text for the Rich Panel.
-        
+
         Returns:
             EULA summary text (without interactive instructions - those are shown separately)
         """
@@ -90,14 +90,14 @@ Use only with content you own or are authorized to access.
 
 No warranty. You assume all risk. You agree to defend
 and indemnify the Provider and contributors."""
-    
+
     def interactive_acceptance(self) -> bool:
         """
         Prompt user for interactive EULA acceptance using the prompt wrapper (InquirerPy or Rich).
-        
+
         Uses Rich Panel to display EULA summary and confirm prompt for y/n acceptance.
         On decline, shows clear next steps for accepting later.
-        
+
         Returns:
             True if user accepts, False otherwise
         """
@@ -137,46 +137,45 @@ and indemnify the Provider and contributors."""
             console.print("  [cyan]alchemux setup[/cyan]")
             console.print()
             return False
-    
+
     def check_and_require_acceptance(self, accept_flag: bool = False, env_var: bool = False) -> bool:
         """
         Check EULA acceptance and require it if not accepted.
-        
+
         EULA enforcement only applies to packaged releases. When running from source
         (Apache 2.0 licensed), this check is skipped automatically.
-        
+
         Args:
             accept_flag: True if --accept-eula flag was provided
             env_var: True if EULA_ACCEPTED=true in environment
-            
+
         Returns:
             True if EULA is accepted (or was just accepted), False if user declined
         """
         from rich.console import Console
         console = Console()
-        
+
         # Skip EULA enforcement when running from source (not packaged)
         if not is_packaged_build():
             logger.debug("Running from source - EULA enforcement skipped (Apache 2.0 license applies)")
             return True
-        
+
         # EULA enforcement only for packaged builds
         if self.is_accepted():
             return True
-        
+
         # Check for non-interactive acceptance methods
         if accept_flag:
             self.accept("flag")
             console.print("[green]>[/green] EULA accepted via --accept-eula flag.\n")
             return True
-        
+
         # Check config.toml for non-interactive acceptance
         toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
         if toml_accepted:
             self.accept("config_toml")
             console.print("[green]>[/green] EULA accepted via config.toml.\n")
             return True
-        
+
         # Require interactive acceptance
         return self.interactive_acceptance()
-

@@ -15,10 +15,10 @@ logger = setup_logger(__name__)
 def get_media_folder(source_type: str) -> str:
     """
     Get folder name for organizing files by source type.
-    
+
     Args:
         source_type: Source type (youtube, facebook, etc.)
-        
+
     Returns:
         Folder name for organization
     """
@@ -36,10 +36,10 @@ def get_media_folder(source_type: str) -> str:
 def ensure_directory(path: str) -> Path:
     """
     Ensure directory exists, creating it if necessary.
-    
+
     Args:
         path: Directory path (can be relative or absolute)
-        
+
     Returns:
         Path object for the directory
     """
@@ -52,12 +52,12 @@ def ensure_directory(path: str) -> Path:
 def get_download_path(base_path: str, source_type: str, filename: str) -> Path:
     """
     Get full download path for a file, organized by source type.
-    
+
     Args:
         base_path: Base download directory
         source_type: Source type (youtube, facebook, etc.)
         filename: Filename
-        
+
     Returns:
         Full Path object for the file
     """
@@ -65,7 +65,7 @@ def get_download_path(base_path: str, source_type: str, filename: str) -> Path:
     media_folder = get_media_folder(source_type)
     folder = base / media_folder
     ensure_directory(str(folder))
-    
+
     file_path = folder / filename
     logger.debug(f"Download path: {file_path}")
     return file_path
@@ -74,10 +74,10 @@ def get_download_path(base_path: str, source_type: str, filename: str) -> Path:
 def detect_source_type(url: str) -> str:
     """
     Detect media source type from URL.
-    
+
     Args:
         url: Media URL
-        
+
     Returns:
         Source type (youtube, facebook, soundcloud, etc.)
     """
@@ -98,16 +98,16 @@ def detect_source_type(url: str) -> str:
 def sanitize_filename(filename: str, max_length: int = 200) -> str:
     """
     Sanitize filename for cross-platform compatibility.
-    
+
     Args:
         filename: Original filename
         max_length: Maximum filename length
-        
+
     Returns:
         Sanitized filename
     """
     import re
-    
+
     # Remove or replace invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
     # Remove leading/trailing dots and spaces
@@ -116,7 +116,7 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
     if len(filename) > max_length:
         name, ext = os.path.splitext(filename)
         filename = name[:max_length - len(ext)] + ext
-    
+
     logger.debug(f"Sanitized filename: {filename}")
     return filename
 
@@ -124,13 +124,13 @@ def sanitize_filename(filename: str, max_length: int = 200) -> str:
 def get_resource_path(relative_path: str) -> Path:
     """
     Get absolute path to resource, works for dev and for PyInstaller.
-    
+
     When running as PyInstaller binary, resources are extracted to _MEIPASS.
     When running from source, resources are relative to the project root.
-    
+
     Args:
         relative_path: Relative path to resource (e.g., 'ffmpeg' or 'ffmpeg.exe')
-        
+
     Returns:
         Absolute Path to resource
     """
@@ -140,14 +140,14 @@ def get_resource_path(relative_path: str) -> Path:
     except AttributeError:
         # Running from source
         base_path = Path(__file__).parent.parent.parent.parent
-    
+
     return base_path / relative_path
 
 
 def find_ffmpeg_binary() -> Optional[Path]:
     """
     Find ffmpeg binary, checking bundled location first, then system PATH.
-    
+
     Returns:
         Path to ffmpeg binary, or None if not found
     """
@@ -156,7 +156,7 @@ def find_ffmpeg_binary() -> Optional[Path]:
         binary_name = "ffmpeg.exe"
     else:
         binary_name = "ffmpeg"
-    
+
     # First, check if bundled with PyInstaller
     try:
         bundled_path = get_resource_path(binary_name)
@@ -165,13 +165,13 @@ def find_ffmpeg_binary() -> Optional[Path]:
             return bundled_path
     except Exception as e:
         logger.debug(f"Could not check bundled ffmpeg: {e}")
-    
+
     # Fall back to system PATH
     ffmpeg_path = shutil.which("ffmpeg")
     if ffmpeg_path:
         logger.debug(f"Found ffmpeg in PATH: {ffmpeg_path}")
         return Path(ffmpeg_path)
-    
+
     logger.warning("ffmpeg not found in bundled location or system PATH")
     return None
 
@@ -179,7 +179,7 @@ def find_ffmpeg_binary() -> Optional[Path]:
 def find_ffprobe_binary() -> Optional[Path]:
     """
     Find ffprobe binary, checking bundled location first, then system PATH.
-    
+
     Returns:
         Path to ffprobe binary, or None if not found
     """
@@ -188,7 +188,7 @@ def find_ffprobe_binary() -> Optional[Path]:
         binary_name = "ffprobe.exe"
     else:
         binary_name = "ffprobe"
-    
+
     # First, check if bundled with PyInstaller
     try:
         bundled_path = get_resource_path(binary_name)
@@ -197,13 +197,13 @@ def find_ffprobe_binary() -> Optional[Path]:
             return bundled_path
     except Exception as e:
         logger.debug(f"Could not check bundled ffprobe: {e}")
-    
+
     # Fall back to system PATH
     ffprobe_path = shutil.which("ffprobe")
     if ffprobe_path:
         logger.debug(f"Found ffprobe in PATH: {ffprobe_path}")
         return Path(ffprobe_path)
-    
+
     logger.warning("ffprobe not found in bundled location or system PATH")
     return None
 
@@ -211,18 +211,18 @@ def find_ffprobe_binary() -> Optional[Path]:
 def get_ffmpeg_location() -> Optional[str]:
     """
     Get ffmpeg location for yt-dlp, handling bundled, system, and custom paths.
-    
+
     Checks in order:
     1. FFMPEG_PATH (if FFMPEG_CUSTOM_PATH=true)
     2. Bundled ffmpeg/ffprobe (PyInstaller)
     3. System PATH
-    
+
     Returns:
         Directory path containing ffmpeg/ffprobe, or None if not found
     """
     # Check if custom path is enabled
     custom_path_enabled = os.getenv("FFMPEG_CUSTOM_PATH", "false").lower() == "true"
-    
+
     if custom_path_enabled:
         # Check for custom FFMPEG_PATH in environment
         ffmpeg_env = os.getenv("FFMPEG_PATH", "").strip()
@@ -240,11 +240,10 @@ def get_ffmpeg_location() -> Optional[str]:
                 logger.warning(f"FFMPEG_PATH set but path not found: {ffmpeg_env}")
         else:
             logger.warning("FFMPEG_CUSTOM_PATH=true but FFMPEG_PATH is not set")
-    
+
     # Fall back to bundled or system ffmpeg
     ffmpeg_path = find_ffmpeg_binary()
     if ffmpeg_path:
         # Return the directory containing ffmpeg
         return str(ffmpeg_path.parent)
     return None
-

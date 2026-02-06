@@ -38,9 +38,9 @@ def validate_path(path: str) -> Tuple[bool, Optional[str]]:
     """Validate a filesystem path."""
     if not path or not path.strip():
         return False, "Path cannot be empty"
-    
+
     expanded = os.path.expanduser(path.strip())
-    
+
     try:
         path_obj = Path(expanded)
         if path_obj.exists():
@@ -53,7 +53,7 @@ def validate_path(path: str) -> Tuple[bool, Optional[str]]:
                     return False, f"Parent directory exists but is not writable: {parent}"
     except Exception as e:
         return False, f"Invalid path: {e}"
-    
+
     return True, None
 
 
@@ -392,10 +392,10 @@ def configure_gcp_settings(config: ConfigManager) -> None:
 def interactive_config_wizard(config: ConfigManager) -> bool:
     """
     Interactive configuration wizard for existing config.toml settings.
-    
+
     Args:
         config: ConfigManager instance
-        
+
     Returns:
         True if wizard completed successfully
     """
@@ -403,12 +403,12 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
     console.print(Panel.fit("[bold cyan]Alchemux Configuration Wizard[/bold cyan]", border_style="cyan"))
     console.print("\nThis wizard allows you to selectively reconfigure existing settings.")
     console.print("You'll be prompted to choose which settings to modify.\n")
-    
+
     # Check if config.toml exists
     if not config.check_toml_file_exists():
         console.print("[yellow]⚠[/yellow]  config.toml not found. Run 'alchemux setup' first to create it.")
         return False
-    
+
     # Add "Show Configurations" as first option (special action, not a category)
     def show_configurations(config: ConfigManager) -> None:
         """Show current configuration (same as 'alchemux config show')."""
@@ -418,7 +418,7 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         # Call config_show but we need to handle it differently
         # Since config_show uses its own console, we'll call it directly
         config_show(plain=False)
-    
+
     categories = [
         ("show", "Show Configurations", show_configurations),
         ("product", "Terminology Setting", configure_product_settings),
@@ -436,7 +436,7 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
 
     console.print("\n[bold]Select an action or configuration categories to modify:[/bold]")
     console.print("[dim]Use spacebar to toggle, Enter to confirm[/dim]\n")
-    
+
     # Present checkbox menu
     category_choices = [(cat_id, name) for cat_id, name, _ in categories]
     selected = checkbox(
@@ -444,34 +444,34 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         choices=category_choices,
         default_selected=None,
     )
-    
+
     if not selected or len(selected) == 0:
         console.print("\n[yellow]No selection made. Configuration cancelled.[/yellow]")
         return False
-    
+
     # If "show" is selected, run it and exit (don't modify config)
     if "show" in selected:
         show_configurations(config)
         return True
-    
+
     # Remove "show" from selected if it was there (it's already handled)
     selected = [s for s in selected if s != "show"]
-    
+
     if not selected:
         # Only "show" was selected, already handled above
         return True
-    
+
     # Create mapping for quick lookup
     category_map = {cat_id: (name, func) for cat_id, name, func in categories}
-    
+
     # Run selected category handlers sequentially
     console.print()
     console.print(f"[dim]Processing {len(selected)} selection(s)...[/dim]\n")
-    
+
     for cat_id in selected:
         if cat_id not in category_map:
             continue
-        
+
         name, func = category_map[cat_id]
         try:
             func(config)
@@ -481,9 +481,8 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         except Exception as e:
             logger.error(f"Error processing {name}: {e}")
             console.print(f"[red]✗[/red] Error processing {name}: {e}")
-    
+
     console.print()
     console.print("[green]✓[/green] Configuration wizard complete!")
     console.print(f"[dim]Configuration saved to: {config.toml_path}[/dim]")
     return True
-

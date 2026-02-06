@@ -40,27 +40,27 @@ def setup_logger(name: str = __name__, console: Optional[Console] = None, verbos
     """
     Set up structured logging with LOG_LEVEL env var support.
     Uses RichHandler for clean, styled output that doesn't interfere with progress bars.
-    
+
     Args:
         name: Logger name (typically __name__)
         console: Optional Rich Console instance (creates new one if not provided)
         verbose: If True, show logs even in default mode. If False, only show in debug mode.
-        
+
     Returns:
         Configured logger instance
     """
     log_level_str = os.getenv("LOG_LEVEL", "info").lower()
     verbose_mode = verbose or os.getenv("VERBOSE", "").lower() in ("1", "true", "yes")
-    
+
     # In default mode (not verbose), only show WARNING and above unless verbose is True
     if not verbose_mode and log_level_str != "debug":
         log_level = logging.WARNING
     else:
         log_level = logging.DEBUG if log_level_str == "debug" else logging.INFO
-    
+
     logger = logging.getLogger(name)
     logger.setLevel(log_level)
-    
+
     # Avoid adding multiple handlers if logger already configured
     if not logger.handlers:
         if HAS_RICH and console is not None:
@@ -92,10 +92,10 @@ def setup_logger(name: str = __name__, console: Optional[Console] = None, verbos
                 datefmt="[%X]"
             )
             handler.setFormatter(formatter)
-        
+
         handler.setLevel(log_level)
         logger.addHandler(handler)
-    
+
     # Suppress yt-dlp warnings in INFO mode by filtering them
     if log_level_str != "debug" and not verbose_mode:
         # Filter out WARNING level messages from yt-dlp in INFO mode
@@ -106,19 +106,19 @@ def setup_logger(name: str = __name__, console: Optional[Console] = None, verbos
                 if "[youtube]" in record.getMessage() or "yt-dlp" in record.name.lower():
                     return False
             return True
-        
+
         logger.addFilter(filter_warnings)
-    
+
     return logger
 
 
 def get_ytdl_logger(logger: logging.Logger) -> Optional[YTDLLogger]:
     """
     Get yt-dlp logger adapter if debug logging is enabled.
-    
+
     Args:
         logger: Base logger instance
-        
+
     Returns:
         YTDLLogger instance if LOG_LEVEL=debug, None otherwise
     """
@@ -130,4 +130,3 @@ def get_ytdl_logger(logger: logging.Logger) -> Optional[YTDLLogger]:
 
 # Module-level logger
 _logger = setup_logger(__name__)
-

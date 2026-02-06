@@ -54,4 +54,3 @@ def test_find_downloaded_file_prefers_expected_ext() -> None:
         assert resolved is not None
         assert resolved.endswith(".flac")
         assert os.path.basename(resolved) == "artifact.flac"
-

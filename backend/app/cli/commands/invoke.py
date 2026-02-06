@@ -25,7 +25,7 @@ def invoke(
 ) -> None:
     """
     Invoke the full transmutation ritual.
-    
+
     This rite orchestrates the complete pipeline: scribing, scrying, profiling,
     distillation, muxing, and sealing. It is the primary invocation for transforming
     a source URL into a purified media vessel.
@@ -33,7 +33,7 @@ def invoke(
     # Set verbose logging if flag is set
     if verbose:
         os.environ["LOG_LEVEL"] = "debug"
-    
+
     # Invoke distill which handles the full pipeline
     distill(
         url=url,
@@ -47,4 +47,3 @@ def invoke(
         debug=debug,
         plain=plain,
     )
-

@@ -23,17 +23,17 @@ def should_suppress_gcp_warning() -> bool:
     # Check environment variables first (fastest)
     if os.getenv("GCP_STORAGE_BUCKET") or os.getenv("GCP_SA_KEY_BASE64"):
         return False  # GCP is configured, don't suppress
-    
+
     # Check if --setup gcp was used
     if "--setup" in sys.argv:
         setup_idx = sys.argv.index("--setup")
         if setup_idx + 1 < len(sys.argv) and sys.argv[setup_idx + 1] == "gcp":
             return False  # GCP setup is being run, don't suppress
-    
+
     # Check if --gcp flag is used
     if "--gcp" in sys.argv or "-gcp" in sys.argv:
         return False  # GCP flag is used, don't suppress
-    
+
     # Try to load config to check (only if .env might exist)
     try:
         from app.core.config_manager import get_config_location
@@ -45,7 +45,7 @@ def should_suppress_gcp_warning() -> bool:
                 return False  # GCP is configured in .env
     except Exception:
         pass  # If config loading fails, assume not configured
-    
+
     # GCP is not configured, suppress warning to debug level
     return True
 
@@ -78,10 +78,10 @@ _banner_shown = False
 if __name__ == "__main__":
     # Detect debug mode early for traceback handler
     debug_mode = "--debug" in sys.argv or os.getenv("LOG_LEVEL", "").lower() == "debug"
-    
+
     # Install Rich traceback handler before anything else
     install_traceback_handler(debug=debug_mode)
-    
+
     try:
         # Check for "config" with no subcommand: run config wizard and exit
         if "config" in sys.argv:
@@ -119,11 +119,11 @@ if __name__ == "__main__":
                 target = sys.argv[setup_idx + 1]
             else:
                 target = None
-            
+
             # Import and run setup directly, bypassing Typer's argument parsing
             from app.cli.commands.setup import setup as setup_cmd
             plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in ("1", "true", "yes")
-            
+
             # Print banner if needed
             if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":
                 should_skip = any(arg in sys.argv for arg in ["--version", "-v"])
@@ -131,7 +131,7 @@ if __name__ == "__main__":
                     console = ArcaneConsole(plain=plain_mode)
                     console.print_banner()
                     _banner_shown = True
-            
+
             # Run setup command directly (pass reset=False so Typer Option default
             # is not used when called programmatically)
             try:
@@ -149,7 +149,7 @@ if __name__ == "__main__":
                 if not debug_mode:
                     print_fracture_summary("setup", e)
                 sys.exit(1)
-        
+
         # Print banner only once on initial startup (not for every command)
         if not _banner_shown and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true":
             # Skip banner only for --version flag (keep it for --help)
@@ -160,7 +160,7 @@ if __name__ == "__main__":
                 console = ArcaneConsole(plain=plain_mode)
                 console.print_banner()
                 _banner_shown = True
-        
+
         # Run Typer app
         app()
     except KeyboardInterrupt:

@@ -21,67 +21,67 @@ logger = setup_logger(__name__)
 
 class MediaDownloader:
     """Handles media download and conversion using yt-dlp."""
-    
+
     def __init__(self, config: ConfigManager):
         """
         Initialize MediaDownloader.
-        
+
         Args:
             config: ConfigManager instance
         """
         self.config = config
         self.ytdl_logger = get_ytdl_logger(logger)
-    
+
     def _get_audio_format(self, audio_format: Optional[str] = None) -> str:
         """
         Get audio format from flag or config.toml default.
-        
+
         Args:
             audio_format: Format from --audio-format flag (takes precedence)
-            
+
         Returns:
             Audio format string
         """
         if audio_format:
             return audio_format
         return self.config.get("media.audio.format", "mp3") or "mp3"
-    
+
     def _get_video_format(self, video_format: Optional[str] = None) -> str:
         """
         Get video format from flag or config.toml default.
-        
+
         Args:
             video_format: Format from --video-format flag (takes precedence)
-            
+
         Returns:
             Video format string
         """
         if video_format:
             return video_format
         return self.config.get("media.video.format", "mp4") or "mp4"
-    
+
     def _should_apply_flac_override(self, audio_format: str, flac_flag: bool) -> bool:
         """
         Determine if FLAC 16kHz mono override should be applied.
-        
+
         Precedence: --flac flag > FLAC_OVERRIDE=true > default
-        
+
         Args:
             audio_format: Selected audio format
             flac_flag: True if --flac flag was used
-            
+
         Returns:
             True if 16kHz mono should be applied
         """
         if flac_flag:
             return True
-        
+
         if audio_format.lower() == "flac":
             flac_override = self.config.get("FLAC_OVERRIDE", "false").lower() == "true"
             return flac_override
-        
+
         return False
-    
+
     def _build_ydl_opts(
         self,
         output_path: str,
@@ -92,14 +92,14 @@ class MediaDownloader:
     ) -> Dict[str, Any]:
         """
         Build yt-dlp options dictionary.
-        
+
         Args:
             output_path: Output file path (without extension)
             audio_format: Audio format (optional, for audio extraction)
             video_format: Video format (optional, for video conversion)
             flac_flag: True if --flac flag was used
             progress_hook: Optional progress hook function
-            
+
         Returns:
             yt-dlp options dictionary
         """
@@ -117,20 +117,20 @@ class MediaDownloader:
             'outtmpl': outtmpl_rel,
             'restrictfilenames': self.config.get("RESTRICT_FILENAMES", "true").lower() == "true",
             'paths': {'home': paths_home, 'temp': temp_dir},
-            
+
             # Metadata
             'embedmetadata': True,
             'writeinfojson': (self.config.get("download.write_info_json", "false") or "false").lower() in ("1", "true", "yes"),
-            
+
             # Error handling
             'ignoreerrors': False,
             'retries': int(self.config.get("RETRIES", "10")),
-            
+
             # Progress (will be set based on log level below)
             'quiet': False,
             'noprogress': False,
         }
-        
+
         # Suppress warnings and quiet output in INFO mode, show in DEBUG mode
         log_level = os.getenv("LOG_LEVEL", "info").lower()
         if log_level == "debug":
@@ -140,11 +140,11 @@ class MediaDownloader:
             opts['no_warnings'] = True  # Suppress yt-dlp warnings in INFO mode
             opts['quiet'] = True  # Suppress all yt-dlp output in INFO mode
             opts['noprogress'] = True  # Suppress progress output (we handle it)
-        
+
         # Add logger only if debug mode (prevents warnings from showing in INFO mode)
         if log_level == "debug" and self.ytdl_logger:
             opts['logger'] = self.ytdl_logger
-        
+
         # Determine if we're doing audio or video
         # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
         video_format_config = self.config.get("media.video.format", "")
@@ -190,7 +190,7 @@ class MediaDownloader:
             if audio_fmt.lower() == "mp3":
                 audio_quality = self.config.get("media.audio.quality", "5")
                 opts['audioquality'] = audio_quality
-            
+
             # FLAC override handling
             if self._should_apply_flac_override(audio_fmt, flac_flag):
                 # Apply 16kHz mono via postprocessor args
@@ -212,18 +212,18 @@ class MediaDownloader:
                 if audio_fmt.lower() == "mp3":
                     audio_quality = self.config.get("media.audio.quality", "5")
                     opts['postprocessors'][0]['preferredquality'] = audio_quality
-            
+
             logger.info(f"Audio format: {audio_fmt}")
-        
+
         # Overwrite behavior
         force_overwrites = self.config.get("FORCE_OVERWRITES", "false").lower() == "true"
         if not force_overwrites:
             opts['noverwrites'] = True
-        
+
         # Add progress hook if provided
         if progress_hook:
             opts['progress_hooks'] = [progress_hook]
-        
+
         # Set ffmpeg location if found (bundled, system, or custom from config)
         # Config values are already loaded into os.environ via load_dotenv in ConfigManager
         ffmpeg_location = get_ffmpeg_location()
@@ -271,14 +271,14 @@ class MediaDownloader:
             logger.debug(f"yt-dlp opts summary (sanitized): {summary}")
 
         return opts
-    
+
     def extract_metadata(self, url: str) -> Optional[Dict[str, Any]]:
         """
         Extract metadata from URL without downloading.
-        
+
         Args:
             url: Media URL
-            
+
         Returns:
             Metadata dictionary or None if extraction fails
         """
@@ -287,10 +287,10 @@ class MediaDownloader:
             'no_warnings': True,
             'skip_download': True,
         }
-        
+
         if self.ytdl_logger:
             opts['logger'] = self.ytdl_logger
-        
+
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(url, download=False)
@@ -299,7 +299,7 @@ class MediaDownloader:
         except Exception as e:
             logger.error(f"Metadata extraction failed: {e}")
             return None
-    
+
     def download(
         self,
         url: str,
@@ -311,7 +311,7 @@ class MediaDownloader:
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         """
         Download and convert media.
-        
+
         Args:
             url: Media URL
             output_path: Output file path (without extension)
@@ -319,7 +319,7 @@ class MediaDownloader:
             video_format: Video format (optional)
             flac_flag: True if --flac flag was used
             progress_callback: Optional callback for progress updates
-            
+
         Returns:
             Tuple of (success, file_path, error_message)
         """
@@ -331,9 +331,9 @@ class MediaDownloader:
             flac_flag=flac_flag,
             progress_hook=self._create_progress_hook(progress_callback)
         )
-        
+
         downloaded_files = []
-        
+
         def progress_hook(d: Dict[str, Any]) -> None:
             """Internal progress hook to capture file paths."""
             if d.get('status') == 'finished':
@@ -341,18 +341,18 @@ class MediaDownloader:
                 if filepath:
                     downloaded_files.append(filepath)
                     logger.debug(f"Progress hook captured file: {filepath}")
-            
+
             # Call external progress callback if provided
             if progress_callback:
                 progress_callback(d)
-        
+
         ydl_opts['progress_hooks'] = [progress_hook]
-        
+
         try:
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 logger.info(f"Starting download: {url}")
                 ydl.download([url])
-            
+
             # Find the downloaded file (prefer expected ext when FLAC/video so we don't pick .mp3)
             expected_ext = None
             if flac_flag:
@@ -364,7 +364,7 @@ class MediaDownloader:
                 ext_map = { "aac": ".aac", "flac": ".flac", "m4a": ".m4a", "wav": ".wav", "opus": ".opus", "ogg": ".ogg" }
                 expected_ext = ext_map.get((audio_format or "").lower()) or ".mp3"
             file_path = self._find_downloaded_file(output_path, downloaded_files, ydl_opts, expected_ext)
-            
+
             if file_path and Path(file_path).exists():
                 logger.info(f"Download complete: {file_path}")
                 return True, file_path, None
@@ -372,7 +372,7 @@ class MediaDownloader:
                 error_msg = "Download finished but output file not found"
                 logger.error(error_msg)
                 return False, None, error_msg
-        
+
         except Exception as e:
             error_msg = str(e)
             # If 403 error on audio-only download, try alternative audio formats as fallback
@@ -403,14 +403,14 @@ class MediaDownloader:
                 error_msg = f"Download failed: {error_msg}"
             logger.exception(error_msg)
             return False, None, error_msg
-    
+
     def _create_progress_hook(self, callback: Optional[Callable] = None) -> Callable:
         """
         Create progress hook function.
-        
+
         Args:
             callback: Optional external callback
-            
+
         Returns:
             Progress hook function
         """
@@ -424,12 +424,12 @@ class MediaDownloader:
                     logger.debug(f"Download progress: {percent:.1f}%")
             elif status == 'finished':
                 logger.debug("Download finished, processing...")
-            
+
             if callback:
                 callback(d)
-        
+
         return hook
-    
+
     def _find_downloaded_file(
         self,
         output_path: str,
@@ -439,13 +439,13 @@ class MediaDownloader:
     ) -> Optional[str]:
         """
         Find the actual downloaded file path.
-        
+
         Args:
             output_path: Expected output path (without extension)
             downloaded_files: List of files captured by progress hooks
             ydl_opts: yt-dlp options used
             expected_ext: If set (e.g. .flac), try this extension first when scanning by path
-            
+
         Returns:
             File path or None if not found
         """
@@ -468,7 +468,7 @@ class MediaDownloader:
             if candidate.exists() and candidate.stat().st_size > 0:
                 logger.debug(f"Found file at expected path: {candidate}")
                 return str(candidate)
-        
+
         # Search in output directory
         output_dir = Path(ydl_opts['paths']['home'])
         if output_dir.exists():
@@ -486,11 +486,10 @@ class MediaDownloader:
                                 candidates.append((str(file_path), mtime))
                     except Exception:
                         continue
-            
+
             if candidates:
                 candidates.sort(key=lambda x: x[1], reverse=True)
                 logger.debug(f"Found file via directory search: {candidates[0][0]}")
                 return candidates[0][0]
-        
-        return None
 
+        return None

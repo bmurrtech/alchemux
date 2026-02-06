@@ -17,7 +17,7 @@ def seal(
 ) -> None:
     """
     Seal a media vessel as complete.
-    
+
     This rite validates and finalizes a media file, marking it as a completed
     transmutation. The seal confirms the vessel is ready for use and has
     passed all arcane validations. A sealed vessel is considered immutable
@@ -27,23 +27,22 @@ def seal(
     import os
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
-    
+
     file = Path(file_path)
     if not file.exists():
         console.print_fracture("seal", f"file not found: {file_path}")
         raise typer.Exit(code=1)
-    
+
     if not file.is_file():
         console.print_fracture("seal", f"path is not a file: {file_path}")
         raise typer.Exit(code=1)
-    
+
     # Validate file size
     size = file.stat().st_size
     if size == 0:
         console.print_fracture("seal", "file is empty")
         raise typer.Exit(code=1)
-    
+
     console.print_divider()
     console.print_seal(str(file))
     logger.debug(f"Sealed file: {file_path}")
-

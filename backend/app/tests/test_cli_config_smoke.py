@@ -89,4 +89,3 @@ def test_config_doctor_smoke() -> None:
         result = runner.invoke(config_cmd.app, ["doctor"], env=env, input="n\n")
         assert result.exit_code == 0
         assert "Configuration Diagnostics" in result.stdout
-

@@ -115,11 +115,11 @@ def main(
 ) -> None:
     """
     Arcane media transmutation.
-    
+
     Transmute URLs into purified media vessels through the rites of distillation,
     muxing, and sealing. Each rite serves a distinct purpose in the transmutation
     process, from initial validation to final sealing.
-    
+
     For backward compatibility, you can use the old argument style:
     alchemux --flac <url>  # Routes to invoke command
     """
@@ -127,7 +127,7 @@ def main(
     if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
-    
+
     # Handle non-interactive EULA acceptance at root level.
     # This is intended for packaged builds and should NOT be used with a URL.
     if accept_eula:
@@ -139,13 +139,13 @@ def main(
             typer.echo("  alchemux --accept-eula")
             typer.echo("  alchemux --accept-eula setup")
             raise typer.Exit(code=1)
-        
+
         from app.core.config_manager import ConfigManager
         from app.core.eula import EULAManager, is_packaged_build
-        
+
         config = ConfigManager()
         eula = EULAManager(config)
-        
+
         if is_packaged_build():
             if eula.is_accepted():
                 typer.echo("EULA already accepted.")
@@ -155,25 +155,25 @@ def main(
         else:
             # When running from source, EULA enforcement does not apply.
             typer.echo("Running from source - EULA enforcement is not required.")
-        
+
         # If only accepting EULA (no subcommand, no URL), exit after acceptance.
         if ctx.invoked_subcommand is None and url is None:
             raise typer.Exit()
-    
+
     # Handle --help flag (eager, so it runs before other logic)
     if help:
         typer.echo(ctx.get_help())
         raise typer.Exit()
-    
+
     # Banner is printed in main.py before Typer processes args
     # This ensures it shows for all commands including --help
-    
+
     # If a subcommand was invoked, don't run default behavior
     # Note: "setup" is handled in main.py before Typer processes args to avoid
     # it being matched to the url argument. Other subcommands work normally.
     if ctx.invoked_subcommand is not None:
         return
-    
+
     # If URL provided, route to invoke for backward compatibility
     # But skip if URL is a command name (like "setup", "audio-format", etc.)
     # Only process URL if we have a valid URL and no command was invoked
@@ -212,7 +212,7 @@ def main(
             update()
             return
         # config/setup are handled elsewhere; other names fall through to help below
-    
+
     # No URL and no subcommand: interactive mode or clipboard (PRD6)
     if not url and ctx.invoked_subcommand is None:
         from app.cli.url_input import acquire_url, is_tty
@@ -255,4 +255,3 @@ def main(
     if not url:
         typer.echo(ctx.get_help())
         raise typer.Exit()
-

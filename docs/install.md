@@ -85,7 +85,7 @@ ffprobe -version
 
 You can run Alchemux once without installing it using **uvx**. Two ways are supported:
 
-**Tier 1 — Easiest “try it now” (recommended)**  
+**Tier 1 — Easiest “try it now” (recommended)**
 On first run, if you don’t have config yet, Alchemux will create it automatically in your OS user config directory and then proceed. In an interactive terminal you’ll get a few short prompts (e.g. download folder, terminology); in non-interactive use it uses safe defaults and prints where config was written.
 
 ```bash
@@ -94,7 +94,7 @@ uvx alchemux "https://youtu.be/…"      # First run: auto-creates config, then 
 uvx amx "https://…"                    # Same with short name
 ```
 
-**Tier 2 — Ephemeral (no filesystem writes)**  
+**Tier 2 — Ephemeral (no filesystem writes)**
 If you want to try Alchemux without writing any config or state to disk, use `--no-config` and set a download directory. No config files are read or created.
 
 ```bash
@@ -174,6 +174,10 @@ python backend/app/main.py "https://…"
 
 See [backend/app/tests/README.md](../backend/app/tests/README.md) for using **uv** to install dependencies and run the test suite (e.g. `uv pip install -r backend/requirements.txt pytest` then `pytest backend/app/tests`).
 
+### Contributors (prek, tests, references)
+
+If you are contributing code, see **[docs/contributors.md](contributors.md)** for: installing [prek](https://github.com/j178/prek) (pre-commit replacement), recommended local checks before push, running the test suite, and references.
+
 ---
 
 ## 5. Optional: Pin Python version
@@ -224,3 +228,4 @@ uv pip install -e .
 - [commands.md](commands.md) — full CLI reference
 - [legend.md](legend.md) — arcane terminology
 - [README.md](../README.md) — quick start and features
+- Contributors: see [contributors.md](contributors.md) for prek, test suite, and references.

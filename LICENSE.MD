@@ -24,7 +24,7 @@ Full license text: <https://www.gnu.org/licenses/agpl-3.0.en.html>
 
 → **Commercial and proprietary licenses are available!** These licenses waive AGPL copyleft (no source disclosure required, no open attribution needed, SaaS/embedded use OK).
 
-**How to get a commercial license:**  
-Open a GitHub Issue in this project’s repository to contact the maintainers for commercial/pricing details.  
+**How to get a commercial license:**
+Open a GitHub Issue in this project’s repository to contact the maintainers for commercial/pricing details.
 
 _We don’t publish a direct email to avoid spam—public GitHub contact is preferred and monitored regularly._

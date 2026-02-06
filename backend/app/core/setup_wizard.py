@@ -29,11 +29,11 @@ rich_console = Console()
 def mask_secret(secret: str, show_chars: int = 4) -> str:
     """
     Mask secret for display (show first N and last N characters).
-    
+
     Args:
         secret: Secret string to mask
         show_chars: Number of characters to show at start and end
-        
+
     Returns:
         Masked string (e.g., "abcd...xyz")
     """
@@ -298,10 +298,10 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
     """
     Interactive setup refresh wizard for existing configuration.
     Updates only what the user opts to change, doesn't delete existing configs.
-    
+
     Args:
         config: ConfigManager instance
-        
+
     Returns:
         True if setup completed successfully
     """
@@ -309,7 +309,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
     env_exists = config.check_env_file_exists()
     toml_exists = config.check_toml_file_exists()
     env_example_path = config.env_path.parent / "env.example"
-    
+
     if not env_exists:
         rich_console.print("\n[dim]No .env file detected. Creating from env.example...[/dim]")
         try:
@@ -328,7 +328,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             logger.warning(f"Could not create .env: {e}")
             rich_console.print(f"[yellow]![/yellow]  Could not create .env: {e}")
             return False
-    
+
     if not toml_exists:
         rich_console.print("\n[dim]No config.toml file detected. Creating from config.toml.example...[/dim]")
         try:
@@ -346,7 +346,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             logger.warning(f"Could not create config.toml: {e}")
             rich_console.print(f"[yellow]![/yellow]  Could not create config.toml: {e}")
             return False
-    
+
     # Check EULA
     if is_packaged_build():
         eula_manager = EULAManager(config)
@@ -356,7 +356,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 rich_console.print("[red]✗[/red] EULA not accepted. Setup cancelled.")
                 return False
             rich_console.print("[green]✓[/green] EULA accepted")
-    
+
     # Setup refresh wizard (InquirerPy-backed prompts per PRD6)
     rich_console.print()
     rich_console.print(Panel.fit("[bold cyan]Alchemux Setup Wizard[/bold cyan]", border_style="cyan"))
@@ -547,7 +547,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         config.set("storage.destination", "local")
         config.set("storage.keep_local_copy", "true")
         rich_console.print("  [green]>[/green] Using local storage")
-    
+
     # Ensure config.toml has full example content - merge example with current config
     if config.toml_example_path.exists() and config.toml_path.exists():
         from app.core.toml_config import read_toml, write_toml, get_nested_value, set_nested_value
@@ -611,7 +611,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         border_style="green",
         padding=(0, 1)
     ))
-    
+
     return True
 
 
@@ -619,10 +619,10 @@ def interactive_setup_minimal(config: ConfigManager) -> bool:
     """
     Minimal setup for auto-setup cases (when config is missing).
     Only sets essential defaults without interactive prompts.
-    
+
     Args:
         config: ConfigManager instance
-        
+
     Returns:
         True if setup completed successfully
     """
@@ -630,23 +630,23 @@ def interactive_setup_minimal(config: ConfigManager) -> bool:
     env_exists = config.check_env_file_exists()
     toml_exists = config.check_toml_file_exists()
     env_example_path = config.env_path.parent / "env.example"
-    
+
     if not env_exists:
         if env_example_path.exists():
             config._create_env_from_example()
         from dotenv import load_dotenv
         load_dotenv(config.env_path)
-    
+
     if not toml_exists:
         try:
             config._create_toml_from_example()
         except Exception as e:
             logger.warning(f"Could not create config.toml: {e}")
-    
+
     # Set minimal defaults
     if not config.get("paths.output_dir"):
         config.set("paths.output_dir", "./downloads")
-    
+
     return True
 
 
@@ -654,11 +654,11 @@ def smart_setup(config: ConfigManager, console: "ArcaneConsole") -> bool:
     """
     Intelligent setup that detects existing .env and handles EULA acceptance.
     Delegates to interactive_setup_refresh for full setup.
-    
+
     Args:
         config: ConfigManager instance
         console: ArcaneConsole instance for output
-        
+
     Returns:
         True if setup completed successfully
     """

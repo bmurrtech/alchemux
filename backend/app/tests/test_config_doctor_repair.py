@@ -34,21 +34,21 @@ def test_backup_creation():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         # Create first backup
         backup1 = config.create_backup()
         assert backup1 is not None
         assert (backup1 / "config.toml").exists()
-        
+
         # Modify config
         config.set("paths.output_dir", "/new/path")
-        
+
         # Create second backup (should overwrite)
         backup2 = config.create_backup()
         assert backup2 == backup1  # Same directory
-        
+
         # Verify latest backup has new value
         backup_toml = read_toml(backup2 / "config.toml")
         assert backup_toml.get("paths", {}).get("output_dir") == "/new/path"
@@ -59,23 +59,23 @@ def test_restore_from_backup():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         # Set initial value
         config.set("paths.output_dir", "/original/path")
-        
+
         # Create backup
         backup_dir = config.create_backup()
         assert backup_dir is not None
-        
+
         # Modify config
         config.set("paths.output_dir", "/modified/path")
-        
+
         # Restore
         restored = config.restore_from_backup()
         assert restored is True
-        
+
         # Verify restored value
         assert config.get("paths.output_dir") == "/original/path"
 
@@ -85,9 +85,9 @@ def test_restore_without_backup():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         restored = config.restore_from_backup()
         assert restored is False
 
@@ -97,11 +97,11 @@ def test_has_backup():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         assert config.has_backup() is False
-        
+
         config.create_backup()
         assert config.has_backup() is True
 
@@ -112,9 +112,9 @@ def test_doctor_detects_missing_toml():
         cfg_dir = Path(tmp) / "cfg"
         cfg_dir.mkdir(parents=True, exist_ok=True)
         (cfg_dir / ".env").write_text("")
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         # Doctor should detect missing toml
         assert not config.check_toml_file_exists()
 
@@ -124,15 +124,15 @@ def test_doctor_detects_invalid_toml():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         # Write invalid TOML
         (cfg_dir / "config.toml").write_text("invalid toml content [unclosed")
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
-        
+
         # Should still detect file exists
         assert config.check_toml_file_exists()
-        
+
         # But reading should fail
         try:
             read_toml(config.toml_path)
@@ -144,22 +144,22 @@ def test_doctor_detects_invalid_toml():
 def test_arcane_terms_config_precedence():
     """
     Regression test: config.toml product.arcane_terms should take precedence over env.
-    
+
     PRD6 regression prevention: ensure ConfigManager.get() is used, not os.getenv().
     """
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         # Set in config.toml
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
         config.set("product.arcane_terms", "false")
-        
+
         # Set env var (should be ignored)
         env_backup = os.environ.get("ARCANE_TERMS")
         try:
             os.environ["ARCANE_TERMS"] = "true"
-            
+
             # Should read from config.toml, not env
             value = config.get("product.arcane_terms")
             assert value == "false"
@@ -175,17 +175,17 @@ def test_backup_includes_both_files():
     with tempfile.TemporaryDirectory() as tmp:
         cfg_dir = Path(tmp) / "cfg"
         _seed_minimal_config(cfg_dir)
-        
+
         # Add content to .env
         (cfg_dir / ".env").write_text("TEST_KEY=test_value\n")
-        
+
         config = ConfigManager(env_path=str(cfg_dir / ".env"))
         backup_dir = config.create_backup()
-        
+
         assert backup_dir is not None
         assert (backup_dir / "config.toml").exists()
         assert (backup_dir / ".env").exists()
-        
+
         # Verify content
         backup_env_content = (backup_dir / ".env").read_text()
         assert "TEST_KEY=test_value" in backup_env_content

@@ -71,33 +71,33 @@ def distill(
 ) -> None:
     """
     Distills the bound media into its purified vessel.
-    
+
     This rite extracts and transmutes media from a source URL, converting it
     into a purified format suitable for further rites. Invoking this without
     a source will fail. The distillation process uses the arcane arts of
     yt-dlp to perform the transmutation.
-    
+
     The rite performs validation, source detection, metadata extraction,
     download, and conversion in sequence. Optionally, it may also inscribe
     metadata and upload to cloud storage before completion.
     """
     # Initialize configuration (loads .env file and config.toml)
     config = ConfigManager()
-    
+
     # Initialize console: arcane_terms from config.toml (product.arcane_terms) then env fallback
     arcane_terms_str = (config.get("product.arcane_terms") or config.get("ARCANE_TERMS") or "true").lower()
     arcane_terms = arcane_terms_str in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
-    
+
     # Set up logging with RichHandler (pass console for clean output)
     if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
-    
+
     # Initialize logger with console for RichHandler (suppresses logs in default mode)
     global logger
     logger = setup_logger(__name__, console=console.console, verbose=debug)
-    
+
     # Check EULA acceptance first (only enforced for packaged builds)
     # EULA must be accepted manually via setup wizard, not via flags
     from app.core.eula import is_packaged_build, EULAManager
@@ -111,7 +111,7 @@ def distill(
     else:
         # Running from source - EULA not required (Apache 2.0 license applies)
         logger.debug("Running from source - EULA check skipped")
-    
+
     # Ensure configuration files exist (auto-create from defaults if missing, now that EULA is handled)
     if not config.check_env_file_exists():
         try:
@@ -121,13 +121,13 @@ def distill(
             load_dotenv(config.env_path)
         except Exception as e:
             logger.warning(f"Could not create .env: {e}")
-            
+
     if not config.check_toml_file_exists():
         try:
             config._create_toml_from_example()
         except Exception as e:
             logger.warning(f"Could not create config.toml: {e}")
-    
+
     # Validate required variables
     # Check for paths.output_dir (preferred) or DOWNLOAD_PATH (legacy)
     required_vars = ["paths.output_dir"]
@@ -136,7 +136,7 @@ def distill(
         console.err_console.print(f"⚠️  Missing required configuration: {', '.join(missing)}")
         console.err_console.print("   Please run 'alchemux setup' to repair configuration.\n")
         raise typer.Exit(code=1)
-    
+
     # Determine output directory (--save-path override or config default)
     if save_path:
         # One-run override: use provided path
@@ -145,32 +145,32 @@ def distill(
     else:
         # Use config default
         output_dir = config.get("paths.output_dir", "./downloads")
-    
+
     # Validate URL
     if not is_valid_url(url):
         console.print_fracture("scribe", "invalid URL format")
         raise typer.Exit(code=1)
-    
+
     # Initial process divider
     console.print_phase_header("⟁ SCRYING")
-    
+
     # Use status spinner for checking
     with console.stage_status("scribe", "checking URL..."):
         pass  # Validation already done above
     console.stage_ok("scribe", "accepted")
-    
+
     # Detect source
     with console.stage_status("scry", "detecting source..."):
         source = detect_source_type(url)
     console.stage_ok("scry", f"source: {source}")
-    
+
     # Initialize downloader
     downloader = MediaDownloader(config)
-    
+
     # Extract metadata with status spinner
     with console.stage_status("profile", "extracting metadata..."):
         metadata = downloader.extract_metadata(url)
-    
+
     if metadata:
         title = metadata.get("title", "untitled")
         duration = metadata.get("duration_string", "Unknown")
@@ -178,7 +178,7 @@ def distill(
     else:
         title = f"{source}_{int(time.time())}"
         console.stage_ok("profile", "partial metadata recovered")
-    
+
     # Formats to produce: --video-format → one video run; --flac → flac; --audio-format → that; else enabled_formats
     # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
     video_format_config = config.get("media.video.format", "")
@@ -208,7 +208,7 @@ def distill(
     # If multiple flags are set AND all are configured, save to all indicated places
     # Otherwise, use priority: flags > config.toml storage.destination > fallback
     flags_set = [flag for flag, value in [("local", local), ("s3", s3), ("gcp", gcp)] if value]
-    
+
     if len(flags_set) > 1:
         # Multiple flags set - check if all are configured
         all_configured = True
@@ -218,7 +218,7 @@ def distill(
         if "gcp" in flags_set and not config.is_gcp_configured():
             all_configured = False
             console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, skipping GCP upload")
-        
+
         if all_configured:
             # All flags set and all configured - save to all indicated places
             upload_to_local = "local" in flags_set
@@ -241,14 +241,14 @@ def distill(
             fallback = config.get("storage.fallback", "local")
             console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
             storage_dest = fallback if fallback != "error" else "local"
-        
+
         upload_to_local = (storage_dest == "local")
         upload_to_s3 = (storage_dest == "s3")
         upload_to_gcp = (storage_dest == "gcp")
     else:
         # No flags set - use config.toml storage.destination
         storage_dest = config.get_storage_destination()
-        
+
         # Validate destination and check if configured
         if storage_dest == "s3" and not config.is_s3_configured():
             fallback = config.get("storage.fallback", "local")
@@ -258,11 +258,11 @@ def distill(
             fallback = config.get("storage.fallback", "local")
             console.console.print(f"[yellow]⚠[/yellow]  GCP not configured, falling back to: {fallback}")
             storage_dest = fallback if fallback != "error" else "local"
-        
+
         upload_to_local = (storage_dest == "local")
         upload_to_s3 = (storage_dest == "s3")
         upload_to_gcp = (storage_dest == "gcp")
-    
+
     keep_local_copy = config.get("storage.keep_local_copy", "false").lower() == "true"
 
     # GCP/S3 setup once (so uploaders exist for the per-format loop)
@@ -424,17 +424,16 @@ def distill(
         try:
             import subprocess
             import platform
-            
+
             folder_path = Path(path_for_open).parent
-            
+
             if platform.system() == "Darwin":  # macOS
                 subprocess.run(["open", str(folder_path)], check=False)
             elif platform.system() == "Windows":
                 subprocess.run(["explorer", str(folder_path)], check=False)
             else:  # Linux
                 subprocess.run(["xdg-open", str(folder_path)], check=False)
-            
+
             logger.debug(f"Opened folder: {folder_path}")
         except Exception as e:
             logger.warning(f"Could not open folder: {e}")
-

@@ -14,27 +14,27 @@ def verbose_command(
 ) -> None:
     """
     Toggle verbose logging.
-    
+
     Enables or disables verbose debug logging.
     The setting is saved to config.toml.
     """
     config = ConfigManager()
-    
+
     # Ensure config files exist
     if not config.check_env_file_exists():
         config._create_env_from_example()
     if not config.check_toml_file_exists():
         config._create_toml_from_example()
-    
+
     try:
         # Get current verbose setting (check logging.debug as verbose is typically same as debug)
         current_verbose = config.get("logging.debug", "false")
         current_verbose_bool = current_verbose.lower() in ("true", "1", "yes") if isinstance(current_verbose, str) else bool(current_verbose)
-        
+
         # Toggle the setting
         new_value = "false" if current_verbose_bool else "true"
         config.set("logging.debug", new_value)
-        
+
         # Show confirmation
         status = "activated" if new_value.lower() == "true" else "deactivated"
         console.print()

@@ -23,11 +23,11 @@ logger = setup_logger(__name__)
 
 class S3Uploader:
     """Handles S3-compatible storage uploads."""
-    
+
     def __init__(self, config: ConfigManager):
         """
         Initialize S3 Uploader.
-        
+
         Args:
             config: ConfigManager instance
         """
@@ -41,11 +41,11 @@ class S3Uploader:
         self.access_key = config.get("S3_ACCESS_KEY")
         self.secret_key = config.get("S3_SECRET_KEY")
         self._client = None
-    
+
     def _get_client(self):
         """
         Get or create S3 client.
-        
+
         Returns:
             boto3 S3 client
         """
@@ -55,7 +55,7 @@ class S3Uploader:
             if endpoint_url and not endpoint_url.startswith(('http://', 'https://')):
                 # Add protocol if missing
                 endpoint_url = f"{'https' if self.use_ssl else 'http'}://{endpoint_url}"
-            
+
             # Create S3 client
             self._client = boto3.client(
                 's3',
@@ -65,13 +65,13 @@ class S3Uploader:
                 use_ssl=self.use_ssl,
                 verify=self.use_ssl,  # Verify SSL certificates
             )
-        
+
         return self._client
-    
+
     def is_configured(self) -> bool:
         """
         Check if S3 upload is configured.
-        
+
         Returns:
             True if all required credentials are configured
         """
@@ -81,7 +81,7 @@ class S3Uploader:
             self.secret_key and
             self.bucket_name
         )
-    
+
     def upload(
         self,
         file_path: str,
@@ -90,12 +90,12 @@ class S3Uploader:
     ) -> Tuple[bool, Optional[str]]:
         """
         Upload file to S3-compatible storage.
-        
+
         Args:
             file_path: Local file path to upload
             filename: Filename to use in bucket
             source_type: Source type (youtube, facebook, etc.)
-            
+
         Returns:
             Tuple of (success, public_url or error_message)
         """
@@ -103,28 +103,28 @@ class S3Uploader:
             error_msg = "S3 upload not configured. Run 'alchemux setup s3' to configure S3 storage"
             logger.error(error_msg)
             return False, error_msg
-        
+
         # Verify file exists
         if not os.path.exists(file_path):
             error_msg = f"File not found: {file_path}"
             logger.error(error_msg)
             return False, error_msg
-        
+
         file_size = os.path.getsize(file_path)
         if file_size == 0:
             error_msg = f"File is empty: {file_path}"
             logger.error(error_msg)
             return False, error_msg
-        
+
         logger.info(f"Uploading file: {file_path} ({file_size} bytes)")
-        
+
         try:
             client = self._get_client()
-            
+
             # Determine object key (path in bucket)
             media_folder = get_media_folder(source_type)
             object_key = f"{media_folder}/{filename}"
-            
+
             # Check if object already exists
             try:
                 client.head_object(Bucket=self.bucket_name, Key=object_key)
@@ -140,10 +140,10 @@ class S3Uploader:
                 if e.response['Error']['Code'] != '404':
                     # Some other error occurred
                     raise
-            
+
             # Upload file
             content_type = self._guess_content_type(file_path)
-            
+
             client.upload_file(
                 file_path,
                 self.bucket_name,
@@ -157,17 +157,17 @@ class S3Uploader:
                     }
                 }
             )
-            
+
             # Construct public URL
             if self.endpoint:
                 endpoint_parsed = urlparse(self.endpoint if self.endpoint.startswith(('http://', 'https://')) else f"{'https' if self.use_ssl else 'http'}://{self.endpoint}")
                 public_url = f"{endpoint_parsed.scheme}://{endpoint_parsed.netloc}/{self.bucket_name}/{object_key}"
             else:
                 public_url = f"s3://{self.bucket_name}/{object_key}"
-            
+
             logger.info(f"Uploaded to {public_url}")
             return True, public_url
-        
+
         except NoCredentialsError:
             error_msg = "S3 credentials not found or invalid"
             logger.error(error_msg)
@@ -181,14 +181,14 @@ class S3Uploader:
             error_msg = f"S3 upload error: {str(e)}"
             logger.exception(error_msg)
             return False, error_msg
-    
+
     def _guess_content_type(self, file_path: str) -> str:
         """
         Guess content type from file extension.
-        
+
         Args:
             file_path: File path
-            
+
         Returns:
             Content type string
         """
@@ -207,4 +207,3 @@ class S3Uploader:
             ".mov": "video/quicktime",
         }
         return content_types.get(ext, "application/octet-stream")
-

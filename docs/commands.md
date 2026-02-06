@@ -8,6 +8,8 @@ Complete reference for all Alchemux commands and options.
 - **Tier 1:** `uvx alchemux "https://…"` — On first run, config is auto-created in your OS user config dir if missing; then the transmutation runs. `uvx alchemux --help` and `uvx alchemux --version` always work and never require config.
 - **Tier 2 (ephemeral, no writes):** `uvx alchemux --no-config --download-dir . "https://…"` — No config files are read or written; downloads go to the given directory.
 
+**Contributors:** Pre-commit hooks are run via [prek](https://github.com/j178/prek). See [contributors.md](contributors.md) for prek install, `prek run --all-files`, and the test suite.
+
 ---
 
 ## Basic Usage

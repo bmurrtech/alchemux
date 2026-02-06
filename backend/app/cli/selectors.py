@@ -32,12 +32,12 @@ def render_selection_list(
 ) -> str:
     """
     Render a selection list with radio-button indicators.
-    
+
     Args:
         options: List of (value, display_label) tuples
         selected_index: Currently selected index
         context_info: Optional dict mapping index to contextual info
-        
+
     Returns:
         Formatted string for display
     """
@@ -57,9 +57,9 @@ def render_selection_list(
             label_style = ""
             label_end = ""
             context = ""
-        
+
         lines.append(f"  {indicator} {label_style}{label}{label_end}{context}")
-    
+
     return "\n".join(lines)
 
 
@@ -72,23 +72,23 @@ def interactive_select(
 ) -> Tuple[str, int]:
     """
     Interactive single-select with numbered input fallback.
-    
+
     Uses numbered selection for maximum terminal compatibility
     (works in CI, non-interactive terminals, piped input).
-    
+
     Args:
         title: Selection prompt title
         options: List of (value, display_label) tuples
         default_index: Default selected index
         context_info: Optional contextual info per option
         show_panel: Wrap in panel (unused, kept for API compatibility)
-        
+
     Returns:
         Tuple of (selected_value, selected_index)
     """
     console.print()
     console.print(f"[bold]{SECTION_MARKER} {title}[/bold]")
-    
+
     for i, (value, label) in enumerate(options):
         marker = SELECTED_INDICATOR if i == default_index else UNSELECTED_INDICATOR
         style = "[green]" if i == default_index else "[dim]"
@@ -97,20 +97,20 @@ def interactive_select(
         if context_info and i in context_info:
             context = f" [cyan]({context_info[i]})[/cyan]"
         console.print(f"  {style}{marker}[/{end_style.strip('[/')}] [{i+1}] {label}{context}")
-    
+
     # Get selection
     try:
         choice = Prompt.ask(
             f"\n  Enter number [1-{len(options)}]",
             default=str(default_index + 1)
         )
-        
+
         idx = int(choice) - 1
         if 0 <= idx < len(options):
             return options[idx][0], idx
     except (ValueError, EOFError, KeyboardInterrupt):
         pass
-    
+
     return options[default_index][0], default_index
 
 
@@ -121,28 +121,28 @@ def inline_yes_no(
 ) -> bool:
     """
     Compact inline Yes/No with visual indicators.
-    
+
     Pattern: ◆ Enable auto-open after download?
              ● Yes / ○ No
-    
+
     Args:
         prompt: Question text
         default: Default selection
         show_marker: Show section diamond marker
-        
+
     Returns:
         True for Yes, False for No
     """
     marker = f"{SECTION_MARKER_ACTIVE} " if show_marker else ""
-    
+
     if default:
         options_display = f"[green]{SELECTED_INDICATOR} Yes[/green] / [dim]{UNSELECTED_INDICATOR} No[/dim]"
     else:
         options_display = f"[dim]{UNSELECTED_INDICATOR} Yes[/dim] / [green]{SELECTED_INDICATOR} No[/green]"
-    
+
     console.print(f"\n{marker}[bold]{prompt}[/bold]")
     console.print(f"  {options_display}")
-    
+
     try:
         choice = Prompt.ask("  ", default="y" if default else "n").lower().strip()
         return choice in ("y", "yes", "1", "true")
@@ -157,13 +157,13 @@ def print_section_header(
 ) -> None:
     """
     Print section header with optional subtitle and hierarchy bar.
-    
+
     Pattern:
     ◇ Audio Format (Setup)
     │ MP3 (default)
     │
     ◇ Storage Configuration ───────────────
-    
+
     Args:
         title: Section title
         subtitle: Optional subtitle/context
@@ -181,7 +181,7 @@ def print_status_panel(
 ) -> None:
     """
     Print a status panel with key-value pairs.
-    
+
     Pattern:
     ╭─ Current Settings ────────────────────╮
     │ Output: ~/Downloads/Alchemux          │
@@ -189,7 +189,7 @@ def print_status_panel(
     │ Storage: local                        │
     │ Arcane mode: enabled                  │
     ╰───────────────────────────────────────╯
-    
+
     Args:
         title: Panel title
         content_lines: List of content lines
@@ -212,7 +212,7 @@ def print_hierarchy_item(
 ) -> None:
     """
     Print item with hierarchy indicator.
-    
+
     Args:
         text: Item text
         is_last: If True, use └─ instead of │
@@ -230,14 +230,14 @@ def print_phase_indicator(
 ) -> None:
     """
     Print multi-phase progress indicator.
-    
+
     Arcane Mode Pattern:
     ◆ scribe >
     ◆ scry >
     ◇ distill <- current
     ○ mux
     ○ seal
-    
+
     Args:
         phases: List of phase names
         current_phase: Index of current phase (0-based)
@@ -253,7 +253,7 @@ def print_phase_indicator(
         else:
             marker = f"[dim]{PHASE_PENDING}[/dim]"
             status = ""
-        
+
         console.print(f"  {marker} {phase} {status}")
 
 
@@ -264,19 +264,19 @@ def print_info_panel(
 ) -> None:
     """
     Print informational panel with instructions.
-    
+
     Pattern:
     ◇ S3 Storage Setup ───────────────────
-    
+
     You'll need:
       - S3 endpoint URL
       - Access key and secret key
       - Bucket name
-    
+
     Credentials are stored securely in .env
-    
+
     Docs: docs/commands.md#storage
-    
+
     Args:
         title: Panel title
         instructions: List of instruction lines

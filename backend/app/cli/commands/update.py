@@ -36,32 +36,32 @@ def _get_last_update_check_path() -> Path:
 def _should_check_for_updates(force: bool = False) -> bool:
     """
     Check if we should check for updates (throttle to avoid GitHub rate limits).
-    
+
     Args:
         force: If True, bypass throttling
-        
+
     Returns:
         True if we should check, False if throttled
     """
     if force:
         return True
-    
+
     check_file = _get_last_update_check_path()
     if not check_file.exists():
         return True
-    
+
     try:
         last_check_str = check_file.read_text().strip()
         last_check = datetime.fromisoformat(last_check_str)
         now = datetime.now()
         hours_since = (now - last_check).total_seconds() / 3600
-        
+
         if hours_since >= UPDATE_CHECK_THROTTLE_HOURS:
             return True
     except Exception as e:
         logger.debug(f"Could not read last update check time: {e}")
         return True
-    
+
     return False
 
 
@@ -78,7 +78,7 @@ def _record_update_check() -> None:
 def _get_current_ytdlp_version() -> Optional[str]:
     """
     Get current yt-dlp version.
-    
+
     Returns:
         Version string (e.g., "2025.12.08") or None if unavailable
     """
@@ -88,7 +88,7 @@ def _get_current_ytdlp_version() -> Optional[str]:
         version = getattr(yt_dlp, '__version__', None)
         if version:
             return version
-        
+
         # Fallback: try subprocess
         result = subprocess.run(
             [sys.executable, "-m", "yt_dlp", "--version"],
@@ -100,25 +100,25 @@ def _get_current_ytdlp_version() -> Optional[str]:
             return result.stdout.strip()
     except Exception as e:
         logger.debug(f"Could not get yt-dlp version: {e}")
-    
+
     return None
 
 
 def _get_latest_stable_version() -> Optional[str]:
     """
     Get latest stable yt-dlp version from GitHub API.
-    
+
     Returns:
         Version tag (e.g., "2025.12.08") or None if unavailable
     """
     try:
         import urllib.request
         import urllib.error
-        
+
         url = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
         req = urllib.request.Request(url)
         req.add_header("Accept", "application/vnd.github.v3+json")
-        
+
         with urllib.request.urlopen(req, timeout=10) as response:
             data = json.loads(response.read())
             tag_name = data.get("tag_name", "")
@@ -134,7 +134,7 @@ def _get_latest_stable_version() -> Optional[str]:
 def _update_ytdlp_stable() -> Tuple[bool, Optional[str]]:
     """
     Update yt-dlp to latest stable using built-in update mechanism.
-    
+
     Returns:
         Tuple of (success, message)
     """
@@ -147,7 +147,7 @@ def _update_ytdlp_stable() -> Tuple[bool, Optional[str]]:
             text=True,
             timeout=120,  # Update can take time
         )
-        
+
         if result.returncode == 0:
             output = result.stdout.strip()
             if "Updated yt-dlp" in output or "yt-dlp is up to date" in output:
@@ -168,32 +168,32 @@ def update(
 ) -> None:
     """
     Update yt-dlp to the latest stable version.
-    
+
     This command checks if yt-dlp is outdated and updates it if needed.
     Update checks are throttled to once per day to avoid GitHub rate limits.
     Use --force to bypass throttling.
-    
+
     **When to use:**
     - If downloads fail with HTTP 403 or other extraction errors
     - To ensure you have the latest yt-dlp fixes and improvements
     - After yt-dlp releases new versions
-    
+
     **How it works:**
     - Uses yt-dlp's built-in `--update-to stable` mechanism (most reliable)
     - Updates the Python package, not the Alchemux binary
     - Throttles checks to once per 24 hours (use --force to check immediately)
-    
+
     **Note**: This updates yt-dlp without requiring a new Alchemux binary release.
     """
     # Ensure output is flushed immediately
     import sys
     sys.stdout.flush()
     sys.stderr.flush()
-    
+
     console.print()
     console.print(Panel("[bold]yt-dlp Update[/bold]", border_style="cyan"))
     console.print()
-    
+
     # Check if we should check (throttling)
     if not _should_check_for_updates(force=force):
         last_check_file = _get_last_update_check_path()
@@ -205,7 +205,7 @@ def update(
             console.print("[dim]Checking anyway for this run...[/dim]")
         except Exception:
             pass
-    
+
     # Get current version
     current_version = _get_current_ytdlp_version()
     if current_version:
@@ -213,14 +213,14 @@ def update(
     else:
         console.print("[yellow]![/yellow]  Could not determine current yt-dlp version")
         console.print("[dim]Proceeding with update attempt...[/dim]")
-    
+
     # Get latest stable version
     console.print("[dim]Checking for latest stable version...[/dim]")
     latest_version = _get_latest_stable_version()
-    
+
     if latest_version:
         console.print(f"[green]>[/green] Latest stable version: {latest_version}")
-        
+
         if current_version and current_version == latest_version:
             console.print()
             console.print("[bold green]yt-dlp is already up to date![/bold green]")
@@ -229,12 +229,12 @@ def update(
     else:
         console.print("[yellow]![/yellow]  Could not fetch latest version from GitHub")
         console.print("[dim]Proceeding with update attempt anyway...[/dim]")
-    
+
     # Perform update
     console.print()
     console.print("[dim]Updating yt-dlp to latest stable...[/dim]")
     success, message = _update_ytdlp_stable()
-    
+
     if success:
         console.print()
         console.print(Panel(
@@ -243,7 +243,7 @@ def update(
             border_style="green"
         ))
         _record_update_check()
-        
+
         # Verify new version
         new_version = _get_current_ytdlp_version()
         if new_version:

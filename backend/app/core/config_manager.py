@@ -38,12 +38,12 @@ APP_AUTHOR = False  # Don't use author subdirectory
 def get_user_config_dir() -> Path:
     """
     Get platform-specific user config directory using platformdirs.
-    
+
     Returns:
         - macOS: ~/Library/Application Support/Alchemux/
         - Linux: ~/.config/alchemux/ (or $XDG_CONFIG_HOME/alchemux/)
         - Windows: %APPDATA%\\Alchemux\\ (Roaming)
-    
+
     Reference: https://platformdirs.readthedocs.io/en/latest/api.html#user-config-directory
     """
     if PLATFORMDIRS_AVAILABLE:
@@ -55,7 +55,7 @@ def get_user_config_dir() -> Path:
             ensure_exists=True
         )
         return config_dir
-    
+
     # Fallback if platformdirs not available
     if sys.platform == "darwin":  # macOS
         config_dir = Path.home() / "Library" / "Application Support" / "Alchemux"
@@ -64,7 +64,7 @@ def get_user_config_dir() -> Path:
     else:  # Linux and others - XDG compliant
         xdg_config = os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")
         config_dir = Path(xdg_config) / "alchemux"
-    
+
     # Create directory if it doesn't exist
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
@@ -73,10 +73,10 @@ def get_user_config_dir() -> Path:
 def get_default_output_dir() -> Path:
     """
     Get platform-specific default output directory.
-    
+
     Returns:
         - All platforms: ~/Downloads/Alchemux/ (user-friendly default)
-    
+
     Reference: https://platformdirs.readthedocs.io/en/latest/api.html#user-downloads-directory
     """
     if PLATFORMDIRS_AVAILABLE:
@@ -84,17 +84,17 @@ def get_default_output_dir() -> Path:
         output_dir = downloads / "Alchemux"
     else:
         output_dir = Path.home() / "Downloads" / "Alchemux"
-    
+
     return output_dir
 
 
 def get_pointer_file_path() -> Path:
     """
     Get path to config pointer file (stable location).
-    
+
     The pointer file stores the absolute path to the active config directory,
     allowing users to relocate config without breaking the app.
-    
+
     Returns:
         Path to pointer file in default OS config directory
     """
@@ -105,7 +105,7 @@ def get_pointer_file_path() -> Path:
 def read_config_pointer() -> Optional[Path]:
     """
     Read config directory path from pointer file.
-    
+
     Returns:
         Path to active config directory, or None if pointer doesn't exist or is invalid
     """
@@ -127,7 +127,7 @@ def read_config_pointer() -> Optional[Path]:
 def write_config_pointer(config_dir: Path) -> None:
     """
     Write config directory path to pointer file.
-    
+
     Args:
         config_dir: Path to active config directory
     """
@@ -143,16 +143,16 @@ def write_config_pointer(config_dir: Path) -> None:
 def get_config_location() -> Path:
     """
     Determine config file location with priority order.
-    
+
     Priority:
     1. CLI flag --config-dir <path> (via ALCHEMUX_CONFIG_DIR env var)
     2. Environment var ALCHEMUX_CONFIG_DIR
     3. Pointer file in default OS config dir
     4. If packaged binary AND .env exists next to binary in writable location -> portable mode
     5. Default OS config directory (via platformdirs)
-    
+
     For source development: prioritize existing .env, then project root
-    
+
     Returns:
         Path to .env file location
     """
@@ -162,14 +162,14 @@ def get_config_location() -> Path:
         config_path = Path(env_config_dir) / ".env"
         logger.debug(f"Using config from ALCHEMUX_CONFIG_DIR: {config_path}")
         return config_path
-    
+
     # Priority 3: Pointer file
     pointer_config = read_config_pointer()
     if pointer_config:
         config_path = pointer_config / ".env"
         logger.debug(f"Using config from pointer file: {config_path}")
         return config_path
-    
+
     # Detect if running as packaged binary
     if getattr(sys, 'frozen', False):
         # Running as PyInstaller binary: default to same path as binary
@@ -197,14 +197,14 @@ def get_config_location() -> Path:
                 # find_dotenv() found a path but file doesn't exist - use its parent directory
                 logger.debug(f"Running from source, using .env location from find_dotenv: {env_path}")
                 return env_path
-        
+
         # No .env found - check if we're in a project root (has env.example)
         cwd = Path.cwd()
         env_example_in_cwd = cwd / "env.example"
         if env_example_in_cwd.exists():
             logger.debug(f"Running from source, using project root (has env.example): {cwd / '.env'}")
             return cwd / ".env"
-        
+
         # Default to current working directory
         logger.debug(f"Running from source, using CWD: {cwd / '.env'}")
         return cwd / ".env"
@@ -212,11 +212,11 @@ def get_config_location() -> Path:
 
 class ConfigManager:
     """Manages .env file with secure permissions and validation."""
-    
+
     def __init__(self, env_path: Optional[str] = None):
         """
         Initialize ConfigManager.
-        
+
         Args:
             env_path: Path to .env file (if None, uses smart detection for portable binaries)
         """
@@ -251,7 +251,7 @@ class ConfigManager:
         else:
             # Smart detection for portable binaries
             self.env_path = get_config_location()
-        
+
         # For env.example, try binary directory first, then user config, then .env parent
         if getattr(sys, 'frozen', False):
             binary_dir = Path(sys.executable).parent
@@ -267,20 +267,20 @@ class ConfigManager:
                 cwd_example = Path.cwd() / "env.example"
                 if cwd_example.exists():
                     self.env_example_path = cwd_example
-        
+
         self._ensure_secure_permissions()
         load_dotenv(self.env_path)
-        
+
         # Initialize TOML config path
         self.toml_path = get_toml_path(self.env_path)
         self.toml_example_path = self.toml_path.parent / "config.toml.example"
         self._toml_cache = None
-    
+
     def _ensure_secure_permissions(self) -> None:
         """Ensure .env file has secure permissions (chmod 600 on Unix, user-only on Windows)."""
         if not self.env_path.exists():
             return
-        
+
         try:
             if os.name != 'nt':  # Unix-like systems
                 # Set to 600 (read/write for owner only)
@@ -288,20 +288,20 @@ class ConfigManager:
                 logger.debug(f"Set secure permissions on {self.env_path}")
         except OSError as e:
             logger.warning(f"Could not set secure permissions on {self.env_path}: {e}")
-    
+
     def _load_toml_cache(self) -> Dict[str, Any]:
         """Load TOML config into cache."""
         if self._toml_cache is None:
             self._toml_cache = read_toml(self.toml_path)
         return self._toml_cache
-    
+
     def _is_secret_key(self, key: str) -> bool:
         """
         Determine if a key should be stored in .env (secrets) vs config.toml.
-        
+
         Args:
             key: Configuration key
-            
+
         Returns:
             True if key is a secret and should go in .env
         """
@@ -311,19 +311,19 @@ class ConfigManager:
         ]
         key_upper = key.upper()
         return any(pattern in key_upper for pattern in secret_patterns)
-    
+
     def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
         """
         Get configuration value from config.toml (non-secrets) or .env (secrets).
-        
+
         Priority:
         1. For secrets: .env file
         2. For non-secrets: config.toml (using dot notation), then .env fallback
-        
+
         Args:
             key: Configuration key (supports dot notation for TOML, e.g., "audio.format")
             default: Default value if not set
-            
+
         Returns:
             Value from config.toml or .env, or default
         """
@@ -332,7 +332,7 @@ class ConfigManager:
             value = os.getenv(key, default)
             logger.debug(f"Config get (secret): {key} = ***")
             return value
-        
+
         # For non-secrets, try TOML first (supports dot notation)
         toml_config = self._load_toml_cache()
         if toml_config:
@@ -342,7 +342,7 @@ class ConfigManager:
                 value = str(toml_value) if not isinstance(toml_value, str) else toml_value
                 logger.debug(f"Config get (toml): {key} = {value}")
                 return value
-        
+
         # Fallback to .env
         value = os.getenv(key, default)
         logger.debug(f"Config get (env): {key} = {'***' if 'key' in key.lower() or 'secret' in key.lower() else value}")
@@ -367,14 +367,14 @@ class ConfigManager:
         """
         Create .env file from env.example by copying the full file.
         Ensures required variables are set if missing.
-        
+
         Raises:
             IOError: If file creation fails (permission issues, etc.)
         """
         try:
             # Ensure parent directory exists
             self.env_path.parent.mkdir(parents=True, exist_ok=True)
-            
+
             if not self.env_example_path.exists():
                 # Create minimal .env with same placeholder keys as env.example (secrets only)
                 with open(self.env_path, 'w') as f:
@@ -385,19 +385,19 @@ class ConfigManager:
                 self._ensure_secure_permissions()
                 logger.info(f"Created minimal .env file at {self.env_path}")
                 return
-            
+
             logger.info(f"Creating .env from {self.env_example_path}")
-            
+
             # Copy the full example file
             import shutil
             shutil.copy2(self.env_example_path, self.env_path)
-            
+
             self._ensure_secure_permissions()
             logger.info(f"Created .env file at {self.env_path} from {self.env_example_path}")
         except (IOError, OSError, PermissionError) as e:
             logger.error(f"Failed to create .env file at {self.env_path}: {e}")
             raise IOError(f"Cannot create .env file: {e}. Check permissions for {self.env_path.parent}")
-    
+
     def _create_toml_from_example(self) -> None:
         """
         Create config.toml file from config.toml.example.
@@ -433,7 +433,7 @@ class ConfigManager:
             except Exception as e:
                 logger.warning(f"Could not create config.toml: {e}")
             return
-        
+
         # Copy example file to config.toml
         try:
             import shutil
@@ -442,54 +442,54 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Error copying config.toml.example to config.toml: {e}")
             raise
-    
+
     def check_toml_file_exists(self) -> bool:
         """Check if config.toml file exists."""
         return self.toml_path.exists()
-    
+
     def is_s3_configured(self) -> bool:
         """
         Check if S3 is configured (has required config keys + credentials).
-        
+
         Returns:
             True if S3 has bucket/endpoint in config.toml and credentials in .env
         """
         # Check for required config keys
         bucket = self.get("storage.s3.bucket")
         endpoint = self.get("storage.s3.endpoint")
-        
+
         # S3 requires bucket, endpoint is optional (can be inferred)
         if not bucket:
             return False
-        
+
         # Check for credentials in .env
         access_key = self.get("S3_ACCESS_KEY")
         secret_key = self.get("S3_SECRET_KEY")
-        
+
         return bool(access_key and secret_key)
-    
+
     def is_gcp_configured(self) -> bool:
         """
         Check if GCP is configured (has required config keys + credentials).
-        
+
         Returns:
             True if GCP has bucket in config.toml and credentials in .env
         """
         # Check for required config keys
         bucket = self.get("storage.gcp.bucket")
-        
+
         if not bucket:
             return False
-        
+
         # Check for credentials in .env
         sa_key = self.get("GCP_SA_KEY_BASE64")
-        
+
         return bool(sa_key)
-    
+
     def get_storage_destination(self) -> str:
         """
         Get the configured storage destination.
-        
+
         Returns:
             Storage destination: "local", "s3", or "gcp"
         """
@@ -497,11 +497,11 @@ class ConfigManager:
         if dest not in ("local", "s3", "gcp"):
             return "local"
         return dest
-    
+
     def set(self, key: str, value: str, update_env: bool = True) -> None:
         """
         Set configuration value in config.toml (non-secrets) or .env (secrets).
-        
+
         Args:
             key: Configuration key (supports dot notation for TOML, e.g., "audio.format")
             value: Value to set
@@ -512,22 +512,22 @@ class ConfigManager:
             if not self.env_path.exists():
                 # Create .env from example if it exists
                 self._create_env_from_example()
-            
+
             # Update .env file
             set_key(str(self.env_path), key, value)
             self._ensure_secure_permissions()
-            
+
             # Update os.environ if requested
             if update_env:
                 os.environ[key] = value
-            
+
             logger.debug(f"Config set (secret): {key} = ***")
             return
-        
+
         # For non-secrets, write to config.toml
         toml_config = self._load_toml_cache()
         set_nested_value(toml_config, key, value)
-        
+
         # Write TOML file
         try:
             write_toml(self.toml_path, toml_config)
@@ -542,18 +542,18 @@ class ConfigManager:
             set_key(str(self.env_path), key, value)
             self._ensure_secure_permissions()
             logger.debug(f"Config set (env fallback): {key} = {value}")
-        
+
         # Update os.environ if requested
         if update_env:
             os.environ[key] = value
-    
+
     def validate_required(self, required_vars: list[str]) -> tuple[bool, list[str]]:
         """
         Validate that required environment variables are set.
-        
+
         Args:
             required_vars: List of required variable names
-            
+
         Returns:
             Tuple of (is_valid, missing_vars)
         """
@@ -562,21 +562,21 @@ class ConfigManager:
             value = self.get(var)
             if not value or value.strip() == "":
                 missing.append(var)
-        
+
         if missing:
             logger.warning(f"Missing required configuration variables: {missing}")
             return False, missing
-        
+
         return True, []
-    
+
     def check_env_file_exists(self) -> bool:
         """Check if .env file exists."""
         return self.env_path.exists()
-    
+
     def get_env_file_error_message(self) -> str:
         """
         Get helpful error message if .env file is missing or incomplete.
-        
+
         Returns:
             Error message with remediation steps
         """
@@ -589,7 +589,7 @@ To set up:
 3. Or run setup wizard: alchemux setup
 
 Expected location: {self.env_path}"""
-        
+
         # Check for required configuration (paths.output_dir in config.toml or DOWNLOAD_PATH in .env)
         output_dir = self.get("paths.output_dir") or self.get("DOWNLOAD_PATH")
         if not output_dir or not output_dir.strip():
@@ -599,105 +599,104 @@ To fix:
 1. Run setup wizard: alchemux setup
 2. Or set manually: alchemux paths set <path>
 3. Or edit config.toml and set paths.output_dir = "./downloads\""""
-        
+
         return ""
-    
+
     def update_download_path(self, path: str) -> None:
         """
         Update paths.output_dir in config.toml (legacy method for backward compatibility).
-        
+
         Args:
             path: New output directory path
         """
         # Normalize path
         path = os.path.expanduser(path)
         path = os.path.abspath(path)
-        
+
         # Create directory if it doesn't exist
         Path(path).mkdir(parents=True, exist_ok=True)
-        
+
         # Update config.toml (non-secret, so goes to TOML)
         self.set("paths.output_dir", path)
         logger.info(f"Updated paths.output_dir in config.toml to: {path}")
-    
+
     def create_backup(self) -> Optional[Path]:
         """
         Create a single-latest backup of config files.
-        
+
         Backups are stored at <config_dir>/.backups/latest/
         This method overwrites any existing backup (single-latest policy).
-        
+
         Returns:
             Path to backup directory, or None if backup creation failed
         """
         backup_dir = self.env_path.parent / ".backups" / "latest"
         try:
             backup_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Backup config.toml if it exists
             if self.toml_path.exists():
                 shutil.copy2(self.toml_path, backup_dir / "config.toml")
                 logger.debug(f"Backed up config.toml to {backup_dir / 'config.toml'}")
-            
+
             # Backup .env if it exists
             if self.env_path.exists():
                 shutil.copy2(self.env_path, backup_dir / ".env")
                 logger.debug(f"Backed up .env to {backup_dir / '.env'}")
-            
+
             logger.info(f"Created backup at {backup_dir}")
             return backup_dir
         except Exception as e:
             logger.error(f"Failed to create backup: {e}")
             return None
-    
+
     def restore_from_backup(self) -> bool:
         """
         Restore config files from the latest backup.
-        
+
         Returns:
             True if restore succeeded, False otherwise
         """
         backup_dir = self.env_path.parent / ".backups" / "latest"
-        
+
         if not backup_dir.exists():
             logger.warning("No backup directory found")
             return False
-        
+
         try:
             # Restore config.toml if backup exists
             backup_toml = backup_dir / "config.toml"
             if backup_toml.exists():
                 shutil.copy2(backup_toml, self.toml_path)
                 logger.info(f"Restored config.toml from backup")
-            
+
             # Restore .env if backup exists
             backup_env = backup_dir / ".env"
             if backup_env.exists():
                 shutil.copy2(backup_env, self.env_path)
                 self._ensure_secure_permissions()
                 logger.info(f"Restored .env from backup")
-            
+
             # Invalidate cache to force reload
             self._toml_cache = None
             load_dotenv(self.env_path)
-            
+
             logger.info(f"Restored config from backup at {backup_dir}")
             return True
         except Exception as e:
             logger.error(f"Failed to restore from backup: {e}")
             return False
-    
+
     def has_backup(self) -> bool:
         """
         Check if a backup exists.
-        
+
         Returns:
             True if backup directory exists and contains at least one file
         """
         backup_dir = self.env_path.parent / ".backups" / "latest"
         if not backup_dir.exists():
             return False
-        
+
         # Check if at least one backup file exists
         return (backup_dir / "config.toml").exists() or (backup_dir / ".env").exists()
-

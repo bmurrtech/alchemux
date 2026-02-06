@@ -24,28 +24,28 @@ def setup(
 ) -> None:
     """
     Run interactive setup wizard.
-    
+
     This rite guides you through the initial configuration of Alchemux,
     setting up download paths, cloud storage credentials, and other arcane
     parameters required for the transmutation rituals. The wizard ensures
     all necessary components are properly bound before use.
-    
+
     Available targets:
     - (none): Minimal setup - creates .env if missing, handles EULA acceptance
     - gcp: Configure Google Cloud Platform storage for uploads
     - s3: Configure S3-compatible storage for uploads
-    
+
     Flags:
     - --reset: Restore default configuration (with confirmation)
     """
     rich_console = Console()
-    
+
     # Read arcane_terms from env, default True
     arcane_terms = os.getenv("ARCANE_TERMS", "true").lower() in ("1", "true", "yes")
     console = ArcaneConsole(plain=plain, arcane_terms=arcane_terms)
-    
+
     config_manager = ConfigManager()
-    
+
     # Handle --reset flag first
     if reset:
         rich_console.print()
@@ -54,7 +54,7 @@ def setup(
         rich_console.print(f"  - {config_manager.toml_path}")
         rich_console.print(f"  - {config_manager.env_path}")
         rich_console.print()
-        
+
         if confirm("Continue with reset?", default=False) is True:
             # Delete existing config files
             if config_manager.toml_path.exists():
@@ -63,27 +63,27 @@ def setup(
             if config_manager.env_path.exists():
                 config_manager.env_path.unlink()
                 rich_console.print(f"[green]>[/green] Removed {config_manager.env_path}")
-            
+
             # Recreate from templates
             try:
                 config_manager._create_toml_from_example()
                 rich_console.print(f"[green]>[/green] Created config.toml from template")
             except Exception as e:
                 rich_console.print(f"[yellow]![/yellow] Could not create config.toml: {e}")
-            
+
             try:
                 config_manager._create_env_from_example()
                 rich_console.print(f"[green]>[/green] Created .env from template")
             except Exception as e:
                 rich_console.print(f"[yellow]![/yellow] Could not create .env: {e}")
-            
+
             rich_console.print()
             rich_console.print("[green]>[/green] Configuration reset to defaults")
             rich_console.print(f"[dim]Run 'alchemux setup' to reconfigure.[/dim]")
         else:
             rich_console.print("[yellow]Reset cancelled.[/yellow]")
         raise typer.Exit(code=0)
-    
+
     # Handle specific cloud storage targets
     if target == "gcp":
         console.console.print("Configuring GCP Cloud Storage upload...")
@@ -126,4 +126,3 @@ def setup(
                 import traceback
                 traceback.print_exc()
             raise typer.Exit(code=1)
-
