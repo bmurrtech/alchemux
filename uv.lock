@@ -8,7 +8,7 @@ resolution-markers = [
 
 [[package]]
 name = "alchemux"
-version = "0.1.1a0"
+version = "0.1.1rc1"
 source = { editable = "." }
 dependencies = [
     { name = "boto3" },
