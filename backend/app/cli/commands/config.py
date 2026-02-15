@@ -5,7 +5,6 @@ Provides subcommands for viewing, diagnosing, and relocating configuration.
 """
 
 import os
-import sys
 import shutil
 from pathlib import Path
 from typing import Optional
@@ -24,7 +23,6 @@ from app.core.config_manager import (
     get_default_output_dir,
 )
 from app.core.toml_config import read_toml
-from app.core.eula import is_packaged_build
 
 # Create Typer app for config subcommands
 app = typer.Typer(
@@ -433,11 +431,7 @@ def config_mv(
     if destination is None or (
         isinstance(destination, str) and not destination.strip()
     ):
-        default_dir = (
-            str(Path(sys.executable).resolve().parent)
-            if is_packaged_build()
-            else str(src_dir)
-        )
+        default_dir = str(src_dir)
         destination = filepath(
             message="Enter path to save configs (directory):",
             default=default_dir,

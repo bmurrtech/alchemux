@@ -45,7 +45,7 @@ class MediaDownloader:
         """
         if audio_format:
             return audio_format
-        return self.config.get("media.audio.format", "mp3") or "mp3"
+        return self.config.get("media.audio.format", "flac") or "flac"
 
     def _get_video_format(self, video_format: Optional[str] = None) -> str:
         """
@@ -89,6 +89,7 @@ class MediaDownloader:
         audio_format: Optional[str] = None,
         video_format: Optional[str] = None,
         flac_flag: bool = False,
+        video_enabled_override: bool = False,
         progress_hook: Optional[Callable] = None,
     ) -> Dict[str, Any]:
         """
@@ -149,16 +150,12 @@ class MediaDownloader:
         if log_level == "debug" and self.ytdl_logger:
             opts["logger"] = self.ytdl_logger
 
-        # Determine if we're doing audio or video
-        # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
-        video_format_config = self.config.get("media.video.format", "")
-        video_enabled_formats = (
-            self.config.get_list("media.video.enabled_formats") or []
-        )
-        video_enabled_in_config = bool(
-            video_format_config and video_format_config.strip()
-        ) or bool(video_enabled_formats)
-        is_video = video_format is not None and video_enabled_in_config
+        # Determine if this call is allowed to run the video pipeline.
+        # Legacy configs without media.video.enabled are treated as disabled by default.
+        video_enabled = self.config.get_bool("media.video.enabled", default=False)
+        if video_enabled_override:
+            video_enabled = True
+        is_video = video_format is not None and video_enabled
 
         # Merge-oriented format selectors to avoid fragile progressive formats (e.g. YouTube
         # format 22) that often cause 403 from googlevideo.com. Prefer DASH merge + container.
@@ -338,6 +335,7 @@ class MediaDownloader:
         audio_format: Optional[str] = None,
         video_format: Optional[str] = None,
         flac_flag: bool = False,
+        video_enabled_override: bool = False,
         progress_callback: Optional[Callable] = None,
     ) -> Tuple[bool, Optional[str], Optional[str]]:
         """
@@ -360,6 +358,7 @@ class MediaDownloader:
             audio_format=audio_format,
             video_format=video_format,
             flac_flag=flac_flag,
+            video_enabled_override=video_enabled_override,
             progress_hook=self._create_progress_hook(progress_callback),
         )
 
@@ -388,7 +387,10 @@ class MediaDownloader:
             expected_ext = None
             if flac_flag:
                 expected_ext = ".flac"
-            elif video_format:
+            elif video_format and (
+                self.config.get_bool("media.video.enabled", default=False)
+                or video_enabled_override
+            ):
                 vf = (self._get_video_format(video_format) or "mp4").lower()
                 expected_ext = {"mp4": ".mp4", "mkv": ".mkv", "webm": ".webm"}.get(
                     vf, ".mp4"

@@ -40,8 +40,17 @@ def video_format_command(
 
     # Get current format
     current_format = config.get("media.video.format", "")
+    video_enabled = config.get_bool("media.video.enabled", default=False)
 
     console = Console(force_terminal=not plain, no_color=plain)
+
+    if not video_enabled:
+        console.print()
+        console.print(
+            "[yellow]Video download is currently disabled.[/yellow] Enable `media.video.enabled = true` first (for example via `alchemux config` or `alchemux setup`)."
+        )
+        console.print()
+        raise typer.Exit(code=1)
 
     # Display selection UI
     console.print()

@@ -18,6 +18,7 @@ from typer.testing import CliRunner
 # Ensure `app.*` imports work when running from repo root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from app.cli.app import app as root_app  # noqa: E402
 from app.cli.commands import config as config_cmd  # noqa: E402
 
 
@@ -47,6 +48,22 @@ def _seed_temp_config_dir(cfg_dir: Path) -> None:
         'output_dir = "./downloads"\n'
         'temp_dir = "./tmp"\n'
     )
+
+
+def test_help_and_version_without_config() -> None:
+    """--help and --version must work without any config (uvx-friendly)."""
+    runner = CliRunner()
+    # No ALCHEMUX_CONFIG_DIR; no config files needed
+    result = runner.invoke(root_app, ["--help"])
+    assert result.exit_code == 0
+    assert (
+        "Arcane media transmutation" in result.stdout
+        or "alchemux" in result.stdout.lower()
+    )
+
+    result = runner.invoke(root_app, ["--version"])
+    assert result.exit_code == 0
+    assert "Alchemux" in result.stdout
 
 
 def test_config_show_smoke() -> None:

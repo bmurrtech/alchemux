@@ -499,7 +499,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             rich_console.print(f"  [green]✓[/green] Using default: {default_path}")
 
     # Audio format: confirm then checkbox (PRD6)
-    current_audio = config.get("media.audio.format", "mp3")
+    current_audio = config.get("media.audio.format", "flac")
     change_audio = confirm(
         f"Change default audio output? (current: .{current_audio})", default=False
     )
@@ -516,7 +516,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             default_selected=[
                 current_audio
                 if current_audio in ("mp3", "flac", "wav", "aac", "m4a")
-                else "mp3"
+                else "flac"
             ],
         )
         if selected_audio and len(selected_audio) > 0:
@@ -536,9 +536,13 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 f"  [green]✓[/green] Audio format(s): {', '.join(selected_audio)}"
             )
 
-    # Video: confirm "Save video too?" then optional codec checkbox (PRD6)
-    save_video = confirm("Save video file, too?", default=False)
-    if save_video is True:
+    # Video: disabled by default, explicit opt-in per ADR 0007 / PRD 011.
+    enable_video = confirm(
+        "Enable video download? N/y (Note: If enabled, more likely to hit 403/429/bot check errors.)",
+        default=False,
+    )
+    if enable_video is True:
+        config.set("media.video.enabled", "true")
         current_video = config.get("media.video.format", "mp4") or "mp4"
         change_video = confirm(
             f"Change default video codec? (current: .{current_video})", default=False
@@ -568,8 +572,9 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 )
         else:
             config.set("media.video.format", current_video)
-        rich_console.print("  [green]✓[/green] Video output enabled")
+        rich_console.print("  [green]✓[/green] Video download enabled")
     else:
+        config.set("media.video.enabled", "false")
         config.set("media.video.format", "")
         from app.core.toml_config import read_toml, write_toml
 
@@ -581,7 +586,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         tom["media"]["video"]["enabled_formats"] = []
         write_toml(config.toml_path, tom)
         config._toml_cache = None
-        rich_console.print("  [dim]Video output disabled[/dim]")
+        rich_console.print("  [dim]Video download disabled (default)[/dim]")
 
     # Config location (after output dir): keep next to binary or choose path
     config_dir_for_summary = str(config.toml_path.parent)

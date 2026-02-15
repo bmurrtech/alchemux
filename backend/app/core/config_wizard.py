@@ -199,7 +199,13 @@ def configure_audio_settings(config: ConfigManager) -> None:
     for key, (description, value_type, choices) in settings.items():
         current = config.get(
             f"media.audio.{key}",
-            "mp3" if key == "format" else ("192k" if key == "quality" else "0"),
+            "flac"
+            if key == "format"
+            else (
+                "192k"
+                if key == "quality"
+                else ("16000" if key == "sample_rate" else "1")
+            ),
         )
         console.print(f"\n  {key}: {current} - {description}")
 
@@ -237,6 +243,21 @@ def configure_audio_settings(config: ConfigManager) -> None:
 def configure_video_settings(config: ConfigManager) -> None:
     """Configure video media settings."""
     console.print("\n[bold cyan]Video Media Settings[/bold cyan]")
+
+    current_enabled = config.get_bool("media.video.enabled", default=False)
+    console.print(f"\n  enabled: {current_enabled} - Enable video downloads")
+    if confirm("  Change enabled?", default=False) is True:
+        new_enabled = confirm("  Enable video downloads?", default=current_enabled)
+        if new_enabled is not None:
+            config.set("media.video.enabled", "true" if new_enabled else "false")
+            current_enabled = bool(new_enabled)
+            console.print(f"  [green]✓[/green] Set enabled = {current_enabled}")
+
+    if not current_enabled:
+        console.print(
+            "  [dim]Video is disabled. Enable `media.video.enabled` first to modify video format settings.[/dim]"
+        )
+        return
 
     current_format = config.get("media.video.format", "")
     console.print(f"\n  format: {current_format or '(empty)'} - Video container format")

@@ -73,12 +73,19 @@ Prek also writes a log file to `~/.cache/prek/prek.log` by default.
 
 Tests live in `**backend/app/tests/**`. Full instructions: [backend/app/tests/README.md](backend/app/tests/README.md).
 
-**Quick run (from repo root, with venv activated):**
+**Quick run (from repo root; no venv activation required):**
+
+```bash
+uv run python -m pytest backend/app/tests -q
+```
+
+**Alternatively**, with venv activated:
 
 ```bash
 uv venv
 source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
-uv pip install -r backend/requirements.txt pytest
+uv pip install -e .
+uv pip install pytest
 pytest backend/app/tests -q
 ```
 
@@ -86,7 +93,7 @@ pytest backend/app/tests -q
 
 1. Make your changes.
 2. Run `**prek run --all-files**` and fix any hook failures.
-3. Run `**pytest backend/app/tests**` and fix any test failures.
+3. Run `**uv run python -m pytest backend/app/tests**` (or `pytest backend/app/tests` with venv activated) and fix any test failures.
 4. Commit and push (the Git hook will run prek on commit if you ran `prek install --install-hooks`).
 
 ---
@@ -102,7 +109,6 @@ pytest backend/app/tests -q
 | [backend/app/tests/README.md](backend/app/tests/README.md)        | Test suite details and safe local run                        |
 | [prek — GitHub](https://github.com/j178/prek)                     | prek project                                                 |
 | [prek CLI](https://prek.j178.dev/cli/)                            | prek command reference                                       |
-| [ADR 0005](../pm/ADRs/0005-ADR-prek-pre-commit-replacement-ci.md) | Decision to use prek for dev/CI (and AI guardrail rationale) |
 
 
 ---
@@ -110,3 +116,4 @@ pytest backend/app/tests -q
 ## 5. CI and GitHub Actions
 
 - **Prek:** On every push and pull request, the [Prek checks](.github/workflows/prek.yml) workflow runs `prek run --all-files` via [j178/prek-action](https://github.com/j178/prek-action).
+- **Release (PyPI):** Pushing a version tag `v*` (e.g. `v0.1.0`) triggers the [release](.github/workflows/release.yml) workflow: prek runs, then sdist and wheel are built and published to PyPI via Trusted Publishing (OIDC). A GitHub Release with notes is created after a successful publish. One-time setup: create the PyPI project and configure Trusted Publishing for this repo (see [PyPI trusted publishers](https://docs.pypi.org/trusted-publishers/)).

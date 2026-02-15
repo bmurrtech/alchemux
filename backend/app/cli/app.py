@@ -8,8 +8,18 @@ import typer
 from typing import Optional
 from pathlib import Path
 
-# Version constant (shared with main.py)
-VERSION = "0.1.2-rc1"
+
+def _get_version() -> str:
+    """Single source of truth: installed package metadata, or dev fallback."""
+    try:
+        from importlib.metadata import version
+
+        return version("alchemux")
+    except Exception:
+        return "0.0.0+dev"
+
+
+VERSION = _get_version()
 
 
 # Detect app name from binary invocation
@@ -103,20 +113,27 @@ def main(
         help="Show this message and exit",
         is_eager=True,
     ),
+    clipboard: bool = typer.Option(
+        False, "--clipboard", "-p", help="Use URL from clipboard (paste)"
+    ),
     debug: bool = typer.Option(
         False,
         "--debug",
-        help="Enable debug mode with full tracebacks",
+        help="Enable debug mode (one-time override)",
     ),
     accept_eula: bool = typer.Option(
         False,
         "--accept-eula",
-        help="Accept EULA non-interactively (packaged builds only; use with setup or alone, not with URL)",
+        help="No-op: EULA is accepted by use (retained for backward compatibility)",
+        hidden=True,
     ),
     # Backward compatibility: accept old-style arguments at root
     url: Optional[str] = typer.Argument(None, help="Source URL to transmute"),
     flac: bool = typer.Option(
         False, "--flac", help="FLAC 16kHz mono conversion (one-time override)"
+    ),
+    video: bool = typer.Option(
+        False, "--video", help="Enable video download (one-time override)"
     ),
     local: bool = typer.Option(
         False, "--local", help="Save to local storage (one-time override)"
@@ -133,8 +150,15 @@ def main(
     plain: bool = typer.Option(
         False, "--plain", help="Disable colors and animations (one-time override)"
     ),
-    clipboard: bool = typer.Option(
-        False, "--clipboard", "-p", help="Use URL from clipboard"
+    no_config: bool = typer.Option(
+        False,
+        "--no-config",
+        help="Ephemeral mode; use with --download-dir",
+    ),
+    download_dir: Optional[str] = typer.Option(
+        None,
+        "--download-dir",
+        help="Directory for downloaded/converted files",
     ),
     # Note: Removed --audio-format, --video-format, --save-path per simplified CLI design
     # Use `alchemux config` wizard for persistent configuration changes
@@ -153,35 +177,14 @@ def main(
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
 
-    # Handle non-interactive EULA acceptance at root level.
-    # This is intended for packaged builds and should NOT be used with a URL.
+    if no_config and not download_dir:
+        import tempfile
+
+        download_dir = tempfile.mkdtemp(prefix="alchemux-")
+        typer.echo(f"[dim]Using temporary download directory: {download_dir}[/dim]")
+
     if accept_eula:
-        # Disallow using --accept-eula together with a URL to avoid
-        # silently accepting terms as part of a transmutation.
-        if url:
-            typer.echo("Error: --accept-eula cannot be used with a URL.")
-            typer.echo("Use one of:")
-            typer.echo("  alchemux --accept-eula")
-            typer.echo("  alchemux --accept-eula setup")
-            raise typer.Exit(code=1)
-
-        from app.core.config_manager import ConfigManager
-        from app.core.eula import EULAManager, is_packaged_build
-
-        config = ConfigManager()
-        eula = EULAManager(config)
-
-        if is_packaged_build():
-            if eula.is_accepted():
-                typer.echo("EULA already accepted.")
-            else:
-                eula.accept("flag")
-                typer.echo("EULA accepted via --accept-eula.")
-        else:
-            # When running from source, EULA enforcement does not apply.
-            typer.echo("Running from source - EULA enforcement is not required.")
-
-        # If only accepting EULA (no subcommand, no URL), exit after acceptance.
+        typer.echo("EULA is accepted by use. No action needed.")
         if ctx.invoked_subcommand is None and url is None:
             raise typer.Exit()
 
@@ -222,16 +225,19 @@ def main(
 
             invoke(
                 url=url,
-                audio_format=None,  # Always use config default (per simplified CLI design)
-                video_format=None,  # Always use config default (per simplified CLI design)
+                audio_format=None,
+                video_format=None,
                 flac=flac,
-                save_path=None,  # Removed per simplified CLI design (use config wizard)
+                video=video,
+                save_path=download_dir if no_config else None,
                 local=local,
                 s3=s3,
                 gcp=gcp,
                 debug=debug,
                 verbose=verbose,
                 plain=plain,
+                no_config=no_config,
+                download_dir_override=download_dir,
             )
             return
         # Typer parsed the command name as the optional url argument (e.g. "alchemux batch").
@@ -268,6 +274,7 @@ def main(
 
         # Merge interactive overrides with existing flags (overrides take effect for this run only)
         flac_final = flac or overrides.get("flac", False)
+        video_final = video or overrides.get("video", False)
         local_final = local or overrides.get("local", False)
         s3_final = s3 or overrides.get("s3", False)
         gcp_final = gcp or overrides.get("gcp", False)
@@ -282,13 +289,16 @@ def main(
             audio_format=None,
             video_format=None,
             flac=flac_final,
-            save_path=None,
+            video=video_final,
+            save_path=download_dir if no_config else None,
             local=local_final,
             s3=s3_final,
             gcp=gcp_final,
             debug=debug_final,
             verbose=verbose_final,
             plain=plain_final,
+            no_config=no_config,
+            download_dir_override=download_dir,
         )
         return
 

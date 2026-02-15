@@ -23,7 +23,7 @@ alchemux              # Interactive: prompts for URL (paste, no quotes)
 alchemux -p           # Use URL from clipboard (--clipboard)
 ```
 
-To transmute a URL using current defaults:
+To transmute a URL using current defaults (audio-only, FLAC 16 kHz mono):
 ```bash
 alchemux "https://example.com/video"
 ```
@@ -58,6 +58,7 @@ Tip: Run `alchemux` and paste the URL when prompted to avoid shell quoting issue
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--flac` | | FLAC 16kHz mono conversion (one-time override) |
+| `--video` | | One-time enable video download for this run |
 | `--gcp` | | Upload to GCP storage (one-time override) |
 | `--s3` | | Upload to S3 storage (one-time override) |
 | `--local` | | Save to local storage (one-time override) |
@@ -217,11 +218,49 @@ alchemux batch              # Interactive: choose source, then process
 ```
 
 **Batch sources:**
-- **Files from config dir**: Place `.txt` or `.csv` files in the same directory as your `config.toml` and `.env`. Alchemux scans for them and lets you select one or more. URLs are extracted (one per line or comma-separated in TXT; any cell in CSV). Comment lines starting with `#`, `;`, or `]` are ignored.
-- **Paste URLs**: Paste multiple links (one per line or comma-separated). Submit an empty line to finish.
-- **Playlist URL**: Enter a playlist URL; Alchemux expands it to individual entry URLs via yt-dlp. If expansion fails, you can process the playlist URL as a single job or cancel.
 
-**After URLs are loaded:** You can optionally apply one-time overrides (same as single-URL: `--debug`, `--flac`, `--local`, `--s3`, `--gcp`, `--verbose`, `--plain`) via a checkbox. Overrides apply to the entire batch run and do not persist.
+- **Files from config dir**:  
+  Place your `.txt` or `.csv` batch files in your Alchemux config folder—side by side with `config.toml` and `.env`. If you’re unsure where your config folder is, run:
+
+```bash
+amx config         # Select "Show Configurations" to display config directory location
+```
+
+  This will display the config directory path.
+
+  Example:
+
+  ```
+  config_dir/
+  ├── config.toml
+  ├── .env
+  ├── mylist.txt
+  └── links.csv
+  ```
+
+  Alchemux scans this directory and lets you select one or more TXT/CSV files. URLs are extracted:
+  - For TXT: one per line or comma-separated values.  
+  - For CSV: any cell.  
+  Comment lines starting with `#`, `;`, or `]` are ignored.
+
+- **Paste URLs**:  
+  Paste multiple links (one per line or comma-separated). Submit an empty line to finish.
+
+- **Playlist URL**:  
+  Enter a playlist URL; Alchemux expands it to individual entry URLs using yt-dlp. If expansion fails, you can process the playlist URL as a single job or cancel.
+
+**After URLs are loaded:** You can optionally apply one-time overrides (same as single-URL: `--debug`, `--flac`, `--video`, `--local`, `--s3`, `--gcp`, `--verbose`, `--plain`) via a checkbox. Overrides apply to the entire batch run and do not persist.
+
+**Examples:**
+
+```bash
+alchemux batch --flac                # Run all batch URLs with FLAC output
+alchemux batch --video               # Process batch with video enabled
+alchemux batch --debug --plain       # Apply debug and plain output modes to the batch
+alchemux batch --local               # Force local output for all URLs in batch
+```
+
+You can select these overrides interactively after the URLs are loaded, or by passing them directly on the command line.
 
 **Behavior:** URLs are processed in order. If one fails, the batch continues and a summary (successes/failures) is printed at the end. No batch report file is written by default.
 
@@ -261,7 +300,7 @@ alchemux -h
 
 ## Examples
 
-### Basic Download (MP3)
+### Basic Download (Default FLAC 16 kHz Mono)
 
 ```bash
 alchemux "https://youtube.com/watch?v=abc123"

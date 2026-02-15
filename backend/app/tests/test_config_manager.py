@@ -154,8 +154,7 @@ class TestGetConfigLocationPriority:
                     assert result == test_config_dir / ".env"
 
     def test_falls_back_to_default_when_no_pointer(self):
-        """Should use default OS config when no env var or pointer."""
-        # Clear env var and mock no pointer
+        """Should use default OS config (platformdirs) when no env var or pointer."""
         env_without_config = {
             k: v for k, v in os.environ.items() if k != "ALCHEMUX_CONFIG_DIR"
         }
@@ -163,19 +162,14 @@ class TestGetConfigLocationPriority:
         with mock.patch.dict(os.environ, env_without_config, clear=True):
             with mock.patch("app.core.config_manager.read_config_pointer") as mock_read:
                 mock_read.return_value = None
+            with mock.patch("app.core.config_manager._is_source_dev") as mock_src:
+                mock_src.return_value = False
 
-                # For source mode (not frozen), it tries find_dotenv first
-                # We mock that to return None to test the fallback
-                with mock.patch("app.core.config_manager.find_dotenv") as mock_find:
-                    mock_find.return_value = None
-
-                    with mock.patch("pathlib.Path.exists") as mock_exists:
-                        mock_exists.return_value = False
-
-                        # Just verify it doesn't crash and returns a path
-                        result = get_config_location()
-                        assert isinstance(result, Path)
-                        assert result.name == ".env"
+                result = get_config_location()
+                assert isinstance(result, Path)
+                assert result.name == ".env"
+                # Should be under platformdirs user config
+                assert "alchemux" in str(result).lower() or "Alchemux" in str(result)
 
 
 class TestConfigManager:

@@ -81,7 +81,6 @@ coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-.pytest_cache/
 cover/
 
 # Translations
@@ -433,9 +432,11 @@ test-results.xml
 coverage/
 .coverage
 .pytest_cache/
+.ruff_cache/
 htmlcov/
 .tox/
 .hypothesis/
+.venv-release/
 eula_config.json
 config.toml
 

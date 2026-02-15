@@ -40,7 +40,7 @@ def audio_format_command(
         config._create_toml_from_example()
 
     # Get current format
-    current_format = config.get("media.audio.format", "mp3")
+    current_format = config.get("media.audio.format", "flac")
 
     console = Console(force_terminal=not plain, no_color=plain)
 

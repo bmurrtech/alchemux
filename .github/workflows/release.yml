@@ -1,6 +1,6 @@
-# Python/PyInstaller release build for Alchemux.
-# Builds single-file binaries on macOS, Linux, and Windows and uploads to GitHub Release.
-# See docs/install.md for prerequisites and backend/requirements.txt for runtime deps.
+# PyPI release: build sdist + wheel on tag push, publish via Trusted Publishing (OIDC).
+# One-time setup: create PyPI project "alchemux" and configure Trusted Publishing
+# for this repo (see https://docs.pypi.org/trusted-publishers/).
 
 name: release
 
@@ -10,121 +10,109 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: j178/prek-action@v1
+
   build:
+    runs-on: ubuntu-latest
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Ensure lockfile is in sync
+        run: uv lock --check
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Upload distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+  smoke-uvx:
+    name: uvx smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: build
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, ubuntu-latest, windows-latest]
-
-    runs-on: ${{ matrix.platform }}
-
-    env:
-      VERSION: ${{ github.ref_name }}
-
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        shell: bash
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dists
+          path: dist/
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-          cache: "pip"
+        run: uv python install 3.12
 
-      - name: Get platform and arch
-        id: arch
-        shell: bash
+      - name: Run uvx from built wheel (version + help)
         run: |
-          out=$(python scripts/ci_helpers.py)
-          echo "platform=$(echo "$out" | sed -n '1p')" >> "$GITHUB_OUTPUT"
-          echo "arch=$(echo "$out" | sed -n '2p')" >> "$GITHUB_OUTPUT"
+          wheel=$(ls dist/alchemux-*.whl 2>/dev/null | head -1)
+          uvx --from "$wheel" alchemux --version
+          uvx --from "$wheel" alchemux --help
 
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
-        # Required so PyInstaller can see yt_dlp, InquirerPy, mutagen, etc.
-
-      - name: Install PyInstaller
-        run: pip install pyinstaller
-
-      - name: Install FFmpeg (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: brew install ffmpeg
-
-      - name: Install FFmpeg (Ubuntu)
-        if: matrix.platform == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
-
-      - name: Install FFmpeg (Windows)
-        if: matrix.platform == 'windows-latest'
-        uses: FedericoCarboni/setup-ffmpeg@v3
-        with:
-          ffmpeg-version: release
-
-      - name: Build binary
-        env:
-          DIST_DIR: ${{ github.workspace }}/dist
-        run: python scripts/ci_build.py
-
-      - name: Name and stage release artifact (macOS)
-        if: matrix.platform == 'macos-latest'
-        shell: bash
-        run: |
-          cp dist/alchemux "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}"
-          [ -f dist/alchemux.command ] && cp dist/alchemux.command "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}.command" || true
-
-      - name: Name and stage release artifact (Linux)
-        if: matrix.platform == 'ubuntu-latest'
-        shell: bash
-        run: cp dist/alchemux "dist/alchemux-${VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}"
-
-      - name: Name and stage release artifact (Windows)
-        if: matrix.platform == 'windows-latest'
-        shell: pwsh
-        run: Copy-Item dist\alchemux.exe "dist\alchemux-${env:VERSION}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}.exe"
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: alchemux-${{ github.ref_name }}-${{ steps.arch.outputs.platform }}-${{ steps.arch.outputs.arch }}
-          path: |
-            dist/alchemux-*
-          if-no-files-found: error
-
-  release:
-    needs: build
+  pypi-publish:
     runs-on: ubuntu-latest
-    # Only create a GitHub Release when the trigger was a tag push (e.g. v1.0.0)
-    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, smoke-uvx]
     permissions:
-      contents: write
-
+      id-token: write
+    environment:
+      name: pypi
     steps:
-      - name: Download all build artifacts
+      - name: Download distributions
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-          merge-multiple: true
+          name: release-dists
+          path: dist/
 
-      - name: List release files
-        run: |
-          echo "Release files:"
-          find artifacts -type f
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
 
-      - name: Create GitHub Release
+  github-release:
+    runs-on: ubuntu-latest
+    needs: pypi-publish
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release (notes only)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
-          draft: true
-          prerelease: ${{ contains(github.ref_name, '-') }}
           generate_release_notes: true
-          files: artifacts/dist/*
+          body: |
+            Published to PyPI. Install with:
+            - `uv tool install alchemux`
+            - `uvx alchemux --help`
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

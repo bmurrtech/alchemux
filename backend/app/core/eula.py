@@ -2,7 +2,6 @@
 EULA acceptance logic with dual storage strategy (eula_config.json + .env).
 """
 
-import sys
 import hashlib
 import uuid
 from datetime import datetime, timezone
@@ -17,15 +16,10 @@ logger = setup_logger(__name__)
 
 def is_packaged_build() -> bool:
     """
-    Check if the application is running from a packaged build (PyInstaller).
-
-    EULA enforcement only applies to packaged releases, not source code.
-    Source code is licensed under Apache 2.0 and doesn't require EULA acceptance.
-
-    Returns:
-        True if running from a PyInstaller bundle, False if running from source
+    Legacy: always False. EULA is not enforced for PyPI/uv installs; use of the app
+    is treated as acceptance. Retained for backward compatibility with --accept-eula.
     """
-    return getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+    return False
 
 
 class EULAManager:
@@ -157,33 +151,6 @@ and indemnify the Provider and contributors."""
         Returns:
             True if EULA is accepted (or was just accepted), False if user declined
         """
-        from rich.console import Console
-
-        console = Console()
-
-        # Skip EULA enforcement when running from source (not packaged)
-        if not is_packaged_build():
-            logger.debug(
-                "Running from source - EULA enforcement skipped (Apache 2.0 license applies)"
-            )
-            return True
-
-        # EULA enforcement only for packaged builds
-        if self.is_accepted():
-            return True
-
-        # Check for non-interactive acceptance methods
-        if accept_flag:
-            self.accept("flag")
-            console.print("[green]>[/green] EULA accepted via --accept-eula flag.\n")
-            return True
-
-        # Check config.toml for non-interactive acceptance
-        toml_accepted = self.config.get("eula.accepted", "").lower() == "true"
-        if toml_accepted:
-            self.accept("config_toml")
-            console.print("[green]>[/green] EULA accepted via config.toml.\n")
-            return True
-
-        # Require interactive acceptance
-        return self.interactive_acceptance()
+        # EULA not enforced for PyPI/uv installs; use of app = acceptance
+        logger.debug("EULA enforcement disabled (acceptance by use)")
+        return True

@@ -11,11 +11,15 @@
 
 - 🎵 **Download & Convert Media**: Extract audio or video from YouTube, Facebook, and other [yt-dlp supported sources](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 - 🧙‍♂️ **Interactive Simplicity**: Delightfully easy terminal UI—just run and follow prompts; configure everything in seconds (including cloud storage and presets) interactively
-- 📋 **Batch Processing**: Process many URLs from a YouTube playlist, or TXT/CSV files, or paste a list of URLs with automatic rate-limit mitigation logic built-in
+- 📋 **Batch Processing**: Process many URLs from a YouTube playlist, TXT/CSV files, or pasted lists of URLs with automatic rate-limit mitigation logic built-in. See [commands.md](docs/commands.md) for more details about batch mode and usage
 - 🏷️ **Metadata Embedding**: Automatically embeds source URLs and metadata into media files so you don't have to
 - ☁️ **Cloud Storage**: Upload media to **S3** and **GCP buckets** by configuring your cloud storage settings; to enable cloud media storage (see [docs/commands.md](docs/commands.md) for more details)
 - 🎚️ **Multiple Formats**: Support for audio formats (MP3, AAC, FLAC, Opus, WAV, etc.) and video containers (MP4, MKV, WebM, etc.)
+- 🤖 **AI Agent Support**: Give your AI assistant media downloading power! Supports AI agents like [OpenClaw](https://openclaw.ai) (formerly Clawdbot/Moltbot), [Agent Zero](https://github.com/agent0ai/agent-zero), and **Claude Skills**. AI agents, see [backend/AGENTS.md](backend/AGENTS.md).
+- 🛠️ **No-Edit Configuration (`config` Command)**: Configure every aspect of Alchemux—media formats, cloud credentials, download folder, batch defaults, and more—**directly in an interactive wizard**. No need to open or edit any files.
+- 🩺 **Troubleshooting Assistant (`doctor` Command)**: Having trouble? Instantly diagnose and resolve common issues, from cloud misconfigurations to missing dependencies, file permission errors, and more. Get clear, actionable help.
 - ✨ **Arcane Interface**: Stylized terminal output with unique sigils and progress indicators (can be disabled for technical terms)
+- 🔄 **Easy Updater (`update` Command)**: Quickly update the underlying downloader to always have the latest and greatest from the yt-dlp community
 
 For a fuller list of features, commands, and options, see [docs/commands.md](docs/commands.md).
 
@@ -77,6 +81,27 @@ uv tool upgrade alchemux
 uv tool uninstall alchemux
 ```
 
+### Nightly / Experimental: Run from source (latest development version)
+
+This method is recommended only if you want to use the **latest (unreleased, experimental, or nightly)** Alchemux features direct from the GitHub source.
+
+First, clone the repository:
+
+```bash
+git clone https://github.com/bmurrtech/alchemux.git
+cd alchemux
+```
+
+Then, from the repository root (no venv activation required):
+
+```bash
+uv pip install -e .
+uv run alchemux --help
+uv run amx -v
+uv run amx setup
+uv run amx "https://…"
+```
+
 For running from **source** (development), see [docs/install.md](docs/install.md).
 
 ## Arcane Terms
@@ -95,9 +120,11 @@ For a complete legend of arcane terminology and their technical equivalents, see
 
 **Root Cause**: YouTube's anti-bot detection measures. This affects video downloads.
 
+**Default behavior**: Video is disabled by default for reliability. Audio-only transmutation remains the stable path. To include video for one run, pass `--video`.
+
 ## Contributors welcome
 
-Feature requests, bug reports, and contributions are welcome. We use **[prek](https://github.com/j178/prek)** for pre-commit hooks so CI and local checks stay in sync.
+**For human contributors:** Feature requests, bug reports, and contributions are welcome. We use **[prek](https://github.com/j178/prek)** for pre-commit hooks so CI and local checks stay in sync.
 
 **Before you start:** See **[docs/contributors.md](docs/contributors.md)** for:
 
@@ -107,11 +134,16 @@ Feature requests, bug reports, and contributions are welcome. We use **[prek](ht
 
 **Submitting a PR (best practice):**
 
-1. **Run hooks locally** so CI passes: `prek run --all-files` (from repo root).
-2. **Run the test suite**: `pytest backend/app/tests -q` (see [backend/app/tests/README.md](backend/app/tests/README.md)).
-3. **Keep PRs focused** — one logical change per PR; reference any related issue.
-4. **No secrets** — never commit credentials, API keys, or tokens; use `env.example` as a template.
-5. **Branch from `main`** and ensure your branch is up to date before opening the PR.
+Before submitting a pull request, please **read [docs/contributors.md](docs/contributors.md)** for detailed contributor guidance, workflow, and required developer setup.
+
+1. **Run pre-commit hooks locally** to ensure your changes pass quality gates:  
+   `prek run --all-files` (from the repo root).
+2. **Run the test suite**:  
+   `uv run python -m pytest backend/app/tests -q`  
+   (No venv activation needed; see [backend/app/tests/README.md](backend/app/tests/README.md). With an activated venv, you can also use `pytest backend/app/tests -q`.)
+3. **Keep pull requests focused** — make one logical change per PR, and reference any related issues.
+4. **Do not commit secrets** — never check in credentials, API keys, tokens, or sensitive data. Use `env.example` as a model for any environment settings.
+5. **Branch from `main`** and ensure your branch is up to date before opening a PR.
 
 ## Troubleshooting
 
@@ -131,7 +163,7 @@ amx -h
 
 **Solution**:
 
-1. Try audio extraction instead: `alchemux --audio-format mp3 "URL"`
+1. Try the default audio-only run (or force FLAC): `alchemux "URL"` or `alchemux --flac "URL"`
 2. Update yt-dlp: `alchemux update`
 3. If issues persist, this may be YouTube anti-bot detection (see Known Issues above)
 
@@ -158,4 +190,41 @@ Alchemux relies on these excellent projects:
 ## License
 
 Open source under the **GNU AGPLv3**—see [LICENSE](LICENSE) for terms.
-Commercial licensing available—contact maintainers for details.
+
+### License Philosophy (Plain English)
+
+This project is licensed under GNU AGPLv3.
+
+That means:
+
+- **You may use it commercially.**
+- **You may build a paid SaaS product with it.**
+- **You may modify it.**
+
+However:
+
+- **Hosted Service or SaaS:** If you run this software as part of a hosted service or SaaS product, you must provide your users access to the corresponding source code, including any modifications you have made.
+- **Distribution:** If you distribute this software (or a derivative), you must include the same license and provide source code.
+- **Openness:** This ensures improvements remain **open** and the community benefits from derivative work.
+
+If you want to use this project in a proprietary or closed-source product without AGPL obligations, a commercial license is available.
+
+---
+
+#### Commercial / Proprietary Licensing
+
+Need any of the following?
+- Commercial use **without** copyleft obligations
+- Proprietary or closed-source usage
+- SaaS or hosted deployment without source disclosure
+- Embedded or internal distribution without attribution
+
+**Commercial licenses are available.**
+
+These licenses waive AGPL-3.0 copyleft requirements, including:
+- No obligation to publish source code
+- No public attribution requirements
+- SaaS, hosted, and embedded use allowed
+
+**How to obtain a commercial license:**  
+_Open a GitHub Issue in this project’s repository to contact the maintainers for licensing and pricing details._

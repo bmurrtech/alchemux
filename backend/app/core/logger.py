@@ -4,9 +4,11 @@ Includes yt-dlp logger adapter for verbose output.
 Uses RichHandler for clean, styled log output that doesn't interfere with progress bars.
 """
 
-import os
+from __future__ import annotations
+
 import logging
-from typing import Optional
+import os
+from typing import TYPE_CHECKING, Optional
 
 try:
     from rich.logging import RichHandler
@@ -15,6 +17,10 @@ try:
     HAS_RICH = True
 except ImportError:
     HAS_RICH = False
+    Console = None  # type: ignore[misc, assignment]
+
+if TYPE_CHECKING:
+    from rich.console import Console
 
 
 class YTDLLogger:
@@ -40,7 +46,9 @@ class YTDLLogger:
 
 
 def setup_logger(
-    name: str = __name__, console: Optional[Console] = None, verbose: bool = False
+    name: str = __name__,
+    console: Optional["Console"] = None,
+    verbose: bool = False,
 ) -> logging.Logger:
     """
     Set up structured logging with LOG_LEVEL env var support.

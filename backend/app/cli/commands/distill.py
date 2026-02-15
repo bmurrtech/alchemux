@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 import typer
 
 from app.cli.output import ArcaneConsole
-from app.core.config_manager import ConfigManager
+from app.core.config_manager import ConfigManager, EphemeralConfig
 from app.core.logger import setup_logger
 from app.core.downloader import MediaDownloader
 from app.services.gcp_upload import GCPUploader
@@ -72,6 +72,9 @@ def distill(
         None, "--video-format", help="Video container"
     ),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
+    video: bool = typer.Option(
+        False, "--video", help="Enable video download for this run only"
+    ),
     save_path: Optional[str] = typer.Option(
         None,
         "--save-path",
@@ -90,6 +93,12 @@ def distill(
         False, "--debug", help="Enable debug mode with full tracebacks"
     ),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    no_config: bool = typer.Option(
+        False, "--no-config", help="Do not read or write config (ephemeral run)"
+    ),
+    download_dir_override: Optional[str] = typer.Option(
+        None, "--download-dir", help="Output directory (used with --no-config)"
+    ),
 ) -> None:
     """
     Distills the bound media into its purified vessel.
@@ -103,10 +112,16 @@ def distill(
     download, and conversion in sequence. Optionally, it may also inscribe
     metadata and upload to cloud storage before completion.
     """
-    # Initialize configuration (loads .env file and config.toml)
-    config = ConfigManager()
+    # Ephemeral mode: no config read/write, use download_dir only
+    if no_config:
+        import tempfile
 
-    # Initialize console: arcane_terms from config.toml (product.arcane_terms) then env fallback
+        output_dir = download_dir_override or tempfile.mkdtemp(prefix="alchemux-")
+        config: ConfigManager | EphemeralConfig = EphemeralConfig(output_dir)
+    else:
+        config = ConfigManager()
+
+    # Initialize console: arcane_terms from config (product.arcane_terms) then env fallback
     arcane_terms_str = (
         config.get("product.arcane_terms") or config.get("ARCANE_TERMS") or "true"
     ).lower()
@@ -122,58 +137,39 @@ def distill(
     global logger
     logger = setup_logger(__name__, console=console.console, verbose=debug)
 
-    # Check EULA acceptance first (only enforced for packaged builds)
-    # EULA must be accepted manually via setup wizard, not via flags
-    from app.core.eula import is_packaged_build, EULAManager
+    if not no_config:
+        # Ensure configuration files exist (auto-create from defaults if missing)
+        if not config.check_env_file_exists():
+            try:
+                config._create_env_from_example()
+                from dotenv import load_dotenv
 
-    if is_packaged_build():
-        eula = EULAManager(config)
-        if not eula.is_accepted():
-            # Run interactive EULA acceptance directly
-            if not eula.interactive_acceptance():
-                # User declined - exit gracefully
-                raise typer.Exit(code=1)
-    else:
-        # Running from source - EULA not required (Apache 2.0 license applies)
-        logger.debug("Running from source - EULA check skipped")
+                load_dotenv(config.env_path)
+            except Exception as e:
+                logger.warning(f"Could not create .env: {e}")
 
-    # Ensure configuration files exist (auto-create from defaults if missing, now that EULA is handled)
-    if not config.check_env_file_exists():
-        try:
-            config._create_env_from_example()
-            # Reload env vars
-            from dotenv import load_dotenv
+        if not config.check_toml_file_exists():
+            try:
+                config._create_toml_from_example()
+            except Exception as e:
+                logger.warning(f"Could not create config.toml: {e}")
 
-            load_dotenv(config.env_path)
-        except Exception as e:
-            logger.warning(f"Could not create .env: {e}")
+        required_vars = ["paths.output_dir"]
+        is_valid, missing = config.validate_required(required_vars)
+        if not is_valid:
+            console.err_console.print(
+                f"⚠️  Missing required configuration: {', '.join(missing)}"
+            )
+            console.err_console.print(
+                "   Please run 'alchemux setup' to repair configuration.\n"
+            )
+            raise typer.Exit(code=1)
 
-    if not config.check_toml_file_exists():
-        try:
-            config._create_toml_from_example()
-        except Exception as e:
-            logger.warning(f"Could not create config.toml: {e}")
-
-    # Validate required variables
-    # Check for paths.output_dir (preferred) or DOWNLOAD_PATH (legacy)
-    required_vars = ["paths.output_dir"]
-    is_valid, missing = config.validate_required(required_vars)
-    if not is_valid:
-        console.err_console.print(
-            f"⚠️  Missing required configuration: {', '.join(missing)}"
-        )
-        console.err_console.print(
-            "   Please run 'alchemux setup' to repair configuration.\n"
-        )
-        raise typer.Exit(code=1)
-
-    # Determine output directory (--save-path override or config default)
+    # Determine output directory (--save-path override, --download-dir, or config default)
     if save_path:
-        # One-run override: use provided path
         output_dir = save_path
         console.print_stage("vessel", "output path override", status=save_path)
-    else:
-        # Use config default
+    elif not no_config:
         output_dir = config.get("paths.output_dir", "./downloads")
 
     # Validate URL
@@ -209,39 +205,48 @@ def distill(
         title = f"{source}_{int(time.time())}"
         console.stage_ok("profile", "partial metadata recovered")
 
-    # Formats to produce: --video-format → one video run; --flac → flac; --audio-format → that; else enabled_formats
-    # Check config for video enabled state: video is disabled if format is empty or enabled_formats is empty
-    video_format_config = config.get("media.video.format", "")
-    video_enabled_formats = config.get_list("media.video.enabled_formats") or []
-    video_enabled_in_config = bool(
-        video_format_config and video_format_config.strip()
-    ) or bool(video_enabled_formats)
-    if video_format and video_enabled_in_config:
-        formats_to_produce = [video_format]  # one video run (only if enabled in config)
+    # Formats to produce: --video-format -> one video run (only when enabled for this run);
+    # --flac -> flac; --audio-format -> that; otherwise use enabled format lists.
+    video_enabled_config = config.get_bool("media.video.enabled", default=False)
+    video_enabled = video_enabled_config or video
+    video_format_config = (config.get("media.video.format", "") or "").strip().lower()
+    configured_video_formats = [
+        str(v).strip().lower()
+        for v in (config.get_list("media.video.enabled_formats") or [])
+        if str(v).strip()
+    ]
+    if not configured_video_formats:
+        configured_video_formats = [video_format_config or "mp4"]
+
+    if video_format and video_enabled:
+        formats_to_produce = [video_format.lower()]  # one explicit video run
+    elif video_format and not video_enabled:
+        console.console.print(
+            "[yellow]⚠[/yellow]  Video download is disabled in config (`media.video.enabled=false`), ignoring --video-format."
+        )
+        enabled = config.get_list("media.audio.enabled_formats")
+        formats_to_produce = (
+            enabled if enabled else [config.get("media.audio.format", "flac")]
+        )
     elif flac:
         formats_to_produce = ["flac"]
     elif audio_format:
         formats_to_produce = [audio_format]
     else:
-        # Check if video formats are enabled in config (for multi-format production)
-        if video_enabled_in_config:
-            video_formats = (
-                video_enabled_formats
-                if video_enabled_formats
-                else ([video_format_config] if video_format_config else [])
-            )
+        # Include configured video formats only when explicitly enabled.
+        if video_enabled:
             enabled_audio = config.get_list("media.audio.enabled_formats")
             audio_formats = (
                 enabled_audio
                 if enabled_audio
-                else [config.get("media.audio.format", "mp3")]
+                else [config.get("media.audio.format", "flac")]
             )
-            formats_to_produce = audio_formats + video_formats
+            formats_to_produce = audio_formats + configured_video_formats
         else:
             # Video disabled - only audio formats
             enabled = config.get_list("media.audio.enabled_formats")
             formats_to_produce = (
-                enabled if enabled else [config.get("media.audio.format", "mp3")]
+                enabled if enabled else [config.get("media.audio.format", "flac")]
             )
 
     logger.debug(f"Formats to produce: {formats_to_produce}")
@@ -357,10 +362,11 @@ def distill(
     seal_items = []  # [(ext, path_or_url), ...] for successful saves only
     fractured_entries = []  # [(ext, cause), ...] for failed saves
     first_file_path = None
-    title_display = os.path.splitext(
-        sanitize_filename(f"{title}.mp3" if not title.endswith(".mp3") else title)
-    )[0]
-    is_video_run = bool(video_format)
+    base_title = os.path.splitext(sanitize_filename(title))[0]
+    title_display = base_title
+    video_formats_set = {f.lower() for f in configured_video_formats}
+    if video_enabled and video_format:
+        video_formats_set.add(video_format.lower())
     video_ext_map = {
         "mp4": ".mp4",
         "mkv": ".mkv",
@@ -380,10 +386,9 @@ def distill(
     }
 
     for fmt in formats_to_produce:
-        base = sanitize_filename(
-            f"{title}.mp3" if not title.endswith(".mp3") else title
-        )
-        base = os.path.splitext(base)[0]
+        fmt_l = (fmt or "").lower()
+        is_video_run = fmt_l in video_formats_set
+        base = base_title
         if is_video_run:
             ext = video_ext_map.get((fmt or "").lower(), ".mp4")
         elif (fmt or "").lower() == "flac":
@@ -404,7 +409,8 @@ def distill(
                 str(output_path.with_suffix("")),
                 audio_format=None if is_video_run else fmt,
                 video_format=fmt if is_video_run else None,
-                flac_flag=(fmt == "flac" and flac),
+                flac_flag=(fmt == "flac"),
+                video_enabled_override=(video and is_video_run),
                 progress_callback=None,
             )
         if not success:
@@ -421,13 +427,13 @@ def distill(
                     "[yellow]⚠[/yellow]  Video download failed, attempting audio-only extraction..."
                 )
                 # Try audio-only extraction
-                audio_fmt = config.get("media.audio.format", "mp3")
+                audio_fmt = config.get("media.audio.format", "flac")
                 success, file_path, error_msg = downloader.download(
                     url,
                     str(output_path.with_suffix("")),
                     audio_format=audio_fmt,
                     video_format=None,  # Explicitly disable video
-                    flac_flag=False,
+                    flac_flag=(audio_fmt.lower() == "flac"),
                     progress_callback=None,
                 )
                 if success:
@@ -435,8 +441,6 @@ def distill(
                     ext = audio_ext_map.get(audio_fmt.lower(), ".mp3")
                     filename = base + ext
                     output_path = get_download_path(output_dir, source, filename)
-                    # Update is_video_run for this iteration
-                    is_video_run = False
                     console.console.print(
                         "[green]✓[/green]  Audio extraction succeeded"
                     )

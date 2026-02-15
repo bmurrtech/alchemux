@@ -1,7 +1,7 @@
 """
 Secure .env file management with chmod 600 permissions, validation, and auto-update.
-Supports portable binaries with hybrid config location detection.
-Uses platformdirs for cross-platform user config paths.
+Uses platformdirs for cross-platform user config paths. Single code path for all installs
+(no frozen/packaged branches); source-dev mode uses repo .env when env.example is present.
 """
 
 import os
@@ -35,6 +35,23 @@ logger = setup_logger(__name__)
 # App identity for platformdirs
 APP_NAME = "Alchemux"
 APP_AUTHOR = False  # Don't use author subdirectory
+
+
+def _is_source_dev() -> bool:
+    """
+    True if we appear to be in a repo with env.example (source development).
+    Used to prefer repo .env over platformdirs when developing.
+    """
+    cwd = Path.cwd()
+    for candidate in [cwd] + list(cwd.parents):
+        if (candidate / "env.example").exists():
+            return True
+    return False
+
+
+def _get_package_template_path(name: str) -> Path:
+    """Path to bundled template (e.g. env.example, config.toml.example) inside the app package."""
+    return Path(__file__).resolve().parent / "templates" / name
 
 
 def get_user_config_dir() -> Path:
@@ -148,77 +165,48 @@ def get_config_location() -> Path:
     Determine config file location with priority order.
 
     Priority:
-    1. CLI flag --config-dir <path> (via ALCHEMUX_CONFIG_DIR env var)
-    2. Environment var ALCHEMUX_CONFIG_DIR
-    3. Pointer file in default OS config dir
-    4. If packaged binary AND .env exists next to binary in writable location -> portable mode
-    5. Default OS config directory (via platformdirs)
-
-    For source development: prioritize existing .env, then project root
+    1. ALCHEMUX_CONFIG_DIR (CLI flag or env)
+    2. Pointer file in default OS config dir
+    3. Default OS config directory (platformdirs)
+    4. Source-dev only: existing .env from find_dotenv, or repo root (directory with env.example)
 
     Returns:
         Path to .env file location
     """
-    # Priority 1 & 2: Environment variable (set by CLI flag or directly)
     env_config_dir = os.getenv("ALCHEMUX_CONFIG_DIR")
     if env_config_dir:
         config_path = Path(env_config_dir) / ".env"
         logger.debug(f"Using config from ALCHEMUX_CONFIG_DIR: {config_path}")
         return config_path
 
-    # Priority 3: Pointer file
     pointer_config = read_config_pointer()
     if pointer_config:
         config_path = pointer_config / ".env"
         logger.debug(f"Using config from pointer file: {config_path}")
         return config_path
 
-    # Detect if running as packaged binary
-    if getattr(sys, "frozen", False):
-        # Running as PyInstaller binary: default to same path as binary
-        binary_path = Path(sys.executable)
-        binary_dir = binary_path.parent
-        if os.access(binary_dir, os.W_OK):
-            portable_env = binary_dir / ".env"
-            logger.debug(
-                f"Using config next to binary (default for portable): {portable_env}"
-            )
-            return portable_env
-        # Fallback if binary dir not writable
-        user_config = get_user_config_dir() / ".env"
-        logger.debug(
-            f"Binary dir not writable, using OS config directory: {user_config}"
-        )
-        return user_config
-    else:
-        # Running from source: prioritize existing .env, then project root, then CWD
-        # First, try to find existing .env file (searches upward from CWD)
+    # Source-dev: only when repo marker (env.example) is present
+    if _is_source_dev():
         env_file = find_dotenv()
         if env_file:
             env_path = Path(env_file)
-            # If .env exists, use its location
             if env_path.exists():
-                logger.debug(f"Running from source, found existing .env: {env_path}")
+                logger.debug(f"Source-dev, found existing .env: {env_path}")
                 return env_path
-            else:
-                # find_dotenv() found a path but file doesn't exist - use its parent directory
-                logger.debug(
-                    f"Running from source, using .env location from find_dotenv: {env_path}"
-                )
-                return env_path
-
-        # No .env found - check if we're in a project root (has env.example)
-        cwd = Path.cwd()
-        env_example_in_cwd = cwd / "env.example"
-        if env_example_in_cwd.exists():
             logger.debug(
-                f"Running from source, using project root (has env.example): {cwd / '.env'}"
+                f"Source-dev, using .env location from find_dotenv: {env_path}"
             )
-            return cwd / ".env"
+            return env_path
+        cwd = Path.cwd()
+        for candidate in [cwd] + list(cwd.parents):
+            if (candidate / "env.example").exists():
+                logger.debug(f"Source-dev, using repo root: {candidate / '.env'}")
+                return candidate / ".env"
 
-        # Default to current working directory
-        logger.debug(f"Running from source, using CWD: {cwd / '.env'}")
-        return cwd / ".env"
+    # Default: OS-standard config directory (platformdirs)
+    user_config = get_user_config_dir() / ".env"
+    logger.debug(f"Using OS config directory: {user_config}")
+    return user_config
 
 
 class ConfigManager:
@@ -263,28 +251,27 @@ class ConfigManager:
             # Smart detection for portable binaries
             self.env_path = get_config_location()
 
-        # For env.example, try binary directory first, then user config, then .env parent
-        if getattr(sys, "frozen", False):
-            binary_dir = Path(sys.executable).parent
-            self.env_example_path = binary_dir / "env.example"
-            if not self.env_example_path.exists():
-                self.env_example_path = get_user_config_dir() / "env.example"
+        # Template paths: repo (source-dev) if present, else package templates
+        repo_env_example = self.env_path.parent / "env.example"
+        if repo_env_example.exists():
+            self.env_example_path = repo_env_example
         else:
-            # Running from source: env.example should be in same directory as .env
-            # If .env is in repo root, env.example should be there too
-            self.env_example_path = self.env_path.parent / "env.example"
-            # Fallback: also check current working directory (for cases where .env is in subdirectory)
-            if not self.env_example_path.exists():
-                cwd_example = Path.cwd() / "env.example"
-                if cwd_example.exists():
-                    self.env_example_path = cwd_example
+            cwd_example = Path.cwd() / "env.example"
+            if cwd_example.exists():
+                self.env_example_path = cwd_example
+            else:
+                self.env_example_path = _get_package_template_path("env.example")
 
         self._ensure_secure_permissions()
         load_dotenv(self.env_path)
 
-        # Initialize TOML config path
         self.toml_path = get_toml_path(self.env_path)
-        self.toml_example_path = self.toml_path.parent / "config.toml.example"
+        repo_toml_example = self.toml_path.parent / "config.toml.example"
+        self.toml_example_path = (
+            repo_toml_example
+            if repo_toml_example.exists()
+            else _get_package_template_path("config.toml.example")
+        )
         self._toml_cache = None
 
     def _ensure_secure_permissions(self) -> None:
@@ -386,6 +373,28 @@ class ConfigManager:
             return list(raw)
         return list(default) if default is not None else []
 
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        """
+        Get a config value parsed as boolean.
+
+        Accepts bool values directly and common string/int-like values:
+        true/false, 1/0, yes/no, on/off.
+        """
+        raw = self.get(key)
+        if raw is None:
+            return default
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, (int, float)):
+            return bool(raw)
+        if isinstance(raw, str):
+            value = raw.strip().lower()
+            if value in ("1", "true", "yes", "on"):
+                return True
+            if value in ("0", "false", "no", "off"):
+                return False
+        return default
+
     def _create_env_from_example(self) -> None:
         """
         Create .env file from env.example by copying the full file.
@@ -445,12 +454,17 @@ class ConfigManager:
                 "paths": {"output_dir": "./downloads", "temp_dir": "./tmp"},
                 "media": {
                     "audio": {
-                        "format": "mp3",
+                        "format": "flac",
                         "quality": "192k",
-                        "sample_rate": 0,
-                        "channels": 0,
+                        "sample_rate": 16000,
+                        "channels": 1,
                     },
-                    "video": {"format": "", "codec": "", "restrict_filenames": True},
+                    "video": {
+                        "enabled": False,
+                        "format": "",
+                        "codec": "",
+                        "restrict_filenames": True,
+                    },
                 },
                 "presets": {
                     "flac": {"override": False, "sample_rate": 16000, "channels": 1}
@@ -737,3 +751,86 @@ To fix:
 
         # Check if at least one backup file exists
         return (backup_dir / "config.toml").exists() or (backup_dir / ".env").exists()
+
+
+class EphemeralConfig:
+    """
+    In-memory config for --no-config mode: no files read or written.
+    Implements the subset of ConfigManager used by the download pipeline.
+    """
+
+    def __init__(self, download_dir: str) -> None:
+        self._download_dir = download_dir
+        self.env_path = Path(os.devnull)  # unused
+        self.toml_path = Path(os.devnull)  # unused
+
+    def get(self, key: str, default: Optional[str] = None) -> Optional[str]:
+        ephemeral_defaults: Dict[str, str] = {
+            "paths.output_dir": self._download_dir,
+            "paths.temp_dir": self._download_dir,
+            "product.arcane_terms": "true",
+            "ARCANE_TERMS": "true",
+            "ui.auto_open": "false",
+            "ui.plain": "false",
+            "storage.destination": "local",
+            "storage.fallback": "local",
+            "storage.keep_local_copy": "false",
+            "media.audio.format": "flac",
+            "media.audio.quality": "192k",
+            "media.audio.sample_rate": "16000",
+            "media.audio.channels": "1",
+            "media.video.enabled": "false",
+            "media.video.format": "",
+            "TEMP_PATH": self._download_dir,
+            "RESTRICT_FILENAMES": "true",
+            "download.write_info_json": "false",
+            "RETRIES": "3",
+            "FORCE_OVERWRITES": "false",
+            "FLAC_OVERRIDE": "false",
+            "ytdl.audio_format_selector": "best",
+            "ytdl.force_ipv4": "",
+        }
+        if key in ephemeral_defaults:
+            return ephemeral_defaults[key]
+        return default
+
+    def get_list(self, key: str, default: Optional[list] = None) -> list:
+        if key == "media.audio.enabled_formats":
+            return ["flac"]
+        if key == "media.video.enabled_formats":
+            return []
+        return list(default) if default else []
+
+    def get_bool(self, key: str, default: bool = False) -> bool:
+        raw = self.get(key)
+        if raw is None:
+            return default
+        if isinstance(raw, bool):
+            return raw
+        if isinstance(raw, (int, float)):
+            return bool(raw)
+        if isinstance(raw, str):
+            value = raw.strip().lower()
+            if value in ("1", "true", "yes", "on"):
+                return True
+            if value in ("0", "false", "no", "off"):
+                return False
+        return default
+
+    def check_toml_file_exists(self) -> bool:
+        return True  # Ephemeral "has" defaults
+
+    def check_env_file_exists(self) -> bool:
+        return True
+
+    def get_storage_destination(self) -> str:
+        return "local"
+
+    def is_s3_configured(self) -> bool:
+        return False
+
+    def is_gcp_configured(self) -> bool:
+        return False
+
+    def validate_required(self, required_vars: list[str]) -> tuple[bool, list[str]]:
+        return True, []

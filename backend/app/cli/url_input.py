@@ -27,7 +27,7 @@ except ImportError:
 
 
 # Override keys matching invoke() kwargs (storage: at most one of local, s3, gcp)
-OVERRIDE_KEYS = ("debug", "flac", "local", "s3", "gcp", "verbose", "plain")
+OVERRIDE_KEYS = ("debug", "flac", "video", "local", "s3", "gcp", "verbose", "plain")
 STORAGE_KEYS = ("local", "s3", "gcp")
 
 # User-facing messages (PRD6)
@@ -148,6 +148,7 @@ def _interactive_overrides_prompt() -> dict:
     choices = [
         Choice("debug", name="--debug — Enable debug mode with full tracebacks"),
         Choice("flac", name="--flac — FLAC 16kHz mono conversion (one-time override)"),
+        Choice("video", name="--video — Enable video download for this run only"),
         Choice("local", name="--local — Save to local storage (one-time override)"),
         Choice("s3", name="--s3 — Upload to S3 storage (one-time override)"),
         Choice("gcp", name="--gcp — Upload to GCP storage (one-time override)"),

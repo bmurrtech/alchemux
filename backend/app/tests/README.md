@@ -42,10 +42,10 @@ These are **repo-tracked templates** you can use as reference while testing:
 
 ## prek (pre-commit) and the test suite
 
-The repo uses **[prek](https://github.com/j178/prek)** for pre-commit hooks (format, lint, repo hygiene). CI runs `prek run --all-files` on push/PR. Recommended flow before committing:
+The repo uses **[prek](https://github.com/j178/prek)** for pre-commit hooks (format, lint, repo hygiene). CI runs `prek run --all-files` on push/PR, then runs this test suite and uv integration smoke tests on **Ubuntu, Windows, and macOS** (see `.github/workflows/ci.yml`). Recommended flow before committing:
 
 1. **Run hooks:** `prek run --all-files` (from repo root). Fix any failures.
-2. **Run tests:** `pytest backend/app/tests -q` (with venv activated and deps installed).
+2. **Run tests:** `uv run python -m pytest backend/app/tests -q` (no venv activation). Alternatively, with venv activated and deps installed: `pytest backend/app/tests -q`.
 
 **Pre-commit checks included:**
 
@@ -60,42 +60,38 @@ See [docs/contributors.md](../../docs/contributors.md) for prek install ([instal
 
 Alchemux reads config from a directory via `ALCHEMUX_CONFIG_DIR`. For testing, point it at a temp dir so you do not touch real user config paths.
 
-From repo root, use **uv** to create a venv and install dependencies:
+**Preferred (from repo root; no venv activation):**
+
+```bash
+export ALCHEMUX_CONFIG_DIR="$(mktemp -d)"
+echo "Using ALCHEMUX_CONFIG_DIR=$ALCHEMUX_CONFIG_DIR"
+cp env.example "$ALCHEMUX_CONFIG_DIR/.env"
+cp config.toml.example "$ALCHEMUX_CONFIG_DIR/config.toml"
+chmod 600 "$ALCHEMUX_CONFIG_DIR/.env" || true
+
+uv run alchemux --help
+uv run alchemux --version
+uv run alchemux config show
+uv run alchemux config doctor
+```
+
+**Alternatively**, use a venv and install the project in editable mode (less preferred):
 
 ```bash
 uv venv
 source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
-
-uv pip install -r backend/requirements.txt pytest
-
-export ALCHEMUX_CONFIG_DIR="$(mktemp -d)"
-echo "Using ALCHEMUX_CONFIG_DIR=$ALCHEMUX_CONFIG_DIR"
-
-# Seed config from templates (safe placeholders)
-cp env.example "$ALCHEMUX_CONFIG_DIR/.env"
-cp config.toml.example "$ALCHEMUX_CONFIG_DIR/config.toml"
-chmod 600 "$ALCHEMUX_CONFIG_DIR/.env" || true
-```
-
-Alternatively, install the project in editable mode if a root `pyproject.toml` exists:
-
-```bash
 uv pip install -e .
 uv pip install pytest
-```
 
-### Run the CLI
+export ALCHEMUX_CONFIG_DIR="$(mktemp -d)"
+# ... seed config from env.example and config.toml.example as above ...
 
-From repo root with venv activated, run the CLI via `backend/app/main.py`:
-
-```bash
 python backend/app/main.py --help
-python backend/app/main.py --version
 python backend/app/main.py config show
-python backend/app/main.py config doctor
+# or, with editable install, use: alchemux / amx
 ```
 
-If Alchemux is installed as a tool (`uv tool install alchemux`), you can use `alchemux` or `amx` instead.
+If Alchemux is installed as a tool (`uv tool install alchemux`), you can use `alchemux` or `amx` from any directory (no `uv run`).
 
 ### CLI options (tester quick inventory)
 
@@ -121,17 +117,19 @@ Common one-run flags you may use during CLI smoke checks:
 
 ## Running the unit tests
 
-Install dependencies with **uv** (see “Safe local run” above), then from repo root. Recommended: run prek first (see "prek (pre-commit) and the test suite" above):
+From repo root. Recommended: run prek first (see "prek (pre-commit) and the test suite" above). No venv activation required:
 
 ```bash
 prek run --all-files    # optional but recommended before pushing
-pytest backend/app/tests -q
+uv run python -m pytest backend/app/tests -q
 ```
+
+With venv activated you can use `pytest backend/app/tests -q` instead.
 
 If you want tests to print additional **sanitized** debug hints, run:
 
 ```bash
-ALCHEMUX_TEST_VERBOSE=1 pytest backend/app/tests -q -s
+ALCHEMUX_TEST_VERBOSE=1 uv run python -m pytest backend/app/tests -q -s
 ```
 
 **Important security note**: even in verbose mode, tests must never print values for keys that look like secrets (anything containing `KEY`, `SECRET`, `TOKEN`, `PASSWORD`, etc.). If you observe such output, treat it as a security bug and report it.
@@ -149,7 +147,7 @@ Tests for interactive URL prompt and `-p`/`--clipboard` use **mocks** only:
 To run only the PRD6 input tests:
 
 ```bash
-pytest backend/app/tests/test_cli_interactive_input.py backend/app/tests/test_cli_clipboard_input.py -q -v
+uv run python -m pytest backend/app/tests/test_cli_interactive_input.py backend/app/tests/test_cli_clipboard_input.py -q -v
 ```
 
 ---
@@ -222,7 +220,7 @@ This directory includes minimal smoke/unit coverage for:
 
 ## Batch mode tests (PRD 009)
 
-- **How to run:** `pytest backend/app/tests/test_batch_parsing.py backend/app/tests/test_batch_file_discovery.py backend/app/tests/test_batch_playlist_expansion.py backend/app/tests/test_batch_command.py -q` (or `pytest backend/app/tests -q` for full suite).
+- **How to run:** `uv run python -m pytest backend/app/tests/test_batch_parsing.py backend/app/tests/test_batch_file_discovery.py backend/app/tests/test_batch_playlist_expansion.py backend/app/tests/test_batch_command.py -q` (or `uv run python -m pytest backend/app/tests -q` for full suite).
 - **Expected outcome:** All batch tests pass without network; InquirerPy and yt_dlp are mocked so no real prompts or downloads.
 - **What is mocked:** ConfigManager (config dir path), inquirer (select/checkbox/execute), yt_dlp (YoutubeDL.extract_info for playlist expansion). No secrets in logs.
 

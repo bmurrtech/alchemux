@@ -59,11 +59,24 @@ sudo dnf install ffmpeg
 
 ### Windows
 
-**Option 1: Chocolatey**
+**Option 1: Chocolatey (recommended for most users)**
+
+If you don't already have Chocolatey installed, open PowerShell **as Administrator** and run:
+
+```powershell
+Set-ExecutionPolicy Bypass -Scope Process -Force; `
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; `
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+```
+
+Once installed, close and reopen your PowerShell window, then install FFmpeg:
 
 ```powershell
 choco install ffmpeg
 ```
+
+You may need to restart your shell for the `ffmpeg` command to be available.
+
 
 **Option 2: Manual**
 
@@ -133,46 +146,80 @@ uv tool uninstall alchemux
 
 ---
 
-## 4. Run from source (development)
+## 4. Run from source
 
-If you are developing Alchemux or need to run from a git checkout:
+If you prefer to run from source, developing Alchemux, or need to run from a git checkout:
 
 ### Prerequisites
 
-- Python 3.8+ and **uv** (see above)
+- Python 3.12+ and **uv** (see above)
 - FFmpeg on PATH (see above)
 
-### Clone and install dependencies
+### Source run steps
 
-From the repository root:
+**Clone the repository:**
 
 ```bash
 git clone https://github.com/bmurrtech/alchemux.git
 cd alchemux
-uv venv
-source .venv/bin/activate   # Windows: .venv\Scripts\Activate.ps1
-uv pip install -r backend/requirements.txt
 ```
 
-If the project has a root `pyproject.toml`, you can instead use:
+From the repository root (same as `pyproject.toml`), run:
+
+```bash
+uv pip install -e .
+```
+> **Note:** No virtual environment activation is required when using `pyproject.toml` and `uv`; dependency isolation is handled automatically.
+
+#### Option A: Run from source (using `uv` with no venv required)
+
+```bash
+uv run alchemux --help
+uv run alchemux --version
+uv run alchemux setup
+uv run alchemux "https://…"
+```
+> **Note:** No virtual environment activation is required when using `uv` in this way—`uv` automatically creates and manages an isolated environment under the hood during these commands, so you don't need to manually run `source .venv/bin/activate` or similar.
+
+**Done!**
+
+#### Option B: Run from source (using traditional virtual environment)
+
+Alternatively, you can use a typical virtual environment instead of relying on `uv`'s built-in isolation. See below:
+
+**Create and activate a virtual environment:**
+
+```bash
+uv venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\Activate.ps1
+```
+
+**Install dependencies:**
 
 ```bash
 uv pip install -e .
 ```
 
-### Run via Python
+You can now run Alchemux commands directly:
 
-From the repository root (with venv activated):
+```bash
+alchemux --help
+alchemux setup
+alchemux "https://…"
+```
+
+Or, if you want to run the main module directly:
 
 ```bash
 python backend/app/main.py --help
-python backend/app/main.py setup
-python backend/app/main.py "https://…"
 ```
+
+This approach lets you use typical Python tooling and shell (venv, python, pip).
+
 
 ### Run tests
 
-See [backend/app/tests/README.md](../backend/app/tests/README.md) for using **uv** to install dependencies and run the test suite (e.g. `uv pip install -r backend/requirements.txt pytest` then `pytest backend/app/tests`).
+From repo root: `uv run python -m pytest backend/app/tests -q`. See [backend/app/tests/README.md](../backend/app/tests/README.md) for details and config isolation.
 
 ### Contributors (prek, tests, references)
 

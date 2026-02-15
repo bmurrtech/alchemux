@@ -179,7 +179,7 @@ def print_status_panel(
     Pattern:
     ╭─ Current Settings ────────────────────╮
     │ Output: ~/Downloads/Alchemux          │
-    │ Audio format: mp3                     │
+    │ Audio format: flac                    │
     │ Storage: local                        │
     │ Arcane mode: enabled                  │
     ╰───────────────────────────────────────╯

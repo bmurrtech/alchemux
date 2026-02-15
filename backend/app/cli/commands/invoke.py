@@ -19,6 +19,9 @@ def invoke(
         None, "--video-format", help="Video container"
     ),
     flac: bool = typer.Option(False, "--flac", help="FLAC 16kHz mono conversion"),
+    video: bool = typer.Option(
+        False, "--video", help="Enable video download for this run only"
+    ),
     save_path: Optional[str] = typer.Option(
         None,
         "--save-path",
@@ -38,6 +41,12 @@ def invoke(
     ),
     verbose: bool = typer.Option(False, "--verbose", help="Enable verbose logging"),
     plain: bool = typer.Option(False, "--plain", help="Disable colors and animations"),
+    no_config: bool = typer.Option(
+        False, "--no-config", help="Do not read or write config (ephemeral run)"
+    ),
+    download_dir_override: Optional[str] = typer.Option(
+        None, "--download-dir", help="Output directory (used with --no-config)"
+    ),
 ) -> None:
     """
     Invoke the full transmutation ritual.
@@ -56,10 +65,13 @@ def invoke(
         audio_format=audio_format,
         video_format=video_format,
         flac=flac,
+        video=video,
         save_path=save_path,
         local=local,
         s3=s3,
         gcp=gcp,
         debug=debug,
         plain=plain,
+        no_config=no_config,
+        download_dir_override=download_dir_override,
     )
