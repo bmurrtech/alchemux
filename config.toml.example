@@ -2,6 +2,10 @@
 # Alchemux config.toml (non-secret defaults & UX)
 # =============================================================================
 
+# Environment variables that can be set in .env or shell environment
+# UV_LINK_MODE=copy  # Prevents "failed to hardlink files" warnings on cross-filesystem setups (WSL2/Windows, Docker, etc.)
+#                   # Set to 'copy' to suppress hardlink warnings; 'symlink' for symlinks; 'hardlink' for hardlinks (default)
+
 [product]
 # If true, show arcane terminology + "transmute" command naming in help/output.
 arcane_terms = true

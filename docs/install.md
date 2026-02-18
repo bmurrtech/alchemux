@@ -90,6 +90,25 @@ ffmpeg -version
 ffprobe -version
 ```
 
+### Optional: xdg-utils (Linux only, for auto-open folder feature)
+
+On Linux systems, the `xdg-utils` package is required for the auto-open folder feature to work. Without it, folder opening will gracefully fail with a warning message.
+
+**Install xdg-utils:**
+
+```bash
+# Ubuntu/Debian
+sudo apt install xdg-utils
+
+# Fedora/RHEL
+sudo dnf install xdg-utils
+
+# Arch Linux
+sudo pacman -S xdg-utils
+```
+
+**Note:** WSL2 users don't need `xdg-utils`; Alchemux automatically uses Windows Explorer when running in WSL2.
+
 ---
 
 ## 3. Run Alchemux
@@ -167,6 +186,7 @@ cd alchemux
 From the repository root (same as `pyproject.toml`), run:
 
 ```bash
+uv venv
 uv pip install -e .
 ```
 > **Note:** No virtual environment activation is required when using `pyproject.toml` and `uv`; dependency isolation is handled automatically.

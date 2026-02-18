@@ -58,7 +58,7 @@ Tip: Run `alchemux` and paste the URL when prompted to avoid shell quoting issue
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--flac` | | FLAC 16kHz mono conversion (one-time override) |
-| `--video` | | One-time enable video download for this run |
+| `--video` | | Enable video download (one-time override) |
 | `--gcp` | | Upload to GCP storage (one-time override) |
 | `--s3` | | Upload to S3 storage (one-time override) |
 | `--local` | | Save to local storage (one-time override) |
@@ -68,8 +68,8 @@ Tip: Run `alchemux` and paste the URL when prompted to avoid shell quoting issue
 | `--verbose` | | Enable verbose logging (one-time override) |
 | `--plain` | | Disable colors and animations (one-time override) |
 | `--clipboard` | `-p` | Use URL from clipboard (paste) |
-| `--version` | `-v` | Show version and exit (never requires config) |
-| `--help` | `-h` | Show help and exit (never requires config) |
+| `--version` | `-v` | Show version and exit |
+| `--help` | `-h` | Show help and exit |
 
 **Key principle:** Flags never persist. For persistent changes, use `alchemux config` wizard.
 

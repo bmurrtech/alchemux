@@ -20,6 +20,7 @@ from app.utils.file_utils import (
     get_download_path,
     sanitize_filename,
     detect_source_type,
+    open_folder,
 )
 from app.utils.metadata import write_source_url_to_metadata
 
@@ -527,19 +528,10 @@ def distill(
     )
     path_for_open = first_file_path or (seal_items[0][1] if seal_items else None)
     if auto_open and path_for_open and os.path.exists(path_for_open):
-        try:
-            import subprocess
-            import platform
-
-            folder_path = Path(path_for_open).parent
-
-            if platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", str(folder_path)], check=False)
-            elif platform.system() == "Windows":
-                subprocess.run(["explorer", str(folder_path)], check=False)
-            else:  # Linux
-                subprocess.run(["xdg-open", str(folder_path)], check=False)
-
-            logger.debug(f"Opened folder: {folder_path}")
-        except Exception as e:
-            logger.warning(f"Could not open folder: {e}")
+        folder_path = Path(path_for_open).parent
+        success = open_folder(folder_path)
+        if not success:
+            logger.warning(
+                f"Could not open folder: {folder_path}. "
+                "On Linux, install xdg-utils package for folder opening support."
+            )

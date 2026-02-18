@@ -3,7 +3,9 @@ File management utilities for save path, directory creation, and file organizati
 """
 
 import os
+import platform
 import shutil
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -191,3 +193,107 @@ def get_ffmpeg_location() -> Optional[str]:
         # Return the directory containing ffmpeg
         return str(ffmpeg_path.parent)
     return None
+
+
+def _is_wsl() -> bool:
+    """
+    Detect if running in WSL (Windows Subsystem for Linux).
+
+    Returns:
+        True if running in WSL, False otherwise
+    """
+    try:
+        # Check for WSL-specific environment variables
+        if os.getenv("WSL_DISTRO_NAME") or os.getenv("WSL_INTEROP"):
+            return True
+        # Check /proc/version for Microsoft/WSL indicators
+        if os.path.exists("/proc/version"):
+            with open("/proc/version", "r") as f:
+                version_info = f.read().lower()
+                if "microsoft" in version_info or "wsl" in version_info:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
+def open_folder(folder_path: Path) -> bool:
+    """
+    Open a folder in the system's default file manager (platform-aware).
+
+    Supports:
+    - macOS: uses `open`
+    - Windows: uses `explorer.exe`
+    - WSL2: uses `explorer.exe` (Windows file manager)
+    - Linux: uses `xdg-open` (requires xdg-utils package)
+
+    Args:
+        folder_path: Path to the folder to open
+
+    Returns:
+        True if folder was opened successfully, False otherwise
+    """
+    folder_str = str(folder_path.resolve())
+
+    try:
+        system = platform.system()
+
+        # macOS
+        if system == "Darwin":
+            subprocess.run(["open", folder_str], check=False, timeout=5)
+            logger.debug(f"Opened folder (macOS): {folder_str}")
+            return True
+
+        # Windows or WSL2
+        if system == "Windows" or _is_wsl():
+            # In WSL2, use explorer.exe with Windows path conversion
+            if _is_wsl():
+                # Convert WSL path to Windows path (e.g., /mnt/c/... -> C:\...)
+                if folder_str.startswith("/mnt/"):
+                    # Extract drive letter and path
+                    parts = folder_str[5:].split("/", 1)
+                    if len(parts) == 2:
+                        drive_letter = parts[0].upper()
+                        win_path = f"{drive_letter}:\\{parts[1].replace('/', '\\')}"
+                        subprocess.run(
+                            ["explorer.exe", win_path], check=False, timeout=5
+                        )
+                        logger.debug(f"Opened folder (WSL2): {win_path}")
+                        return True
+                # Fallback: try explorer.exe with WSL path (may not work)
+                subprocess.run(["explorer.exe", folder_str], check=False, timeout=5)
+                logger.debug(f"Opened folder (WSL2 fallback): {folder_str}")
+                return True
+            else:
+                # Native Windows
+                subprocess.run(["explorer", folder_str], check=False, timeout=5)
+                logger.debug(f"Opened folder (Windows): {folder_str}")
+                return True
+
+        # Linux (native, not WSL)
+        if system == "Linux":
+            # Try xdg-open first
+            xdg_open = shutil.which("xdg-open")
+            if xdg_open:
+                subprocess.run([xdg_open, folder_str], check=False, timeout=5)
+                logger.debug(f"Opened folder (Linux xdg-open): {folder_str}")
+                return True
+            else:
+                logger.warning(
+                    "xdg-open not found. Install xdg-utils package for folder opening on Linux."
+                )
+                return False
+
+        # Unknown platform
+        logger.warning(f"Unsupported platform for folder opening: {system}")
+        return False
+
+    except subprocess.TimeoutExpired:
+        logger.warning(f"Timeout opening folder: {folder_str}")
+        return False
+    except FileNotFoundError as e:
+        logger.warning(f"Command not found for opening folder: {e}")
+        return False
+    except Exception as e:
+        logger.warning(f"Could not open folder {folder_str}: {e}")
+        return False
