@@ -73,11 +73,13 @@ def test_cli_no_url_non_interactive_exits_with_hint() -> None:
         assert "No URL provided" in result.stdout
 
 
-def test_cli_clipboard_flag_help() -> None:
-    """--help shows -p/--clipboard."""
-    runner = CliRunner()
-    # Rich/Typer help truncates options on narrow terminals (default in CI).
-    result = runner.invoke(app, ["--help"], env={"COLUMNS": "200", "LINES": "50"})
-    assert result.exit_code == 0
-    assert "--clipboard" in result.stdout
-    assert "-p" in result.stdout
+def test_cli_clipboard_flag_registered() -> None:
+    """Root CLI exposes -p/--clipboard (do not assert on --help text; Rich width varies in CI)."""
+    from typer.main import get_command
+
+    command = get_command(app)
+    opts = [
+        opt for param in command.params if hasattr(param, "opts") for opt in param.opts
+    ]
+    assert "--clipboard" in opts
+    assert "-p" in opts
