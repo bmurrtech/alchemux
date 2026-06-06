@@ -123,8 +123,10 @@ On first run, if you don’t have config yet, Alchemux will create it automatica
 ```bash
 uvx alchemux --help                    # Always works; no config needed
 uvx alchemux "https://youtu.be/…"      # First run: auto-creates config, then runs
-uvx amx "https://…"                    # Same with short name
+uvx --from alchemux amx "https://…"    # One-off using short alias from alchemux package
 ```
+
+Do not use `uvx amx ...` directly: `uvx` treats the first token as a PyPI package name, and `amx` on PyPI is a different project.
 
 **Tier 2 — Ephemeral (no filesystem writes)**
 If you want to try Alchemux without writing any config or state to disk, use `--no-config` and set a download directory. No config files are read or created.

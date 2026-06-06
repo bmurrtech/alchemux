@@ -2,10 +2,11 @@
 
 Complete reference for all Alchemux commands and options.
 
-**Install and run:** Use **uv** to try once (`uvx alchemux` / `uvx amx`) or install persistently (`uv tool install alchemux`). Prerequisites: uv and system FFmpeg. See [install.md](install.md).
+**Install and run:** Use **uv** to try once (`uvx alchemux`), or `uvx --from alchemux amx` if you want the short alias in one-off mode, or install persistently (`uv tool install alchemux`) for both `alchemux` and `amx`. Prerequisites: uv and system FFmpeg. See [install.md](install.md).
 
 **Running with uvx (try without installing):**
 - **Tier 1:** `uvx alchemux "https://…"` — On first run, config is auto-created in your OS user config dir if missing; then the transmutation runs. `uvx alchemux --help` and `uvx alchemux --version` always work and never require config.
+- **Tier 1 (short alias):** `uvx --from alchemux amx "https://…"` — Uses the `amx` console script from the `alchemux` package.
 - **Tier 2 (ephemeral, no writes):** `uvx alchemux --no-config --download-dir . "https://…"` — No config files are read or written; downloads go to the given directory.
 
 **Contributors:** Pre-commit hooks are run via [prek](https://github.com/j178/prek). See [contributors.md](contributors.md) for prek install, `prek run --all-files`, and the test suite.
@@ -29,6 +30,28 @@ alchemux "https://example.com/video"
 ```
 
 This automatically performs the full transmutation pipeline: scribe → scry → profile → distill → mux → seal.
+
+### Argument order (v0.1.1+)
+
+Recommended order is still:
+
+```bash
+alchemux [OPTIONS] "URL"
+```
+
+Alchemux now also accepts URL-first order for common root flags and normalizes it:
+
+```bash
+alchemux "https://youtu.be/PlN86TvzGy4" --no-config --download-dir .
+```
+
+Equivalent canonical form:
+
+```bash
+alchemux --no-config --download-dir . "https://youtu.be/PlN86TvzGy4"
+```
+
+If parsing still fails, use the canonical options-first form above and check this page for the latest flag examples.
 
 ### URL quoting (critical)
 
@@ -223,7 +246,7 @@ alchemux batch              # Interactive: choose source, then process
   Place your `.txt` or `.csv` batch files in your Alchemux config folder—side by side with `config.toml` and `.env`. If you’re unsure where your config folder is, run:
 
 ```bash
-amx config         # Select "Show Configurations" to display config directory location
+alchemux config    # Select "Show Configurations" to display config directory location
 ```
 
   This will display the config directory path.

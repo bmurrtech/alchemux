@@ -83,10 +83,12 @@ Verify: `uv --version`
 
 ```bash
 uvx alchemux --help
-uvx amx -h
-uvx amx "https://youtu.be/…"
-uvx amx --no-config --download-dir . "…"
+uvx alchemux "https://youtu.be/…"
+uvx --from alchemux amx --help
+uvx --from alchemux amx "https://youtu.be/…"
 ```
+
+`uvx amx ...` is not recommended: `uvx` resolves package names first, and PyPI has an unrelated `amx` package. Use `uvx alchemux ...` or `uvx --from alchemux amx ...`.
 
 #### 3) Install as a persistent CLI tool
 
@@ -113,7 +115,7 @@ git clone https://github.com/bmurrtech/alchemux.git
 cd alchemux
 uv pip install -e .
 uv run alchemux --help
-uv run amx setup
+uv run alchemux setup
 ```
 
 See [docs/install.md](docs/install.md) for platform-specific FFmpeg and config paths.
@@ -129,7 +131,8 @@ Alchemux is pre-release. Documented limitations, workarounds, and what to check 
 ## Troubleshooting
 
 ```bash
-alchemux -h    # or: amx -h
+alchemux -h
+amx -h         # available after `uv tool install alchemux`
 alchemux doctor
 ```
 

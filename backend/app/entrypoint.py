@@ -9,6 +9,49 @@ import sys
 import warnings
 
 
+def _first_positional_index(argv: list[str]) -> int | None:
+    """Return index of first non-option token, ignoring known root option values."""
+    root_value_flags = {"--download-dir"}
+    idx = 1
+    while idx < len(argv):
+        token = argv[idx]
+        if token in root_value_flags and "=" not in token and idx + 1 < len(argv):
+            idx += 2
+            continue
+        if token == "--":
+            return None
+        if token.startswith("-"):
+            idx += 1
+            continue
+        return idx
+    return None
+
+
+def _likely_flag_after_url_order(argv: list[str]) -> bool:
+    """Heuristic for root parse errors caused by URL-before-flags ordering."""
+    first_positional_idx = _first_positional_index(argv)
+    if first_positional_idx is None:
+        return False
+
+    command_names = {
+        "setup",
+        "config",
+        "doctor",
+        "update",
+        "batch",
+        "distill",
+        "invoke",
+        "mux",
+        "seal",
+        "inspect",
+    }
+    first_positional = argv[first_positional_idx]
+    if first_positional in command_names:
+        return False
+
+    return any(token.startswith("-") for token in argv[first_positional_idx + 1 :])
+
+
 def _only_help_or_version(argv: list[str]) -> bool:
     """True if argv implies only --help or --version (no config needed)."""
     if "--help" in argv or "-h" in argv:
@@ -74,6 +117,10 @@ def _is_debug_mode(argv: list[str]) -> bool:
 
 def main() -> None:
     """Entry point for alchemux/amx console scripts."""
+    from app.cli.argv_normalize import normalize_argv
+
+    original_argv = list(sys.argv)
+    sys.argv = normalize_argv(sys.argv)
     debug_mode = _is_debug_mode(sys.argv)
     from app.core.tracebacks import install_traceback_handler, print_fracture_summary
 
@@ -185,7 +232,22 @@ def main() -> None:
 
         Console(stderr=True).print("\n\n[dim]Interrupted by user. Goodbye![/dim]")
         sys.exit(130)
-    except SystemExit:
+    except SystemExit as e:
+        if getattr(e, "code", None) == 2 and _likely_flag_after_url_order(
+            original_argv
+        ):
+            plain_mode = "--plain" in original_argv or os.getenv(
+                "NO_COLOR", ""
+            ).lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            ArcaneConsole(plain=plain_mode).err_console.print(
+                "Hint: place flags before URL, e.g. "
+                "'alchemux --no-config --download-dir . \"https://...\"'.\n"
+                "v0.1.1+ auto-reorders common root flags."
+            )
         raise
     except Exception as e:
         if not debug_mode:

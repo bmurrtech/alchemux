@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "alchemux"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI wrapper for yt-dlp & FFmpeg with cloud upload optionality"
 readme = "README.md"
 license = { text = "AGPL-3.0" }

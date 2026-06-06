@@ -88,10 +88,11 @@ export ALCHEMUX_CONFIG_DIR="$(mktemp -d)"
 
 python backend/app/main.py --help
 python backend/app/main.py config show
-# or, with editable install, use: alchemux / amx
+# or, with editable install, use: alchemux
 ```
 
-If Alchemux is installed as a tool (`uv tool install alchemux`), you can use `alchemux` or `amx` from any directory (no `uv run`).
+If Alchemux is installed as a tool (`uv tool install alchemux`), you can use both
+`alchemux` and `amx` from any directory (no `uv run`).
 
 ### CLI options (tester quick inventory)
 
