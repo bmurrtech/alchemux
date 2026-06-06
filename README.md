@@ -1,39 +1,67 @@
+<div align="center">
+
 # Alchemux
 
-**Magically intuitive and interactive CLI wrapper for yt-dlp & FFmpeg** with **cloud upload** optionality (S3-compatible, GCP Buckets). Download & convert YouTube videos + 1K more sources — it's alchemy media magic!
+**Magically intuitive CLI for yt-dlp & FFmpeg** — download, convert, and optionally upload to **S3** or **GCP**.
 
-## CLI Showcase
+*Interactive terminal alchemy for YouTube and 1,000+ media sources.*
 
-![transmuting](https://i.imgur.com/coG2REg.png)
-![usage](https://i.imgur.com/iDFjVCw.png)
+[![Star on GitHub](https://img.shields.io/badge/Star-on_GitHub-blue?logo=github)](https://github.com/bmurrtech/alchemux)
+[![PyPI version](https://img.shields.io/pypi/v/alchemux?label=pypi)](https://pypi.org/project/alchemux/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/alchemux?label=downloads&color=success)](https://pypi.org/project/alchemux/)
+[![CI](https://img.shields.io/github/actions/workflow/status/bmurrtech/alchemux/ci.yml?branch=main&logo=github&label=CI)](https://github.com/bmurrtech/alchemux/actions/workflows/ci.yml?query=branch%3Amain)
+[![Latest Release](https://img.shields.io/github/v/release/bmurrtech/alchemux?include_prereleases&label=release&logo=github)](https://github.com/bmurrtech/alchemux/releases)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-blue.svg)](https://docs.astral.sh/uv/)
+[![Python](https://img.shields.io/badge/python-3.12%2B-blue.svg)](https://www.python.org/)
+[![uv](https://img.shields.io/badge/distributed_with-uv-DE5FE9.svg)](https://docs.astral.sh/uv/)
+[![License: AGPL v3](https://img.shields.io/badge/license-GNU%20AGPLv3-blue.svg)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=ko-fi)](https://ko-fi.com/bmurrtech)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support-FFDD00?logo=buymeacoffee&logoColor=black)](https://www.buymeacoffee.com/bmurrtech)
+
+<p align="center">
+  <img src="https://i.imgur.com/coG2REg.png" width="700" alt="Alchemux CLI transmuting media">
+  <br><br>
+  <img src="https://i.imgur.com/iDFjVCw.png" width="700" alt="Alchemux usage example">
+</p>
+
+</div>
+
+## About
+
+Alchemux is a **terminal-first** media CLI built on [yt-dlp](https://github.com/yt-dlp/yt-dlp) and **system FFmpeg**. It wraps complex download and conversion workflows in an interactive wizard, batch mode, optional cloud upload, and arcane (or plain) terminal output.
+
+- **Distribution**: [PyPI](https://pypi.org/project/alchemux/) — install with [uv](https://docs.astral.sh/uv/) (`uv tool install` / `uvx`)
+- **Platforms**: macOS, Linux, Windows (shell + Python 3.12+)
+- **Config**: Per-user TOML via `alchemux setup` — no manual file editing required
+- **Status**: Pre-release — bugs and limitations are expected; see [docs/known-issues.md](docs/known-issues.md)
 
 ## Features
 
 - 🎵 **Download & Convert Media**: Extract audio or video from YouTube, Facebook, and other [yt-dlp supported sources](https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md)
 - 🧙‍♂️ **Interactive Simplicity**: Delightfully easy terminal UI—just run and follow prompts; configure everything in seconds (including cloud storage and presets) interactively
-- 📋 **Batch Processing**: Process many URLs from a YouTube playlist, TXT/CSV files, or pasted lists of URLs with automatic rate-limit mitigation logic built-in. See [commands.md](docs/commands.md) for more details about batch mode and usage
-- 🏷️ **Metadata Embedding**: Automatically embeds source URLs and metadata into media files so you don't have to
-- ☁️ **Cloud Storage**: Upload media to **S3** and **GCP buckets** by configuring your cloud storage settings; to enable cloud media storage (see [docs/commands.md](docs/commands.md) for more details)
-- 🎚️ **Multiple Formats**: Support for audio formats (MP3, AAC, FLAC, Opus, WAV, etc.) and video containers (MP4, MKV, WebM, etc.)
-- 🤖 **AI Agent Support**: Give your AI assistant media downloading power! Supports AI agents like [OpenClaw](https://openclaw.ai) (formerly Clawdbot/Moltbot), [Agent Zero](https://github.com/agent0ai/agent-zero), and **Claude Skills**. AI agents, see [backend/AGENTS.md](backend/AGENTS.md).
-- 🛠️ **No-Edit Configuration (`config` Command)**: Configure every aspect of Alchemux—media formats, cloud credentials, download folder, batch defaults, and more—**directly in an interactive wizard**. No need to open or edit any files.
-- 🩺 **Troubleshooting Assistant (`doctor` Command)**: Having trouble? Instantly diagnose and resolve common issues, from cloud misconfigurations to missing dependencies, file permission errors, and more. Get clear, actionable help.
-- ✨ **Arcane Interface**: Stylized terminal output with unique sigils and progress indicators (can be disabled for technical terms)
-- 🔄 **Easy Updater (`update` Command)**: Quickly update the underlying downloader to always have the latest and greatest from the yt-dlp community
+- 📋 **Batch Processing**: Process many URLs from a YouTube playlist, TXT/CSV files, or pasted lists of URLs with automatic rate-limit mitigation logic built-in. See [commands.md](docs/commands.md) for batch mode details
+- 🏷️ **Metadata Embedding**: Automatically embeds source URLs and metadata into media files
+- ☁️ **Cloud Storage**: Upload media to **S3** and **GCP buckets** after interactive setup ([commands.md](docs/commands.md))
+- 🎚️ **Multiple Formats**: Audio (MP3, AAC, FLAC, Opus, WAV, etc.) and video (MP4, MKV, WebM, etc.)
+- 🤖 **AI Agent Support**: CLI guidance for agents like [OpenClaw](https://openclaw.ai), [Agent Zero](https://github.com/agent0ai/agent-zero), and Claude Skills — see [backend/AGENTS.md](backend/AGENTS.md)
+- 🛠️ **`config` Command**: Interactive wizard for formats, cloud credentials, download folder, batch defaults, and more
+- 🩺 **`doctor` Command**: Diagnose cloud misconfigurations, missing FFmpeg, permissions, and common failures
+- ✨ **Arcane Interface**: Optional stylized output (disable with `arcane_terms = "false"` or during setup)
+- 🔄 **`update` Command**: Refresh the bundled yt-dlp dependency from the community release channel
 
-For a fuller list of features, commands, and options, see [docs/commands.md](docs/commands.md).
+Full command reference: [docs/commands.md](docs/commands.md).
 
 ## Quick Start
 
 ### Prerequisites
 
 - **Shell**: Terminal (macOS/Linux) or PowerShell (Windows)
-- **uv**: [Astral’s uv](https://docs.astral.sh/uv/) — fast Python package and project manager (one-time install below)
-- **FFmpeg**: Required for audio/video conversion. Install via your system package manager — see [docs/install.md](docs/install.md) for platform-specific steps.
+- **uv**: [Astral’s uv](https://docs.astral.sh/uv/) — one-time install below
+- **FFmpeg**: Required for conversion — [docs/install.md](docs/install.md)
 
-### Installation (recommended): uv + PyPI
+### Install from PyPI (recommended)
 
-Alchemux is distributed as a Python CLI from PyPI. Installing with **uv** avoids macOS Gatekeeper and Windows SmartScreen prompts that often affect downloaded executables.
+Installing with **uv** avoids macOS Gatekeeper and Windows SmartScreen prompts that often affect downloaded executables.
 
 #### 1) Install uv (one-time)
 
@@ -54,177 +82,130 @@ Verify: `uv --version`
 #### 2) Try without installing
 
 ```bash
-uvx alchemux --help                              # always works (no config needed)
+uvx alchemux --help
 uvx amx -h
-uvx amx "https://youtu.be/…"                # first run: auto-creates config, then runs
-uvx amx --no-config --download-dir . "…"    # ephemeral: no config read/write
+uvx amx "https://youtu.be/…"
+uvx amx --no-config --download-dir . "…"
 ```
 
 #### 3) Install as a persistent CLI tool
 
 ```bash
 uv tool install alchemux
-```
-
-Then run from any directory:
-
-```bash
-alchemux setup    # first-time setup
+alchemux setup
 alchemux "https://youtu.be/…"
-amx "https://…"   # same CLI, shorter name
+amx "https://…"
 ```
 
-#### 4) Upgrade / Uninstall
+#### 4) Upgrade / uninstall
 
 ```bash
 uv tool upgrade alchemux
 uv tool uninstall alchemux
 ```
 
-### Nightly / Experimental: Run from source (latest development version)
+### Run from source (development)
 
-This method is recommended only if you want to use the **latest (unreleased, experimental, or nightly)** Alchemux features direct from the GitHub source.
-
-First, clone the repository:
+For unreleased or experimental features:
 
 ```bash
 git clone https://github.com/bmurrtech/alchemux.git
 cd alchemux
-```
-
-Then, from the repository root (no venv activation required):
-
-```bash
 uv pip install -e .
 uv run alchemux --help
-uv run amx -v
 uv run amx setup
-uv run amx "https://…"
 ```
 
-For running from **source** (development), see [docs/install.md](docs/install.md).
+See [docs/install.md](docs/install.md) for platform-specific FFmpeg and config paths.
 
-## Arcane Terms
+## Arcane terms
 
-For fun, Alchemux uses arcane-themed terminology (transmute, distill, seal, etc.), but if you want technical terms instead, set `arcane_terms = "false"` in your `config.toml` or select technical terms during `alchemux setup` runtime.
+Alchemux can use arcane-themed wording (transmute, distill, seal, etc.). Prefer plain terms? Set `arcane_terms = "false"` in `config.toml` or choose technical mode during `alchemux setup`. Legend: [docs/legend.md](docs/legend.md).
 
-For a complete legend of arcane terminology and their technical equivalents, see [docs/legend.md](docs/legend.md).
+## Known issues
 
-## Known Issues & Limitations
-
-**Pre-Release Status**: Alchemux is currently in pre-release. Bugs and limitations are expected. Please report issues via GitHub Issues.
-
-### YouTube HTTP 403 Errors (Video Downloads)
-
-**Symptom**: Downloads fail with "HTTP 403 Forbidden" errors, especially for video formats.
-
-**Root Cause**: YouTube's anti-bot detection measures. This affects video downloads.
-
-**Default behavior**: Video is disabled by default for reliability. Audio-only transmutation remains the stable path. To include video for one run, pass `--video`.
-
-## Contributors welcome
-
-**For human contributors:** Feature requests, bug reports, and contributions are welcome. We use **[prek](https://github.com/j178/prek)** for pre-commit hooks so CI and local checks stay in sync.
-
-**Before you start:** See **[docs/contributors.md](docs/contributors.md)** for:
-
-- Installing prek and running the test suite
-- Pre-commit best practice (`prek install --install-hooks`, `prek run --all-files`)
-- [Tests README](backend/app/tests/README.md)
-
-**Submitting a PR (best practice):**
-
-Before submitting a pull request, please **read [docs/contributors.md](docs/contributors.md)** for detailed contributor guidance, workflow, and required developer setup.
-
-1. **Run pre-commit hooks locally** to ensure your changes pass quality gates:  
-   `prek run --all-files` (from the repo root).
-2. **Run the test suite**:  
-   `uv run python -m pytest backend/app/tests -q`  
-   (No venv activation needed; see [backend/app/tests/README.md](backend/app/tests/README.md). With an activated venv, you can also use `pytest backend/app/tests -q`.)
-3. **Keep pull requests focused** — make one logical change per PR, and reference any related issues.
-4. **Do not commit secrets** — never check in credentials, API keys, tokens, or sensitive data. Use `env.example` as a model for any environment settings.
-5. **Branch from `main`** and ensure your branch is up to date before opening a PR.
+Alchemux is pre-release. Documented limitations, workarounds, and what to check before filing a report: **[docs/known-issues.md](docs/known-issues.md)**.
 
 ## Troubleshooting
 
-**Get help:**
-
 ```bash
-alchemux -h
-# or
-amx -h
+alchemux -h    # or: amx -h
+alchemux doctor
 ```
 
-**Problem**: "Configuration file (.env) not found"
+| Problem | Solution |
+|---------|----------|
+| Config not found | Run `alchemux setup` or `alchemux doctor` — paths in [docs/install.md](docs/install.md) |
+| Downloads fail | Try audio-only or `--flac`; run `alchemux update`; see [known-issues.md](docs/known-issues.md) (KI-002, KI-003) |
+| `ffmpeg not found` | Install system FFmpeg (`brew install ffmpeg`, `apt install ffmpeg`, etc.) — [docs/install.md](docs/install.md) |
 
-**Solution**: Run `alchemux setup` to create config, or use `alchemux doctor` to diagnose. Config is stored in OS-standard per-user directories (see [docs/install.md](docs/install.md)).
+## Contributing
 
-**Problem**: Downloads fail
+Bug reports, feature requests, and feedback are welcome via **[GitHub Issues](https://github.com/bmurrtech/alchemux/issues/new/choose)**. Please read **[docs/known-issues.md](docs/known-issues.md)** first.
 
-**Solution**:
+Maintainers: local tooling, tests, and CI — **[docs/contributors.md](docs/contributors.md)**. Release process — **[docs/release.md](docs/release.md)**.
 
-1. Try the default audio-only run (or force FLAC): `alchemux "URL"` or `alchemux --flac "URL"`
-2. Update yt-dlp: `alchemux update`
-3. If issues persist, this may be YouTube anti-bot detection (see Known Issues above)
+## Support open source
 
-**Problem**: "ffmpeg not found"
+If Alchemux saves you time, consider:
 
-**Solution**: Alchemux requires **system FFmpeg**. Install it for your OS (e.g. `brew install ffmpeg`, `apt install ffmpeg`, or `choco install ffmpeg`) — see [docs/install.md](docs/install.md).
+- ⭐ **Starring the repo** — [![Star on GitHub](https://img.shields.io/badge/Star-on_GitHub-blue?logo=github)](https://github.com/bmurrtech/alchemux)
+- 🐛 **[Open a GitHub Issue](https://github.com/bmurrtech/alchemux/issues/new/choose)** — bugs, ideas, and feedback
+- 📣 **Sharing** with others who download or archive media from the terminal
+- ☕ **[Buy Me a Coffee](https://www.buymeacoffee.com/bmurrtech)** or **[Ko-fi](https://ko-fi.com/bmurrtech)**
+
+<p align="center">
+  <a href="https://www.buymeacoffee.com/bmurrtech" target="_blank" rel="noopener">
+    <img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Support%20the%20project-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee">
+  </a>
+  <a href="https://ko-fi.com/bmurrtech" target="_blank" rel="noopener">
+    <img src="https://img.shields.io/badge/Ko--fi-Support%20the%20project-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Ko-fi">
+  </a>
+</p>
 
 ## Acknowledgements
 
-Alchemux relies on these excellent projects:
-
-- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** - Media downloader and converter (core functionality)
-- **[FFmpeg](https://ffmpeg.org/)** - Audio and video conversion (system install required)
-- **[uv](https://docs.astral.sh/uv/)** (Astral) - Python package and project manager; install and run Alchemux via `uv tool install` / `uvx`
-- **[prek](https://github.com/j178/prek)** - Pre-commit replacement (Rust); runs format, lint, and repo-hygiene hooks in CI and locally ([docs/contributors.md](docs/contributors.md))
-- **[PyPI](https://pypi.org/)** - Python package index for distribution
-- **[Typer](https://typer.tiangolo.com/)** - Modern CLI framework
-- **[Rich](https://github.com/Textualize/rich)** - Terminal output, progress bars, and styling
-- **[InquirerPy](https://github.com/kazhala/InquirerPy)** - Interactive CLI wizards
-- **[pyperclip](https://github.com/pyperclip/pyperclip)** - Clipboard URL input for `-p`/`--clipboard`
-- **[mutagen](https://github.com/quodlibet/mutagen)** - Audio metadata handling
-- **[python-dotenv](https://github.com/theskumar/python-dotenv)** - Environment variable management
+- **[yt-dlp](https://github.com/yt-dlp/yt-dlp)** — core downloader
+- **[FFmpeg](https://ffmpeg.org/)** — audio/video conversion (system install)
+- **[uv](https://docs.astral.sh/uv/)** — install and run via `uv tool install` / `uvx`
+- **[prek](https://github.com/j178/prek)** — pre-commit hooks in CI and locally
+- **[PyPI](https://pypi.org/)** — package distribution
+- **[Typer](https://typer.tiangolo.com/)**, **[Rich](https://github.com/Textualize/rich)**, **[InquirerPy](https://github.com/kazhala/InquirerPy)** — CLI UX
+- **[pyperclip](https://github.com/pyperclip/pyperclip)**, **[mutagen](https://github.com/quodlibet/mutagen)**, **[python-dotenv](https://github.com/theskumar/python-dotenv)** — clipboard, metadata, env helpers
 
 ## License
 
-Open source under the **GNU AGPLv3**—see [LICENSE](LICENSE) for terms.
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0.html)
 
-### License Philosophy (Plain English)
+This repository is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE). The badge links to the official license text; the [`LICENSE`](LICENSE) file in this repo is the binding copy.
 
-This project is licensed under GNU AGPLv3.
+### License permissions and restrictions
 
-That means:
+*Keeping open-source open.*
 
-- **You may use it commercially.**
-- **You may build a paid SaaS product with it.**
-- **You may modify it.**
+| Use case | Permitted | Notes / conditions |
+|----------|-----------|-------------------|
+| Private / internal use | ✅ | No obligation to publish changes if you do not distribute or offer the software as a network service to others. |
+| Modify for own private use | ✅ | Obligations attach when you distribute or run modified code as a networked service for users. |
+| Share / distribute (unmodified) | ✅ | Include AGPL license and corresponding source (or compliant written offer). |
+| Distribute with modifications | ✅ | Modified source must be available under AGPL-3.0 to recipients. |
+| Provide as SaaS / network service | ✅ | Users interacting with your modified version over a network must be able to obtain complete corresponding source. |
+| Closed / proprietary redistribution | ❌ | Public distribution or SaaS without corresponding source under AGPL is not allowed. |
+| Restricting source access for users you serve | ❌ | Network users must be able to get complete corresponding source as AGPL defines. |
+| Sublicensing under more restrictive terms | ❌ | AGPL terms must flow through. |
 
-However:
+### Commercial / proprietary licensing
 
-- **Hosted Service or SaaS:** If you run this software as part of a hosted service or SaaS product, you must provide your users access to the corresponding source code, including any modifications you have made.
-- **Distribution:** If you distribute this software (or a derivative), you must include the same license and provide source code.
-- **Openness:** This ensures improvements remain **open** and the community benefits from derivative work.
-
-If you want to use this project in a proprietary or closed-source product without AGPL obligations, a commercial license is available.
+Need use **without** AGPL copyleft (closed-source distribution, SaaS without source-offer obligations, etc.)? **Commercial licenses may be available.** Open a [GitHub Issue](https://github.com/bmurrtech/alchemux/issues/new/choose) to discuss licensing and pricing.
 
 ---
 
-#### Commercial / Proprietary Licensing
+## Disclaimer
 
-Need any of the following?
-- Commercial use **without** copyleft obligations
-- Proprietary or closed-source usage
-- SaaS or hosted deployment without source disclosure
-- Embedded or internal distribution without attribution
+This software is provided **as-is**, without warranty of any kind. The author(s) are **not liable** for damages or losses from use of this project, including data loss, failed downloads, or cloud storage misconfiguration.
 
-**Commercial licenses are available.**
+By using Alchemux you accept responsibility for:
 
-These licenses waive AGPL-3.0 copyleft requirements, including:
-- No obligation to publish source code
-- No public attribution requirements
-- SaaS, hosted, and embedded use allowed
-
-**How to obtain a commercial license:**  
-_Open a GitHub Issue in this project’s repository to contact the maintainers for licensing and pricing details._
+- Complying with this license and the **terms of service** of sites you download from (e.g. YouTube)
+- Ensuring **yt-dlp**, **FFmpeg**, and cloud provider usage comply with their respective licenses and policies
+- Securing your own credentials for S3/GCP and local config files

@@ -1,8 +1,15 @@
 # Contributor guide
 
-This guide is for anyone contributing to Alchemux: running the test suite, using pre-commit hooks (prek), and where to find references.
+## How to contribute
+
+**Read [known-issues.md](known-issues.md) first** — check whether your symptom is already documented and try the listed workaround.
+
+Feedback, bug reports, and feature ideas are welcome via **[GitHub Issues](https://github.com/bmurrtech/alchemux/issues/new/choose)**.
 
 ---
+
+The sections below document local development tooling (prek, tests, CI) for project maintenance.
+
 
 ## 1. Install prek (pre-commit replacement)
 
@@ -89,12 +96,11 @@ uv pip install pytest
 pytest backend/app/tests -q
 ```
 
-**Recommended development flow:**
+**Recommended local check flow (maintainers):**
 
 1. Make your changes.
 2. Run `**prek run --all-files**` and fix any hook failures.
 3. Run `**uv run python -m pytest backend/app/tests**` (or `pytest backend/app/tests` with venv activated) and fix any test failures.
-4. Commit and push (the Git hook will run prek on commit if you ran `prek install --install-hooks`).
 
 ---
 
@@ -103,6 +109,7 @@ pytest backend/app/tests -q
 
 | Resource                                                          | Description                                                  |
 | ----------------------------------------------------------------- | ------------------------------------------------------------ |
+| [known-issues.md](known-issues.md)                                | Documented limitations — read before opening an issue        |
 | [docs/commands.md](commands.md)                                   | CLI command reference                                        |
 | [docs/install.md](install.md)                                     | User install (uv, ffmpeg, from source)                       |
 | [docs/legend.md](legend.md)                                       | Arcane terminology                                           |
@@ -115,5 +122,5 @@ pytest backend/app/tests -q
 
 ## 5. CI and GitHub Actions
 
-- **Prek:** On every push and pull request, the [Prek checks](.github/workflows/prek.yml) workflow runs `prek run --all-files` via [j178/prek-action](https://github.com/j178/prek-action).
-- **Release (PyPI):** Pushing a version tag `v*` (e.g. `v0.1.0`) triggers the [release](.github/workflows/release.yml) workflow: prek runs, then sdist and wheel are built and published to PyPI via Trusted Publishing (OIDC). A GitHub Release with notes is created after a successful publish. One-time setup: create the PyPI project and configure Trusted Publishing for this repo (see [PyPI trusted publishers](https://docs.pypi.org/trusted-publishers/)).
+- **Prek:** On every push, the [Prek checks](.github/workflows/prek.yml) workflow runs `prek run --all-files` via [j178/prek-action](https://github.com/j178/prek-action).
+- **Release (PyPI):** Pushing a version tag `v*` triggers the [release](.github/workflows/release.yml) workflow (build, smoke, PyPI publish, GitHub Release). Maintainer checklist, SemVer table, and Trusted Publishing setup: **[release.md](release.md)**.
