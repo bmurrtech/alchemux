@@ -76,7 +76,8 @@ def test_cli_no_url_non_interactive_exits_with_hint() -> None:
 def test_cli_clipboard_flag_help() -> None:
     """--help shows -p/--clipboard."""
     runner = CliRunner()
-    result = runner.invoke(app, ["--help"])
+    # Rich/Typer help truncates options on narrow terminals (default in CI).
+    result = runner.invoke(app, ["--help"], env={"COLUMNS": "200", "LINES": "50"})
     assert result.exit_code == 0
     assert "--clipboard" in result.stdout
     assert "-p" in result.stdout

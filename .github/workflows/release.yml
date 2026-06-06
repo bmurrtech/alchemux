@@ -73,6 +73,9 @@ jobs:
     name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     needs: quality
+    env:
+      COLUMNS: "200"
+      LINES: "50"
     strategy:
       fail-fast: false
       matrix:
