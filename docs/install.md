@@ -239,7 +239,7 @@ This approach lets you use typical Python tooling and shell (venv, python, pip).
 
 ### Run tests
 
-From repo root: `uv run python -m pytest backend/app/tests -q`. See [backend/app/tests/README.md](../backend/app/tests/README.md) for details and config isolation.
+From repo root: `uv run --group dev python -m pytest backend/app/tests -q`. See [backend/app/tests/README.md](../backend/app/tests/README.md) for details and config isolation.
 
 ### Contributors (prek, tests, references)
 

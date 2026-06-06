@@ -1,7 +1,7 @@
 # PyPI release: build sdist + wheel on release tag push only; publish via Trusted Publishing (OIDC).
 # Runs only when a version tag is pushed (e.g. v0.1.0, v1.0.0). Branch pushes do not trigger this.
 # One-time setup: create PyPI project "alchemux" and configure Trusted Publishing
-# for this repo (see https://docs.pypi.org/trusted-publishers/).
+# for this repo (see docs/release.md and https://docs.pypi.org/trusted-publishers/).
 
 name: release
 
@@ -13,16 +13,107 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    name: Validate tag and version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      is_prerelease: ${{ steps.meta.outputs.is_prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive tag metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.-]+)?$ ]]; then
+            echo "ERROR: Tag '$tag' must follow vMAJOR.MINOR.PATCH[-PRERELEASE]" >&2
+            exit 1
+          fi
+          version="${tag#v}"
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          else
+            prerelease=false
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Validate pyproject.toml version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ steps.meta.outputs.version }}"
+          manifest="$(grep -m1 '^version = ' pyproject.toml | sed -E 's/version = "([^"]+)"/\1/')"
+          if [[ -z "$manifest" ]]; then
+            echo "ERROR: Failed to parse version from pyproject.toml" >&2
+            exit 1
+          fi
+          if [[ "$manifest" != "$expected" ]]; then
+            echo "ERROR: Tag mismatch tag=$expected pyproject.toml=$manifest" >&2
+            exit 1
+          fi
+          echo "Validated version: $manifest"
+
   quality:
     runs-on: ubuntu-latest
+    needs: validate
     steps:
       - uses: actions/checkout@v4
       - uses: j178/prek-action@v1
 
+  test:
+    name: test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+          cache-dependency-glob: "uv.lock"
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Ensure lockfile is in sync
+        run: uv lock --check
+
+      - name: Install FFmpeg (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+
+      - name: Install FFmpeg (Windows)
+        if: matrix.os == 'windows-latest'
+        run: choco install ffmpeg -y
+        shell: pwsh
+
+      - name: Install FFmpeg (macOS)
+        if: matrix.os == 'macos-latest'
+        run: brew install ffmpeg
+
+      - name: Run tests
+        run: uv run --group dev python -m pytest backend/app/tests -q
+
+      - name: uv integration — version
+        run: uv run alchemux --version
+
   build:
     runs-on: ubuntu-latest
-    needs: quality
+    needs: [validate, test]
     steps:
       - uses: actions/checkout@v4
 
@@ -101,7 +192,7 @@ jobs:
 
   github-release:
     runs-on: ubuntu-latest
-    needs: pypi-publish
+    needs: [pypi-publish, validate]
     permissions:
       contents: write
     steps:
@@ -109,15 +200,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Create GitHub Release (notes only)
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: ${{ github.ref_name }}
+          name: Alchemux v${{ needs.validate.outputs.version }}
+          prerelease: ${{ needs.validate.outputs.is_prerelease }}
           generate_release_notes: true
           body: |
-            Published to PyPI. Install with:
-            - `uv tool install alchemux`
-            - `uvx alchemux --help`
+            Published to [PyPI](https://pypi.org/project/alchemux/).
+
+            **Install (recommended):**
+            ```bash
+            uv tool install alchemux
+            uvx alchemux --help
+            ```
+
+            The wheel is `py3-none-any` (pure Python) — one install works on macOS, Linux, and Windows. System **FFmpeg** is still required.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

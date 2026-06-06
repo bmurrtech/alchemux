@@ -41,6 +41,11 @@ classifiers = [
 alchemux = "app.entrypoint:main"
 amx = "app.entrypoint:main"
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+]
+
 [tool.setuptools.package-dir]
 "" = "backend"
 

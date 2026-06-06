@@ -72,7 +72,7 @@ Monitor runs: [Actions → release](https://github.com/bmurrtech/alchemux/action
    ```bash
    prek run --all-files
    uv lock --check
-   uv run python -m pytest backend/app/tests -q
+   uv run --group dev python -m pytest backend/app/tests -q
    uv build
    uvx twine check dist/*
    ```

@@ -83,7 +83,7 @@ Tests live in `**backend/app/tests/**`. Full instructions: [backend/app/tests/RE
 **Quick run (from repo root; no venv activation required):**
 
 ```bash
-uv run python -m pytest backend/app/tests -q
+uv run --group dev python -m pytest backend/app/tests -q
 ```
 
 **Alternatively**, with venv activated:
@@ -100,7 +100,7 @@ pytest backend/app/tests -q
 
 1. Make your changes.
 2. Run `**prek run --all-files**` and fix any hook failures.
-3. Run `**uv run python -m pytest backend/app/tests**` (or `pytest backend/app/tests` with venv activated) and fix any test failures.
+3. Run `**uv run --group dev python -m pytest backend/app/tests**` (or `pytest backend/app/tests` with venv activated) and fix any test failures.
 
 ---
 
