@@ -15,7 +15,7 @@ try:
 except ImportError:
     raise ImportError("boto3 is required. Install with: pip install boto3")
 
-from app.core.logger import setup_logger
+from app.core.logger import setup_logger, log_error
 from app.core.config_manager import ConfigManager
 from app.utils.file_utils import get_media_folder
 
@@ -182,11 +182,11 @@ class S3Uploader:
         except ClientError as e:
             error_code = e.response.get("Error", {}).get("Code", "Unknown")
             error_msg = f"S3 upload error ({error_code}): {str(e)}"
-            logger.exception(error_msg)
+            log_error(logger, error_msg)
             return False, error_msg
         except Exception as e:
             error_msg = f"S3 upload error: {str(e)}"
-            logger.exception(error_msg)
+            log_error(logger, error_msg)
             return False, error_msg
 
     def _guess_content_type(self, file_path: str) -> str:

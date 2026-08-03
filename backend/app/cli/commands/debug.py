@@ -6,6 +6,7 @@ import typer
 from rich.console import Console
 
 from app.core.config_manager import ConfigManager
+from app.core.logger import resolve_config_log_level
 
 console = Console()
 
@@ -17,7 +18,7 @@ def debug_command(
     Toggle debug mode.
 
     Enables or disables debug mode with full tracebacks.
-    The setting is saved to config.toml.
+    The setting is saved to config.toml (`logging.level` + `logging.debug` alias).
     """
     config = ConfigManager()
 
@@ -28,22 +29,30 @@ def debug_command(
         config._create_toml_from_example()
 
     try:
-        # Get current debug setting
-        current_debug = config.get("logging.debug", "false")
-        current_debug_bool = (
-            current_debug.lower() in ("true", "1", "yes")
-            if isinstance(current_debug, str)
-            else bool(current_debug)
+        current_level = resolve_config_log_level(
+            level=config.get("logging.level"),
+            debug=config.get("logging.debug"),
+            verbose=config.get("logging.verbose"),
         )
+        currently_debug = current_level == "debug"
 
-        # Toggle the setting
-        new_value = "false" if current_debug_bool else "true"
-        config.set("logging.debug", new_value)
+        if currently_debug:
+            config.set("logging.level", "warning")
+            config.set("logging.debug", "false")
+            config.set("logging.verbose", "false")
+            status = "deactivated"
+        else:
+            config.set("logging.level", "debug")
+            config.set("logging.debug", "true")
+            config.set("logging.verbose", "false")
+            status = "activated"
 
-        # Show confirmation
-        status = "activated" if new_value.lower() == "true" else "deactivated"
         console.print()
         console.print(f"[green]✓[/green] Debug mode {status}")
+        console.print(
+            "[dim]logging.level = "
+            f"{'debug' if status == 'activated' else 'warning'}[/dim]"
+        )
         console.print(f"[dim]Configuration saved to: {config.toml_path}[/dim]")
         console.print()
     except Exception as e:

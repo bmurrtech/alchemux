@@ -57,7 +57,7 @@ Full command reference: [docs/commands.md](docs/commands.md).
 
 - **Shell**: Terminal (macOS/Linux) or PowerShell (Windows)
 - **uv**: [Astral’s uv](https://docs.astral.sh/uv/) — one-time install below
-- **FFmpeg**: Required for conversion — [docs/install.md](docs/install.md)
+- **FFmpeg**: Required (`ffmpeg` + `ffprobe` on PATH) — [docs/install.md § Install FFmpeg](docs/install.md#2-install-ffmpeg-required)
 
 ### Install from PyPI (recommended)
 
@@ -79,27 +79,24 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 Verify: `uv --version`
 
-#### 2) Try without installing
-
-```bash
-uvx alchemux --help
-uvx alchemux "https://youtu.be/…"
-uvx --from alchemux amx --help
-uvx --from alchemux amx "https://youtu.be/…"
-```
-
-`uvx amx ...` is not recommended: `uvx` resolves package names first, and PyPI has an unrelated `amx` package. Use `uvx alchemux ...` or `uvx --from alchemux amx ...`.
-
-#### 3) Install as a persistent CLI tool
+#### 2) Install as a persistent CLI tool
 
 ```bash
 uv tool install alchemux
 alchemux setup
 alchemux "https://youtu.be/…"
-amx "https://…"
 ```
 
-#### 4) Upgrade / uninstall
+`amx` is a short alias for the same CLI (`amx "https://…"`).
+
+> **Want to try without installing?**
+>
+> ```bash
+> uvx alchemux --help
+> uvx alchemux "https://youtu.be/…"
+> ```
+
+#### 3) Upgrade / uninstall
 
 ```bash
 uv tool upgrade alchemux

@@ -104,13 +104,24 @@ def _is_debug_mode(argv: list[str]) -> bool:
     """Resolve debug mode from CLI flag, env, or config."""
     if "--debug" in argv:
         return True
-    if os.getenv("LOG_LEVEL", "").lower() == "debug":
+    from app.core.logger import normalize_log_level, is_debug_logging
+
+    if is_debug_logging():
+        return True
+    if normalize_log_level(os.getenv("LOG_LEVEL", ""), default="") == "debug":
         return True
     try:
         from app.core.config_manager import ConfigManager
+        from app.core.logger import resolve_config_log_level
 
         config = ConfigManager()
-        return config.get_bool("logging.debug", default=False)
+        # Prefer explicit level / aliases from config.toml
+        level = resolve_config_log_level(
+            level=config.get("logging.level"),
+            debug=config.get("logging.debug"),
+            verbose=config.get("logging.verbose"),
+        )
+        return level == "debug"
     except Exception:
         return False
 
@@ -121,6 +132,23 @@ def main() -> None:
 
     original_argv = list(sys.argv)
     sys.argv = normalize_argv(sys.argv)
+
+    # Apply config.toml [logging] early unless CLI already set env
+    if "--debug" in sys.argv:
+        os.environ["LOG_LEVEL"] = "debug"
+        os.environ["ALCHEMUX_DEBUG"] = "true"
+    elif "--verbose" in sys.argv:
+        os.environ.setdefault("LOG_LEVEL", "verbose")
+        os.environ["VERBOSE"] = "true"
+    else:
+        try:
+            from app.core.config_manager import ConfigManager
+            from app.core.logger import apply_logging_config
+
+            apply_logging_config(ConfigManager())
+        except Exception:
+            pass
+
     debug_mode = _is_debug_mode(sys.argv)
     from app.core.tracebacks import install_traceback_handler, print_fracture_summary
 

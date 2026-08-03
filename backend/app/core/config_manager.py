@@ -449,9 +449,12 @@ class ConfigManager:
             minimal_config = {
                 "product": {"arcane_terms": True},
                 "ui": {"auto_open": True, "plain": False},
-                "logging": {"debug": False},
+                "logging": {"level": "warning", "debug": False, "verbose": False},
                 "eula": {"accepted": False, "accepted_at": "", "acceptance_hash": ""},
-                "paths": {"output_dir": "./downloads", "temp_dir": "./tmp"},
+                "paths": {
+                    "output_dir": str(get_default_output_dir()),
+                    "temp_dir": "./tmp",
+                },
                 "media": {
                     "audio": {
                         "format": "flac",
@@ -644,12 +647,12 @@ Expected location: {self.env_path}"""
         # Check for required configuration (paths.output_dir in config.toml or DOWNLOAD_PATH in .env)
         output_dir = self.get("paths.output_dir") or self.get("DOWNLOAD_PATH")
         if not output_dir or not output_dir.strip():
-            return """❌ Missing required configuration: paths.output_dir
+            return f"""❌ Missing required configuration: paths.output_dir
 
 To fix:
 1. Run setup wizard: alchemux setup
 2. Or set manually: alchemux paths set <path>
-3. Or edit config.toml and set paths.output_dir = "./downloads\""""
+3. Or edit config.toml and set paths.output_dir = "{get_default_output_dir()}\""""
 
         return ""
 

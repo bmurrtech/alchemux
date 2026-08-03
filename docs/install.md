@@ -113,45 +113,34 @@ sudo pacman -S xdg-utils
 
 ## 3. Run Alchemux
 
-### Try without installing (uvx)
-
-You can run Alchemux once without installing it using **uvx**. Two ways are supported:
-
-**Tier 1 — Easiest “try it now” (recommended)**
-On first run, if you don’t have config yet, Alchemux will create it automatically in your OS user config directory and then proceed. In an interactive terminal you’ll get a few short prompts (e.g. download folder, terminology); in non-interactive use it uses safe defaults and prints where config was written.
-
-```bash
-uvx alchemux --help                    # Always works; no config needed
-uvx alchemux "https://youtu.be/…"      # First run: auto-creates config, then runs
-uvx --from alchemux amx "https://…"    # One-off using short alias from alchemux package
-```
-
-Do not use `uvx amx ...` directly: `uvx` treats the first token as a PyPI package name, and `amx` on PyPI is a different project.
-
-**Tier 2 — Ephemeral (no filesystem writes)**
-If you want to try Alchemux without writing any config or state to disk, use `--no-config` and set a download directory. No config files are read or created.
-
-```bash
-uvx alchemux --no-config --download-dir . "https://youtu.be/…"
-```
-
-Downloads go to the directory you pass to `--download-dir` (or a temporary directory). Cloud upload and other config-dependent features are not available in this mode unless overridden via environment variables. See [commands.md](commands.md) for full option reference.
-
 ### Install as a persistent CLI tool (recommended)
 
 ```bash
 uv tool install alchemux
 ```
 
-Then use `alchemux` or `amx` from any directory:
+Then use `alchemux` (or the short alias `amx`) from any directory:
 
 ```bash
 alchemux --help
 amx --help
-alchemux setup          # first-time setup
+alchemux setup          # first-time setup (checks FFmpeg, configures paths)
 alchemux "https://…"    # transmute a URL
-amx "https://…"         # same, shorter name
+amx "https://…"         # same CLI, shorter name
 ```
+
+> **Want to try without installing?**
+>
+> ```bash
+> uvx alchemux --help
+> uvx alchemux "https://youtu.be/…"
+> ```
+>
+> On first run without config, Alchemux can auto-create config in your OS user config directory. For a fully ephemeral run (no config writes):
+>
+> ```bash
+> uvx alchemux --no-config --download-dir . "https://youtu.be/…"
+> ```
 
 ### Upgrade
 

@@ -13,7 +13,7 @@ try:
 except ImportError:
     raise ImportError("yt-dlp is required. Install with: pip install yt-dlp")
 
-from app.core.logger import setup_logger, get_ytdl_logger
+from app.core.logger import setup_logger, get_ytdl_logger, log_error
 from app.core.config_manager import ConfigManager
 from app.utils.file_utils import get_ffmpeg_location
 
@@ -136,18 +136,19 @@ class MediaDownloader:
             "noprogress": False,
         }
 
-        # Suppress warnings and quiet output in INFO mode, show in DEBUG mode
-        log_level = os.getenv("LOG_LEVEL", "info").lower()
-        if log_level == "debug":
-            opts["no_warnings"] = False  # Show warnings in debug mode
+        # Suppress warnings and quiet output unless debug
+        from app.core.logger import is_debug_logging, normalize_log_level
+
+        log_level = normalize_log_level(os.getenv("LOG_LEVEL", "warning"))
+        if is_debug_logging() or log_level == "debug":
+            opts["no_warnings"] = False
             opts["quiet"] = False
         else:
-            opts["no_warnings"] = True  # Suppress yt-dlp warnings in INFO mode
-            opts["quiet"] = True  # Suppress all yt-dlp output in INFO mode
-            opts["noprogress"] = True  # Suppress progress output (we handle it)
+            opts["no_warnings"] = True
+            opts["quiet"] = True
+            opts["noprogress"] = True
 
-        # Add logger only if debug mode (prevents warnings from showing in INFO mode)
-        if log_level == "debug" and self.ytdl_logger:
+        if (is_debug_logging() or log_level == "debug") and self.ytdl_logger:
             opts["logger"] = self.ytdl_logger
 
         # Determine if this call is allowed to run the video pipeline.
@@ -247,7 +248,16 @@ class MediaDownloader:
             opts["ffmpeg_location"] = ffmpeg_location
             logger.debug(f"Using ffmpeg from: {ffmpeg_location}")
         else:
-            logger.warning("ffmpeg/ffprobe not found. Audio/video conversion may fail.")
+            from app.utils.deps import detect_ffmpeg_install_command, INSTALL_FFMPEG_URL
+
+            hint = detect_ffmpeg_install_command()
+            if hint:
+                logger.warning(
+                    f"ffmpeg/ffprobe not found. Install with: {hint} "
+                    f"(guide: {INSTALL_FFMPEG_URL})"
+                )
+            else:
+                logger.warning(f"ffmpeg/ffprobe not found. See {INSTALL_FFMPEG_URL}")
 
         # Batch context (PRD 009): human-like delay via yt-dlp sleep to reduce 403/rate-limit risk
         if os.getenv("ALCHEMUX_BATCH"):
@@ -458,7 +468,7 @@ class MediaDownloader:
                 error_msg = f"Download failed: {error_msg} (tried fallback formats: {', '.join(fallback_formats)})"
             else:
                 error_msg = f"Download failed: {error_msg}"
-            logger.exception(error_msg)
+            log_error(logger, error_msg)
             return False, None, error_msg
 
     def _create_progress_hook(self, callback: Optional[Callable] = None) -> Callable:

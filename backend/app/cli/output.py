@@ -78,11 +78,13 @@ class ArcaneConsole:
         "inscription complete": "metadata embedded",
         "bottled": "saved",
         "charging vessel": "preparing file",
+        "distilling...": "downloading...",
         "distilling stream": "downloading",
         "transmuting stream": "downloading",  # Legacy support
         "distillation complete": "download complete",
         "saturation complete": "download complete",  # Legacy support
         "attunement complete": "file located",
+        "locating output...": "locating file...",
         "file bound": "file located",  # Legacy support
         "evaporating artifact": "uploading",
         "uploading to cloud...": "uploading to cloud...",
@@ -95,6 +97,8 @@ class ArcaneConsole:
         "transfer complete": "transfer complete",
         "initializing...": "initializing...",
         "partial metadata recovered": "partial metadata recovered",
+        "extracting metadata...": "extracting metadata...",
+        "output path override": "output path override",
     }
 
     def _translate_message_partial(self, message: str) -> str:
@@ -116,6 +120,9 @@ class ArcaneConsole:
             return message.replace("source: ", "source detected: ", 1)
         elif message.startswith('title="'):
             # Keep title messages as-is, they're already technical
+            return message
+        elif message.startswith("preparing "):
+            # "preparing filename..." stays technical (vessel stage)
             return message
 
         return message

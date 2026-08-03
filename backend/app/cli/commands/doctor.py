@@ -20,6 +20,11 @@ from app.core.config_manager import (
     write_config_pointer,
 )
 from app.core.toml_config import read_toml
+from app.utils.deps import (
+    check_media_deps,
+    INSTALL_FFMPEG_URL,
+    detect_ffmpeg_install_command,
+)
 
 console = Console()
 
@@ -257,6 +262,26 @@ def doctor(
             )
     else:
         console.print("[dim]-[/dim] No pointer file (using default config location)")
+
+    # FFmpeg / ffprobe (required for conversion)
+    console.print()
+    console.print("[bold]Media dependencies[/bold]")
+    ffmpeg_st, ffprobe_st = check_media_deps()
+    if ffmpeg_st.found:
+        console.print(f"[green]>[/green] ffmpeg: {ffmpeg_st.path}")
+    else:
+        console.print("[red]x[/red] ffmpeg not found on PATH")
+        issues.append(("ffmpeg_missing", "ffmpeg not found on PATH"))
+    if ffprobe_st.found:
+        console.print(f"[green]>[/green] ffprobe: {ffprobe_st.path}")
+    else:
+        console.print("[red]x[/red] ffprobe not found on PATH")
+        issues.append(("ffprobe_missing", "ffprobe not found on PATH"))
+    if not ffmpeg_st.found or not ffprobe_st.found:
+        cmd = detect_ffmpeg_install_command()
+        if cmd:
+            console.print(f"[dim]  Install: {cmd}[/dim]")
+        console.print(f"[dim]  Guide: {INSTALL_FFMPEG_URL}[/dim]")
 
     # Summary
     console.print()

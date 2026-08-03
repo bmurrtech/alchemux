@@ -176,6 +176,9 @@ def main(
     if debug:
         os.environ["LOG_LEVEL"] = "debug"
         os.environ["ALCHEMUX_DEBUG"] = "true"
+    elif verbose:
+        os.environ["LOG_LEVEL"] = "verbose"
+        os.environ["VERBOSE"] = "true"
 
     if no_config and not download_dir:
         import tempfile

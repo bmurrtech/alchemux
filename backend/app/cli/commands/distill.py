@@ -3,6 +3,7 @@ Distill command - Downloads and converts media from URLs.
 """
 
 import os
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -11,7 +12,11 @@ from urllib.parse import urlparse
 import typer
 
 from app.cli.output import ArcaneConsole
-from app.core.config_manager import ConfigManager, EphemeralConfig
+from app.core.config_manager import (
+    ConfigManager,
+    EphemeralConfig,
+    get_default_output_dir,
+)
 from app.core.logger import setup_logger
 from app.core.downloader import MediaDownloader
 from app.services.gcp_upload import GCPUploader
@@ -23,6 +28,11 @@ from app.utils.file_utils import (
     open_folder,
 )
 from app.utils.metadata import write_source_url_to_metadata
+from app.utils.deps import (
+    media_deps_ok,
+    format_missing_ffmpeg_message,
+    detect_ffmpeg_install_command,
+)
 
 # Logger will be re-initialized with console after console is created
 logger = None
@@ -38,10 +48,17 @@ def is_valid_url(url: str) -> bool:
 
 
 def _normalize_fracture_cause(msg: Optional[str]) -> str:
-    """Map common error text to readable cause for FRACTURED box; else 'unknown'."""
+    """Map common error text to readable cause for FRACTURED box; else shortened text."""
     if not msg:
         return "unknown"
-    m = (msg or "").lower()
+    # Strip ANSI color codes from yt-dlp / Rich-wrapped messages
+    cleaned = re.sub(r"\x1b\[[0-9;]*m", "", msg)
+    cleaned = re.sub(r"\[0;?\d*m", "", cleaned)
+    m = cleaned.lower()
+    if "ffmpeg" in m and ("not found" in m or "is not" in m or "no such" in m):
+        return "ffmpeg not found on PATH — see docs/install.md"
+    if "ffprobe" in m and ("not found" in m or "is not" in m or "no such" in m):
+        return "ffprobe not found on PATH — see docs/install.md"
     if "403" in m or "forbidden" in m:
         # Note: yt-dlp reports "video data" even for audio-only downloads (YouTube returns result_type='video')
         # The actual issue is CDN blocking (googlevideo.com) - can affect both audio and video streams
@@ -59,9 +76,13 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
         if "403" in rest or "forbidden" in rest:
             return "HTTP 403 Forbidden"
         if rest:
+            # Prefer human-readable slice without ERROR: prefix noise
+            rest = re.sub(r"^error:\s*", "", rest).strip()
             return rest[:80]
         return "download failed"
-    return "unknown"
+    # Fallback: short cleaned message instead of opaque "unknown"
+    short = re.sub(r"^error:\s*", "", cleaned, flags=re.IGNORECASE).strip()
+    return short[:80] if short else "unknown"
 
 
 def distill(
@@ -171,7 +192,7 @@ def distill(
         output_dir = save_path
         console.print_stage("vessel", "output path override", status=save_path)
     elif not no_config:
-        output_dir = config.get("paths.output_dir", "./downloads")
+        output_dir = config.get("paths.output_dir", str(get_default_output_dir()))
 
     # Validate URL
     if not is_valid_url(url):
@@ -385,6 +406,17 @@ def distill(
         "vorbis": ".ogg",
         "wav": ".wav",
     }
+
+    if not media_deps_ok():
+        cause = "ffmpeg/ffprobe not found on PATH"
+        cmd = detect_ffmpeg_install_command()
+        console.print_fracture("distill", cause)
+        console.err_console.print(format_missing_ffmpeg_message())
+        if cmd:
+            logger.error(f"{cause}. Install: {cmd}")
+        else:
+            logger.error(cause)
+        raise typer.Exit(code=1)
 
     for fmt in formats_to_produce:
         fmt_l = (fmt or "").lower()

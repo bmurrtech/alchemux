@@ -18,7 +18,7 @@ except ImportError:
         "google-cloud-storage is required. Install with: pip install google-cloud-storage"
     )
 
-from app.core.logger import setup_logger
+from app.core.logger import setup_logger, log_error
 from app.core.config_manager import ConfigManager
 from app.utils.file_utils import get_media_folder
 
@@ -176,7 +176,7 @@ class GCPUploader:
 
         except Exception as e:
             error_msg = f"GCP upload error: {str(e)}"
-            logger.exception(error_msg)
+            log_error(logger, error_msg)
 
             # Provide helpful error message for common issues
             if "Incorrect padding" in str(e) or "base64" in str(e).lower():

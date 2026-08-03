@@ -5,7 +5,7 @@ Storage command - Manage storage settings.
 import typer
 
 from app.cli.output import ArcaneConsole
-from app.core.config_manager import ConfigManager
+from app.core.config_manager import ConfigManager, get_default_output_dir
 
 app = typer.Typer(
     name="storage",
@@ -39,7 +39,7 @@ def storage_status(
     gcp_configured = config_manager.is_gcp_configured()
 
     # Get paths
-    output_dir = config_manager.get("paths.output_dir", "./downloads")
+    output_dir = config_manager.get("paths.output_dir", str(get_default_output_dir()))
     temp_dir = config_manager.get("paths.temp_dir", "./tmp")
 
     # Get storage policy

@@ -14,8 +14,20 @@ animations = true      # optional future key
 colors = true          # optional future key
 
 [logging]
-# Defaults (CLI flags override per-run)
-debug = false
+# Terminal log verbosity. CLI flags (--debug / --verbose) override for a single run.
+# Capture a debug session manually: alchemux --debug … 2> debug.log
+#
+# Canonical `level` values (aliases accepted):
+#   quiet    (q, silent, error)   — errors only; cleanest UX
+#   warning  (warn, default)      — warnings + errors; no tracebacks (recommended)
+#   info     (i, normal)          — informational messages + above
+#   verbose  (v)                  — info-level detail (extra progress / VERBOSE)
+#   debug    (d, trace)           — full debug logs + exception tracebacks
+level = "warning"
+
+# Boolean aliases (optional shortcuts). If true, they override `level`:
+debug = false      # true → same as level = "debug"
+verbose = false    # true → same as level = "verbose"
 
 [eula]
 # EULA acceptance state (set to true to accept non-interactively)
@@ -24,8 +36,9 @@ accepted_at = ""       # ISO8601 string (auto-set on acceptance)
 acceptance_hash = ""   # Acceptance verification hash (auto-set on acceptance)
 
 [paths]
-# Filesystem paths
-output_dir = "./downloads"  # Where downloaded files are saved locally
+# User content root (media outputs). App config stays in the OS config directory.
+# Default at setup: ~/Downloads/Alchemux (OS Downloads folder). Existing configs are not migrated.
+output_dir = "./downloads"
 temp_dir = "./tmp"          # Staging directory for processing
 
 [media.audio]

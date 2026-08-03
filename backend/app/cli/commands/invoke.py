@@ -55,9 +55,13 @@ def invoke(
     distillation, muxing, and sealing. It is the primary invocation for transforming
     a source URL into a purified media vessel.
     """
-    # Set verbose logging if flag is set
-    if verbose:
+    # Set logging override for this run
+    if debug:
         os.environ["LOG_LEVEL"] = "debug"
+        os.environ["ALCHEMUX_DEBUG"] = "true"
+    elif verbose:
+        os.environ["LOG_LEVEL"] = "verbose"
+        os.environ["VERBOSE"] = "true"
 
     # Invoke distill which handles the full pipeline
     distill(

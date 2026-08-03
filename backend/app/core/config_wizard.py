@@ -13,8 +13,9 @@ from rich.console import Console
 from rich.panel import Panel
 
 from app.cli.prompts import confirm, select, checkbox, text, filepath
-from app.core.config_manager import ConfigManager
+from app.core.config_manager import ConfigManager, get_default_output_dir
 from app.core.logger import setup_logger
+from app.utils.file_utils import validate_output_path
 
 logger = setup_logger(__name__)
 console = Console()
@@ -22,35 +23,15 @@ console = Console()
 
 def get_os_example_paths() -> List[str]:
     """Get OS-specific example paths for path configuration. Uses tilde form only (no PII)."""
+    default = str(get_default_output_dir())
     if sys.platform == "win32":
-        return ["~\\Downloads", "~\\Documents\\Downloads", "D:\\Downloads"]
-    return ["~/Downloads", "~/Documents/Downloads", "~/Documents"]
+        return [default, "~\\Downloads\\Alchemux", "~\\Documents\\Downloads"]
+    return [default, "~/Downloads/Alchemux", "~/Documents"]
 
 
 def validate_path(path: str) -> Tuple[bool, Optional[str]]:
-    """Validate a filesystem path."""
-    if not path or not path.strip():
-        return False, "Path cannot be empty"
-
-    expanded = os.path.expanduser(path.strip())
-
-    try:
-        path_obj = Path(expanded)
-        if path_obj.exists():
-            if not os.access(path_obj, os.W_OK):
-                return False, f"Path exists but is not writable: {expanded}"
-        else:
-            parent = path_obj.parent
-            if parent.exists():
-                if not os.access(parent, os.W_OK):
-                    return (
-                        False,
-                        f"Parent directory exists but is not writable: {parent}",
-                    )
-    except Exception as e:
-        return False, f"Invalid path: {e}"
-
-    return True, None
+    """Validate a filesystem path (includes WSL Windows-path rejection)."""
+    return validate_output_path(path)
 
 
 def configure_product_settings(config: ConfigManager) -> None:
@@ -103,24 +84,36 @@ def configure_ui_settings(config: ConfigManager) -> None:
 
 
 def configure_logging_settings(config: ConfigManager) -> None:
-    """Configure logging settings."""
-    console.print("\n[bold cyan]Logging Settings[/bold cyan]")
-
-    current = config.get("logging.debug", "false")
-    current_bool = (
-        current.lower() in ("true", "1", "yes")
-        if isinstance(current, str)
-        else bool(current)
+    """Configure logging settings (level + boolean aliases)."""
+    from app.core.logger import (
+        CANONICAL_LEVELS,
+        resolve_config_log_level,
     )
 
-    console.print(f"Current: debug = {current_bool}")
-    console.print("  [dim]Enable debug mode with full tracebacks[/dim]")
+    console.print("\n[bold cyan]Logging Settings[/bold cyan]")
 
-    if confirm("\nChange debug setting?", default=False) is True:
-        new_value = confirm("Enable debug mode?", default=current_bool)
-        if new_value is not None:
-            config.set("logging.debug", "true" if new_value else "false")
-            console.print(f"[green]✓[/green] Set debug = {new_value}")
+    current_level = resolve_config_log_level(
+        level=config.get("logging.level"),
+        debug=config.get("logging.debug"),
+        verbose=config.get("logging.verbose"),
+    )
+    console.print(f"Current level: [cyan]{current_level}[/cyan]")
+    console.print(
+        "  [dim]quiet | warning | info | verbose | debug "
+        "(aliases: q/silent, warn, i/normal, v, d/trace)[/dim]"
+    )
+
+    if confirm("\nChange log level?", default=False) is True:
+        choice = select(
+            message="Select log level",
+            choices=[(lvl, lvl) for lvl in CANONICAL_LEVELS],
+            default=current_level if current_level in CANONICAL_LEVELS else "warning",
+        )
+        if choice:
+            config.set("logging.level", choice)
+            config.set("logging.debug", "true" if choice == "debug" else "false")
+            config.set("logging.verbose", "true" if choice == "verbose" else "false")
+            console.print(f"[green]✓[/green] Set logging.level = {choice}")
 
 
 def _path_validate(s: str) -> bool:
@@ -132,9 +125,9 @@ def configure_paths(config: ConfigManager) -> None:
     """Configure filesystem paths."""
     console.print("\n[bold cyan]Filesystem Paths[/bold cyan]")
 
-    current_output = config.get("paths.output_dir", "./downloads")
+    current_output = config.get("paths.output_dir", str(get_default_output_dir()))
     console.print(f"\nCurrent output directory: {current_output}")
-    console.print("  [dim]Where downloaded files are saved locally[/dim]")
+    console.print("  [dim]User content root (downloads and future artifacts)[/dim]")
 
     if confirm("\nChange output directory?", default=False) is True:
         example_paths = get_os_example_paths()

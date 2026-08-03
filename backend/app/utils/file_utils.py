@@ -7,7 +7,7 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from app.core.logger import setup_logger
 
@@ -134,7 +134,7 @@ def find_ffmpeg_binary() -> Optional[Path]:
     if ffmpeg_path:
         logger.debug(f"Found ffmpeg in PATH: {ffmpeg_path}")
         return Path(ffmpeg_path)
-    logger.warning("ffmpeg not found on system PATH")
+    logger.debug("ffmpeg not found on system PATH")
     return None
 
 
@@ -149,7 +149,7 @@ def find_ffprobe_binary() -> Optional[Path]:
     if ffprobe_path:
         logger.debug(f"Found ffprobe in PATH: {ffprobe_path}")
         return Path(ffprobe_path)
-    logger.warning("ffprobe not found on system PATH")
+    logger.debug("ffprobe not found on system PATH")
     return None
 
 
@@ -215,6 +215,61 @@ def _is_wsl() -> bool:
     except Exception:
         pass
     return False
+
+
+def is_wsl() -> bool:
+    """Public alias for WSL detection."""
+    return _is_wsl()
+
+
+def looks_like_windows_abs_path(path: str) -> bool:
+    """True for paths like C:\\Users\\... or C:/Users/... (not valid as-is under WSL)."""
+    s = (path or "").strip().strip('"').strip("'")
+    if len(s) >= 3 and s[0].isalpha() and s[1] == ":" and s[2] in ("\\", "/"):
+        return True
+    return False
+
+
+def validate_output_path(path: str) -> Tuple[bool, Optional[str]]:
+    """
+    Validate a user content / output directory path.
+
+    Under WSL, rejects Windows-style absolute paths with a clear remediation hint.
+    """
+    if not path or not path.strip():
+        return False, "Path cannot be empty"
+
+    raw = path.strip()
+    if is_wsl() and looks_like_windows_abs_path(raw):
+        # Suggest /mnt/c/... form
+        drive = raw[0].lower()
+        rest = raw[2:].replace("\\", "/").lstrip("/")
+        suggested = f"/mnt/{drive}/{rest}" if rest else f"/mnt/{drive}"
+        return (
+            False,
+            "Windows paths cannot be used directly from WSL. "
+            f"Use {suggested} or choose a Linux path.",
+        )
+
+    expanded = os.path.expanduser(raw)
+
+    try:
+        path_obj = Path(expanded)
+        if path_obj.exists():
+            if not os.access(path_obj, os.W_OK):
+                return False, f"Path exists but is not writable: {expanded}"
+        else:
+            parent = path_obj.parent
+            if parent.exists():
+                if not os.access(parent, os.W_OK):
+                    return (
+                        False,
+                        f"Parent directory exists but is not writable: {parent}",
+                    )
+    except Exception as e:
+        return False, f"Invalid path: {e}"
+
+    return True, None
 
 
 def open_folder(folder_path: Path) -> bool:

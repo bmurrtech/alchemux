@@ -20,9 +20,12 @@ from app.core.config_manager import (
     ConfigManager,
     write_config_pointer,
     read_config_pointer,
+    get_default_output_dir,
 )
 from app.core.logger import setup_logger
 from app.core.eula import EULAManager, is_packaged_build
+from app.utils.file_utils import validate_output_path
+from app.utils.deps import prompt_ffmpeg_until_ready, check_media_deps
 
 if TYPE_CHECKING:
     from app.cli.output import ArcaneConsole
@@ -48,36 +51,16 @@ def mask_secret(secret: str, show_chars: int = 4) -> str:
 
 
 def get_os_example_paths() -> list:
-    """Example paths for output directory. ./downloads is the default (same path as Alchemux)."""
+    """Example paths for output directory (user content root under Downloads)."""
+    default = get_default_output_dir()
     if sys.platform == "win32":
-        return ["~\\Downloads", ".\\downloads"]
-    return ["~/Downloads", "./downloads"]
+        return [str(default), "~\\Downloads\\Alchemux", ".\\downloads"]
+    return [str(default), "~/Downloads/Alchemux", "./downloads"]
 
 
 def validate_path(path: str) -> Tuple[bool, Optional[str]]:
-    """Validate a filesystem path."""
-    if not path or not path.strip():
-        return False, "Path cannot be empty"
-
-    expanded = os.path.expanduser(path.strip())
-
-    try:
-        path_obj = Path(expanded)
-        if path_obj.exists():
-            if not os.access(path_obj, os.W_OK):
-                return False, f"Path exists but is not writable: {expanded}"
-        else:
-            parent = path_obj.parent
-            if parent.exists():
-                if not os.access(parent, os.W_OK):
-                    return (
-                        False,
-                        f"Parent directory exists but is not writable: {parent}",
-                    )
-    except Exception as e:
-        return False, f"Invalid path: {e}"
-
-    return True, None
+    """Validate a filesystem path (includes WSL Windows-path rejection)."""
+    return validate_output_path(path)
 
 
 def _path_validator(msg: str = "Invalid path"):
@@ -409,10 +392,42 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
                 return False
             rich_console.print("[green]✓[/green] EULA accepted")
 
+    # System checks — setup orchestrates; never auto-installs FFmpeg
+    rich_console.print()
+    rich_console.print(
+        Panel.fit("[bold cyan]Alchemux Setup[/bold cyan]", border_style="cyan")
+    )
+    rich_console.print("\nChecking your system...\n")
+    py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+    rich_console.print(f"[green]✓[/green] Python {py_ver}")
+    try:
+        import yt_dlp  # noqa: F401
+
+        rich_console.print("[green]✓[/green] yt-dlp")
+    except ImportError:
+        rich_console.print(
+            "[red]✗[/red] yt-dlp missing — reinstall Alchemux "
+            "(e.g. uv tool install alchemux)"
+        )
+        return False
+    rich_console.print("[green]✓[/green] Configuration")
+
+    ffmpeg_st, ffprobe_st = check_media_deps()
+    if ffmpeg_st.found and ffprobe_st.found:
+        rich_console.print("[green]✓[/green] ffmpeg")
+        rich_console.print("[green]✓[/green] ffprobe")
+    else:
+        if not prompt_ffmpeg_until_ready(rich_console):
+            rich_console.print("[red]Setup cancelled.[/red]")
+            return False
+
     # Setup refresh wizard (InquirerPy-backed prompts per PRD6)
     rich_console.print()
     rich_console.print(
-        Panel.fit("[bold cyan]Alchemux Setup Wizard[/bold cyan]", border_style="cyan")
+        Panel.fit(
+            "[bold cyan]Preferences[/bold cyan]",
+            border_style="cyan",
+        )
     )
     rich_console.print(
         "\n[dim]Configure your preferences. Press Enter to skip or use defaults.[/dim]\n"
@@ -460,43 +475,68 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             + ("enabled" if auto_open_ans else "disabled")
         )
 
-    # Output directory: filepath prompt with validation (default ./downloads or current)
-    default_path = "./downloads"
-    current_path = config.get("paths.output_dir", default_path)
+    # Output directory: user content root (default OS Downloads/Alchemux)
+    default_path = str(get_default_output_dir())
+    current_path = config.get("paths.output_dir") or default_path
     rich_console.print(
-        f"\n[bold]Output directory[/bold] [dim](current: {current_path})[/dim]"
+        f"\n[bold]Choose a download location[/bold] [dim](current: {current_path})[/dim]"
     )
-    example_paths = get_os_example_paths()
-    rich_console.print("  [dim]Example paths:[/dim]")
-    for ex_path in example_paths:
-        rich_console.print(f"    - {ex_path}")
-    rich_console.print(
-        "  [dim dim]default: creates folder in same path as Alchemux[/dim dim]"
+    rich_console.print(f"  Default: [cyan]{default_path}[/cyan]")
+    path_choice = select(
+        message="Output directory",
+        choices=[
+            ("default", f"[Y] Use default ({default_path})"),
+            ("custom", "[C] Choose another location"),
+        ],
+        default="default",
     )
-    new_path = filepath(
-        message="Enter path (leave empty and Enter for default)",
-        default=current_path or default_path,
-        only_directories=True,
-        validate=lambda s: not s.strip() or validate_path(s)[0],
-        invalid_message="Invalid path",
-    )
-    if new_path is not None:
-        if new_path and new_path.strip():
+    if path_choice == "custom":
+        example_paths = get_os_example_paths()
+        rich_console.print("  [dim]Example paths:[/dim]")
+        for ex_path in example_paths:
+            rich_console.print(f"    - {ex_path}")
+        new_path = filepath(
+            message="Enter output directory",
+            default=current_path,
+            only_directories=True,
+            validate=lambda s: not s.strip() or validate_path(s)[0],
+            invalid_message="Invalid path",
+        )
+        if new_path is not None and new_path.strip():
             is_valid, error = validate_path(new_path)
             if is_valid:
                 expanded = os.path.abspath(os.path.expanduser(new_path.strip()))
-                Path(expanded).mkdir(parents=True, exist_ok=True)
-                config.set("paths.output_dir", expanded)
-                rich_console.print(
-                    f"  [green]✓[/green] Output directory set to: {expanded}"
-                )
+                path_obj = Path(expanded)
+                if not path_obj.exists():
+                    create_it = confirm(
+                        "Directory doesn't exist. Create it?", default=True
+                    )
+                    if create_it is False:
+                        rich_console.print(
+                            f"  [yellow]![/yellow]  Keeping current: {current_path}"
+                        )
+                    else:
+                        path_obj.mkdir(parents=True, exist_ok=True)
+                        config.set("paths.output_dir", expanded)
+                        rich_console.print(
+                            f"  [green]✓[/green] Output directory set to: {expanded}"
+                        )
+                else:
+                    config.set("paths.output_dir", expanded)
+                    rich_console.print(
+                        f"  [green]✓[/green] Directory exists: {expanded}"
+                    )
             else:
                 rich_console.print(
                     f"  [yellow]![/yellow]  {error}, keeping current: {current_path}"
                 )
         else:
-            config.set("paths.output_dir", default_path)
-            rich_console.print(f"  [green]✓[/green] Using default: {default_path}")
+            rich_console.print(f"  [dim]Keeping current: {current_path}[/dim]")
+    else:
+        expanded = os.path.abspath(os.path.expanduser(default_path))
+        Path(expanded).mkdir(parents=True, exist_ok=True)
+        config.set("paths.output_dir", expanded)
+        rich_console.print(f"  [green]✓[/green] Using default: {expanded}")
 
     # Audio format: confirm then checkbox (PRD6)
     current_audio = config.get("media.audio.format", "flac")
@@ -707,7 +747,7 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         config_dir_for_summary = str(pointer_dir)
 
     # End-of-wizard summary panel with all paths and helpful commands
-    output_dir = config.get("paths.output_dir", "./downloads")
+    output_dir = config.get("paths.output_dir", str(get_default_output_dir()))
     storage_dest = config.get("storage.destination", "local")
     arcane_mode = config.get("product.arcane_terms", "true")
     summary_config_dir = config_dir_for_summary
@@ -769,7 +809,7 @@ def interactive_setup_minimal(config: ConfigManager) -> bool:
 
     # Set minimal defaults
     if not config.get("paths.output_dir"):
-        config.set("paths.output_dir", "./downloads")
+        config.set("paths.output_dir", str(get_default_output_dir()))
 
     return True
 
