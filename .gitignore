@@ -508,3 +508,4 @@ settings.local.*
 # -----------------------------------------------------------------------------
 # PyInstaller and other build artifacts in root (should use developer's pm folder instead)
 /build/
+.omx/

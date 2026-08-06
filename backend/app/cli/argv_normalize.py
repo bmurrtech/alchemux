@@ -16,6 +16,7 @@ ROOT_COMMANDS = {
     "mux",
     "seal",
     "inspect",
+    "scry",
 }
 
 # Boolean root flags accepted by the root callback.

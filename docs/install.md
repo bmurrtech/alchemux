@@ -234,7 +234,7 @@ From repo root: `uv run --group dev python -m pytest backend/app/tests -q`. See 
 
 ### Contributors (prek, tests, references)
 
-If you are contributing code, see **[docs/contributors.md](contributors.md)** for: installing [prek](https://github.com/j178/prek) (pre-commit replacement), recommended local checks before push, running the test suite, and references.
+If you are contributing code, see **[CONTRIBUTING.md](../CONTRIBUTING.md)** for: installing [prek](https://github.com/j178/prek) (pre-commit replacement), recommended local checks before push, running the test suite, AI policy, and references.
 
 ---
 
@@ -286,4 +286,4 @@ uv pip install -e .
 - [commands.md](commands.md) — full CLI reference
 - [legend.md](legend.md) — arcane terminology
 - [README.md](../README.md) — quick start and features
-- Contributors: see [contributors.md](contributors.md) for prek, test suite, and references.
+- Contributors: see [CONTRIBUTING.md](../CONTRIBUTING.md) for prek, test suite, AI policy, and references.

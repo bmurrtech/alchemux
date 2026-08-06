@@ -303,6 +303,12 @@ class ConfigManager:
         Returns:
             True if key is a secret and should go in .env
         """
+        # Browser/profile selectors are preferences, not cookie values. Keep the
+        # explicit allowlist before broad cookie-name matching so this user-facing
+        # option remains in config.toml and no cookie material is ever stored.
+        if key.lower() == "ytdl.cookies_from_browser":
+            return False
+
         secret_patterns = [
             "KEY",
             "SECRET",
@@ -473,7 +479,11 @@ class ConfigManager:
                     "flac": {"override": False, "sample_rate": 16000, "channels": 1}
                 },
                 "network": {"retries": 3},
-                "download": {"write_info_json": False},
+                "download": {
+                    "info_file": True,
+                    "info_file_format": "md",
+                    "ytdlp_sidecars": False,
+                },
                 "storage": {
                     "destination": "local",
                     "fallback": "local",
@@ -786,7 +796,9 @@ class EphemeralConfig:
             "media.video.format": "",
             "TEMP_PATH": self._download_dir,
             "RESTRICT_FILENAMES": "true",
-            "download.write_info_json": "false",
+            "download.info_file": "true",
+            "download.info_file_format": "md",
+            "download.ytdlp_sidecars": "false",
             "RETRIES": "3",
             "FORCE_OVERWRITES": "false",
             "FLAC_OVERRIDE": "false",

@@ -50,7 +50,7 @@ app = typer.Typer(
 
 # Import commands (but don't register as visible subcommands)
 # These are internal/linear processing stages, not standalone commands
-from app.cli.commands import distill, invoke, mux, seal, inspect, setup  # noqa: E402
+from app.cli.commands import distill, invoke, mux, seal, scry, setup  # noqa: E402
 
 # Register commands as hidden subcommands (for internal use only)
 # They won't appear in --help but can still be invoked programmatically
@@ -58,9 +58,14 @@ app.command("distill", hidden=True)(distill.distill)
 app.command("invoke", hidden=True)(invoke.invoke)
 app.command("mux", hidden=True)(mux.mux)
 app.command("seal", hidden=True)(seal.seal)
-app.command("inspect", hidden=True)(inspect.inspect)
 # Setup is a visible command (for configuration)
 app.command("setup")(setup.setup)
+# Scry (arcane) / inspect (technical): media inspection via ffprobe
+app.command("scry", help="Inspect a media file (embedded tags, streams, companions)")(
+    scry.scry
+)
+# Technical alias — kept invokable but hidden from --help to avoid an extra UI line
+app.command("inspect", hidden=True)(scry.inspect)
 
 # Import and register config command
 from app.cli.commands import config, update, doctor, batch  # noqa: E402
@@ -221,6 +226,7 @@ def main(
             "mux",
             "seal",
             "inspect",
+            "scry",
         ]
         if url not in command_names:
             # Route to invoke (audio_format and video_format now come from config, not flags)
@@ -244,7 +250,7 @@ def main(
             )
             return
         # Typer parsed the command name as the optional url argument (e.g. "alchemux batch").
-        # Dispatch to the intended command so batch/doctor/update work from the CLI.
+        # Dispatch to the intended command so batch/doctor/update/scry work from the CLI.
         if url == "batch":
             from app.cli.commands.batch import batch
 
@@ -259,6 +265,18 @@ def main(
             from app.cli.commands.update import update
 
             update()
+            return
+        if url in ("scry", "inspect"):
+            from app.cli.commands.scry import dispatch_from_argv
+            import sys
+
+            argv = sys.argv[1:]
+            try:
+                idx = argv.index(url)
+                rest = argv[idx + 1 :]
+            except ValueError:
+                rest = []
+            dispatch_from_argv(rest, command=url)
             return
         # config/setup are handled elsewhere; other names fall through to help below
 

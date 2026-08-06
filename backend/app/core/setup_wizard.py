@@ -382,15 +382,21 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
             rich_console.print(f"[yellow]![/yellow]  Could not create config.toml: {e}")
             return False
 
-    # Check EULA
-    if is_packaged_build():
-        eula_manager = EULAManager(config)
-        if not eula_manager.is_accepted():
-            rich_console.print("\n[yellow]![/yellow]  EULA acceptance required")
-            if not eula_manager.interactive_acceptance():
-                rich_console.print("[red]✗[/red] EULA not accepted. Setup cancelled.")
-                return False
-            rich_console.print("[green]✓[/green] EULA accepted")
+    # First interactive question: EULA acceptance (writes eula.* to config.toml).
+    eula_manager = EULAManager(config)
+    if not eula_manager.is_accepted():
+        rich_console.print()
+        rich_console.print(
+            Panel.fit(
+                "[bold cyan]Alchemux Setup[/bold cyan]\n"
+                "[dim]First: accept the End User Terms to continue.[/dim]",
+                border_style="cyan",
+            )
+        )
+        if not eula_manager.interactive_acceptance():
+            rich_console.print("[red]✗[/red] EULA not accepted. Setup cancelled.")
+            return False
+        rich_console.print("[green]✓[/green] EULA accepted")
 
     # System checks — setup orchestrates; never auto-installs FFmpeg
     rich_console.print()
@@ -627,6 +633,62 @@ def interactive_setup_refresh(config: ConfigManager) -> bool:
         write_toml(config.toml_path, tom)
         config._toml_cache = None
         rich_console.print("  [dim]Video download disabled (default)[/dim]")
+
+    # Browser cookie access is opt-in and setup-gated on video (ADR 0007 / PRD 012).
+    # When video is disabled, preserve any existing cookies preference in config.toml.
+    # On Y, auto-detect/auto-pick a browser name — never free-text or cookies.txt.
+    if enable_video is True:
+        use_browser_cookies = confirm(
+            "Pass cookies for YouTube downloads? "
+            "(Caution: Abuse can lead to temporary or permanent account suspension. "
+            "Enable at your own risk.)",
+            default=False,
+        )
+        if use_browser_cookies is True:
+            from app.utils.browser_detect import (
+                detect_cookie_browsers,
+                pick_cookie_browser,
+            )
+
+            chosen = pick_cookie_browser(detect_cookie_browsers())
+            if chosen:
+                config.set("ytdl.cookies_from_browser", chosen)
+                rich_console.print(
+                    f"  [green]✓[/green] Browser cookies enabled ({chosen})"
+                )
+            else:
+                config.set("ytdl.cookies_from_browser", "")
+                rich_console.print(
+                    "  [dim]No supported browser profile found; cookies left off. "
+                    "Set ytdl.cookies_from_browser in config.toml or "
+                    "YTDL_COOKIES_FROM_BROWSER if needed.[/dim]"
+                )
+        else:
+            config.set("ytdl.cookies_from_browser", "")
+            rich_console.print("  [dim]Browser cookies disabled (default)[/dim]")
+
+    # Companion info file (ADR 0008): default Yes; format stays md unless changed in config.
+    create_info_file = confirm(
+        "Create a companion information file alongside downloaded media?",
+        default=True,
+    )
+    from app.core.toml_config import read_toml, write_toml
+
+    tom = read_toml(config.toml_path) if config.toml_path.exists() else {}
+    if "download" not in tom or not isinstance(tom.get("download"), dict):
+        tom["download"] = {}
+    tom["download"]["info_file"] = bool(create_info_file)
+    tom["download"].setdefault("info_file_format", "md")
+    tom["download"].setdefault("ytdlp_sidecars", False)
+    if create_info_file is True:
+        rich_console.print(
+            "  [green]✓[/green] Companion information file enabled "
+            "(.info.md by default; change download.info_file_format in config.toml)"
+        )
+    else:
+        rich_console.print("  [dim]Companion information file disabled[/dim]")
+    write_toml(config.toml_path, tom)
+    config._toml_cache = None
 
     # Config location (after output dir): keep next to binary or choose path
     config_dir_for_summary = str(config.toml_path.parent)

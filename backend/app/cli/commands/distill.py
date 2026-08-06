@@ -27,12 +27,14 @@ from app.utils.file_utils import (
     detect_source_type,
     open_folder,
 )
-from app.utils.metadata import write_source_url_to_metadata
+from app.utils.info_file import maybe_write_companion_info_file
+from app.utils.metadata import enrich_sealed_metadata
 from app.utils.deps import (
     media_deps_ok,
     format_missing_ffmpeg_message,
     detect_ffmpeg_install_command,
 )
+from app.utils.rate_limit import get_rate_limit_advice
 
 # Logger will be re-initialized with console after console is created
 logger = None
@@ -55,6 +57,9 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
     cleaned = re.sub(r"\x1b\[[0-9;]*m", "", msg)
     cleaned = re.sub(r"\[0;?\d*m", "", cleaned)
     m = cleaned.lower()
+    rate_limit_advice = get_rate_limit_advice(cleaned)
+    if rate_limit_advice:
+        return rate_limit_advice
     if "ffmpeg" in m and ("not found" in m or "is not" in m or "no such" in m):
         return "ffmpeg not found on PATH — see docs/install.md"
     if "ffprobe" in m and ("not found" in m or "is not" in m or "no such" in m):
@@ -65,8 +70,6 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
         if "video data" in m or "unable to download" in m:
             return "CDN blocked (HTTP 403) - try from residential IP"
         return "HTTP 403 Forbidden"
-    if "429" in m or "too many requests" in m:
-        return "rate limited (HTTP 429)"
     if "network" in m or "connection" in m or "timeout" in m or "unreachable" in m:
         return "network error"
     if "not found" in m or "404" in m:
@@ -500,14 +503,25 @@ def distill(
         if file_path:
             console.print_phase_header("⌘ MUXING")
             with console.stage_status("mux", "inscribing metadata..."):
-                metadata_success = write_source_url_to_metadata(file_path, url)
+                metadata_success = enrich_sealed_metadata(file_path, url, info=metadata)
             if metadata_success:
                 console.stage_ok("mux", "inscription complete")
-                logger.debug("Source URL written to metadata")
+                logger.debug("Layer-2 metadata enrichment complete")
             else:
                 logger.debug(
-                    "Failed to write source URL to metadata (continuing anyway)"
+                    "Layer-2 metadata enrichment incomplete (continuing anyway)"
                 )
+
+            # Companion info file (ADR 0008): soft-fail; seal success is the pass metric.
+            info_path = maybe_write_companion_info_file(
+                config, file_path, url, info=metadata
+            )
+            if info_path is None:
+                logger.debug(
+                    "Companion info file skipped or incomplete (continuing anyway)"
+                )
+            else:
+                logger.debug(f"Companion info file written: {info_path}")
 
         this_display = None
         if upload_to_gcp and gcp_uploader and file_path:

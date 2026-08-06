@@ -1,10 +1,10 @@
 # Backend tests — agent & contributor guide
 
-Publicly committable tests for Alchemux’s backend/CLI. Domain vocabulary lives in the repo-root [`CONTEXT.md`](../../../CONTEXT.md). TDD rules live in [`.cursor/skills/tdd/`](../../../.cursor/skills/tdd/).
+Publicly committable tests for Alchemux’s backend/CLI. Domain vocabulary lives in the repo-root `CONTEXT.md`
 
 - **Audience**: contributors, functional testers, and agents running checks on Linux/macOS/Windows.
 - **Security**: tests must not print secrets/PII and must not require real credentials.
-- **No `/pm/` dependency for runners**: intent is understandable from this file + `/docs`. ADRs under `pm/ADRs/` are for agents designing or refactoring tests.
+- **No `/pm/` dependency for runners**: intent is understandable from this file + `/docs`.
 
 ---
 
@@ -15,7 +15,7 @@ Publicly committable tests for Alchemux’s backend/CLI. Domain vocabulary lives
 - Verifies **behavior through public seams**, not implementation details.
 - Reads like a **behavior spec** in domain language (“WSL rejects Windows-style output paths”), not a method roll-call (`test_validate_output_path_…`).
 - Survives internal refactors: if behavior is unchanged, the test stays green.
-- Expected values come from an **independent source of truth** (known literal, legend table, ADR, install URL) — never recomputed the same way as the code under test.
+- Expected values come from an **independent source of truth** (known literal, legend table, install URL) — never recomputed the same way as the code under test.
 
 ### Seams
 
@@ -30,7 +30,10 @@ A **seam** is the public boundary you observe. Before adding tests, list the sea
 | Arcane vs technical | `ArcaneConsole.translate_message` | Sigils unchanged |
 | Quiet errors / log level | `normalize_log_level`, `resolve_config_log_level`, `log_error` | Traceback only in debug |
 | Ephemeral mode | `EphemeralConfig` | No config write |
-| Video opt-in | distill / downloader gating | ADR 0007 |
+| Video opt-in | distill / downloader gating
+| yt-dlp option construction | `MediaDownloader._build_ydl_opts` | Approved seam for embed/thumbnail/chapter/`ytdlp_sidecars` flags (PRD 012); do not reach past opts into yt-dlp internals |
+| Companion info file | `write_companion_info_file` / `maybe_write_companion_info_file`, `download.info_file` / setup + config Download Settings | ADR 0008; no network |
+| Scry / inspect | `summarize_probe`, `scry_file`, `list_media_under`, `dispatch_from_argv` | Mock ffprobe / subprocess; no real media required |
 | Batch / URL input | batch parsers + mocked InquirerPy/pyperclip/yt-dlp | System boundaries only |
 
 **Mock only at system boundaries** (TTY prompts, clipboard, yt-dlp network, package-manager presence). Do not mock internal collaborators you own.
@@ -57,7 +60,7 @@ Prefer domain language from `CONTEXT.md`:
 ## What these tests cover
 
 - **Config management**: discovery, pointer files, secret masking, doctor/repair/backup.
-- **CLI smoke**: `--help` / `--version` without config (ADR 0004); `config show` / `config doctor`.
+- **CLI smoke**: `--help` / `--version` without config; `config show` / `config doctor`.
 - **UX polish (0.1.2)**: WSL path rejection, FFmpeg install hints, arcane word maps, log-level aliases, quiet errors.
 - **Regression guardrails**: URL quoting guidance, multi-format output path extension, `product.arcane_terms` precedence, video disabled by default, ephemeral mode, argv normalization, batch URL flows.
 
@@ -72,7 +75,7 @@ Prefer domain language from `CONTEXT.md`:
 
 - Commands: `docs/commands.md`
 - Install: `docs/install.md`
-- Contributors: `docs/contributors.md`
+- Contributors: `CONTRIBUTING.md`
 - Legend: `docs/legend.md`
 - Domain language: `CONTEXT.md`
 
@@ -87,7 +90,7 @@ prek run --all-files
 uv run --group dev python -m pytest backend/app/tests -q
 ```
 
-Hooks: trailing whitespace / EOF / TOML-YAML-JSON / private-key / large-file checks, plus Ruff lint+format via root `pyproject.toml`. See `docs/contributors.md`.
+Hooks: trailing whitespace / EOF / TOML-YAML-JSON / private-key / large-file checks, plus Ruff lint+format via root `pyproject.toml`. See `CONTRIBUTING.md`.
 
 ---
 
@@ -134,9 +137,11 @@ Even in verbose mode, never print values for keys containing `KEY`, `SECRET`, `T
 | `test_cli_clipboard_input.py` | `-p` / `--clipboard` (mocked pyperclip) |
 | `test_cli_argv_normalize.py` | Root flag order normalization |
 | `test_batch_*.py` | Batch URL parse/discover/expand/command (mocked yt-dlp / inquirer) |
-| `test_ephemeral_config.py` | Ephemeral mode defaults (ADR 0004) |
-| `test_video_enabled_gating.py` | Video disabled by default; `--video` opt-in (ADR 0007) |
+| `test_ephemeral_config.py` | Ephemeral mode defaults |
+| `test_video_enabled_gating.py` | Video disabled by default; `--video` opt-in |
 | `test_ux_polish.py` | WSL paths, FFmpeg hints, technical terms, log levels, quiet errors |
+| `test_media_embed_enrichment.py` | Thumbnail/chapter yt-dlp opts, Layer-2, companion info file, shared 429/402 advice, cookie opt-in (PRD 012 / ADR 0008) |
+| `test_scry.py` | Scry/inspect summary, health, companions, mocked ffprobe, `--json` dispatch |
 
 ### PRD7 expectations (config)
 

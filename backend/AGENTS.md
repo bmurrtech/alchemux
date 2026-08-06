@@ -43,7 +43,7 @@ Alchemux is a CLI for media transmutation: download and convert media from URLs 
    - Combine with other flags as needed (e.g. `--flac`, `--local`, `--s3`, `--gcp`).
 3. **Logs:** Read terminal output; stay abreast. Do not retry until command completes—CLI has builtin retry.
 4. **Errors:** If console shows error → reattempt original CLI command. If 3 retries fail → brief error description + tips (check network, FFmpeg on PATH, try again).
-5. **Success:** Provide user the path to the ready file (e.g. `./media/title.flac` by default, or `./media/title.mp4` if video was requested). Include full/absolute path if helpful.
+5. **Success:** Provide user the path to the ready file (e.g. `./media/title/title.flac` by default, or `./media/title/title.mp4` if video was requested). Include full/absolute path if helpful.
 6. **Memory:** Commit the output path to workspace memory for future lookup (see Memory). When user asks for that media again, recall from memory.
 
 ---

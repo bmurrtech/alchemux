@@ -9,6 +9,23 @@ import sys
 import warnings
 
 
+_ROOT_COMMAND_NAMES = frozenset(
+    {
+        "setup",
+        "config",
+        "doctor",
+        "update",
+        "batch",
+        "distill",
+        "invoke",
+        "mux",
+        "seal",
+        "inspect",
+        "scry",
+    }
+)
+
+
 def _first_positional_index(argv: list[str]) -> int | None:
     """Return index of first non-option token, ignoring known root option values."""
     root_value_flags = {"--download-dir"}
@@ -33,27 +50,22 @@ def _likely_flag_after_url_order(argv: list[str]) -> bool:
     if first_positional_idx is None:
         return False
 
-    command_names = {
-        "setup",
-        "config",
-        "doctor",
-        "update",
-        "batch",
-        "distill",
-        "invoke",
-        "mux",
-        "seal",
-        "inspect",
-    }
     first_positional = argv[first_positional_idx]
-    if first_positional in command_names:
+    if first_positional in _ROOT_COMMAND_NAMES:
         return False
 
     return any(token.startswith("-") for token in argv[first_positional_idx + 1 :])
 
 
 def _only_help_or_version(argv: list[str]) -> bool:
-    """True if argv implies only --help or --version (no config needed)."""
+    """True if argv is root-only --help/--version (skip config load).
+
+    When a root command (config, setup, …) is present, return False so
+    entrypoint dispatch can handle subcommand help (e.g. config mv --help).
+    """
+    first_idx = _first_positional_index(argv)
+    if first_idx is not None and argv[first_idx] in _ROOT_COMMAND_NAMES:
+        return False
     if "--help" in argv or "-h" in argv:
         return True
     if "--version" in argv or "-v" in argv:
@@ -175,21 +187,25 @@ def main() -> None:
             rest = [
                 a for a in sys.argv[config_idx + 1 :] if a and not a.startswith("-")
             ]
+            config_args = sys.argv[config_idx + 1 :]
+            plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            if (
+                not _banner_shown
+                and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
+            ):
+                if not any(arg in sys.argv for arg in ["--version", "-v"]):
+                    console = ArcaneConsole(plain=plain_mode)
+                    console.print_banner()
+                    _banner_shown = True
             if not rest:
+                # Bare `config` — interactive wizard (root URL arg steals "config")
                 from app.core.config_manager import ConfigManager
                 from app.core.config_wizard import interactive_config_wizard
 
-                plain_mode = "--plain" in sys.argv or os.getenv(
-                    "NO_COLOR", ""
-                ).lower() in ("1", "true", "yes")
-                if (
-                    not _banner_shown
-                    and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
-                ):
-                    if not any(arg in sys.argv for arg in ["--version", "-v"]):
-                        console = ArcaneConsole(plain=plain_mode)
-                        console.print_banner()
-                        _banner_shown = True
                 config_manager = ConfigManager()
                 if not config_manager.check_toml_file_exists():
                     ArcaneConsole(plain=plain_mode).print_fracture(
@@ -201,6 +217,23 @@ def main() -> None:
                     sys.exit(0 if success else 1)
                 except KeyboardInterrupt:
                     sys.exit(130)
+                except Exception as e:
+                    if not debug_mode:
+                        print_fracture_summary("config", e)
+                    sys.exit(1)
+            else:
+                # `config show|doctor|mv` — dispatch to config Typer sub-app.
+                # Root optional [URL] otherwise consumes "config" and looks for
+                # "show" as a top-level command (No such command 'show').
+                from app.cli.commands import config as config_cmd
+
+                try:
+                    config_cmd.app(args=config_args, prog_name="config")
+                    sys.exit(0)
+                except SystemExit:
+                    raise
+                except typer.Exit as e:
+                    sys.exit(getattr(e, "exit_code", 0))
                 except Exception as e:
                     if not debug_mode:
                         print_fracture_summary("config", e)
@@ -240,6 +273,39 @@ def main() -> None:
             except Exception as e:
                 if not debug_mode:
                     print_fracture_summary("setup", e)
+                sys.exit(1)
+
+        # Scry / inspect: early dispatch so root [URL] does not steal the command.
+        for _scry_name in ("scry", "inspect"):
+            if _scry_name not in sys.argv:
+                continue
+            scry_idx = sys.argv.index(_scry_name)
+            rest = sys.argv[scry_idx + 1 :]
+            from app.cli.commands.scry import dispatch_from_argv
+
+            plain_mode = "--plain" in sys.argv or os.getenv("NO_COLOR", "").lower() in (
+                "1",
+                "true",
+                "yes",
+            )
+            if (
+                not _banner_shown
+                and os.getenv("ALCHEMUX_SHOW_BANNER", "true").lower() == "true"
+            ):
+                if not any(arg in sys.argv for arg in ["--version", "-v"]):
+                    console = ArcaneConsole(plain=plain_mode)
+                    console.print_banner()
+                    _banner_shown = True
+            try:
+                dispatch_from_argv(rest, command=_scry_name)
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except typer.Exit as e:
+                sys.exit(getattr(e, "exit_code", 0))
+            except Exception as e:
+                if not debug_mode:
+                    print_fracture_summary(_scry_name, e)
                 sys.exit(1)
 
         if (

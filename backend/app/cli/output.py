@@ -39,6 +39,8 @@ class ArcaneConsole:
         "evaporate": "⇮",
         "purge": "⌿",
         "seal": "■",
+        # Command-level inspect (technical alias for scry command)
+        "inspect": "⟁",
         # Legacy support (map old names to new)
         "validate": "⊢",
         "scan": "⟁",
@@ -59,6 +61,8 @@ class ArcaneConsole:
         "profile": "extract metadata",
         "evaporate": "upload",
         "purge": "cleanup",
+        # Command-level inspect (technical alias for scry command)
+        "inspect": "inspect",
         # Legacy support
         "validate": "validate",
         "scan": "detect source",

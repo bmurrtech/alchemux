@@ -1,5 +1,5 @@
 """
-EULA acceptance logic with dual storage strategy (eula_config.json + .env).
+EULA acceptance logic stored in config.toml.
 """
 
 import hashlib
@@ -13,11 +13,13 @@ from .logger import setup_logger
 
 logger = setup_logger(__name__)
 
+EULA_GITHUB_URL = "https://github.com/bmurrtech/alchemux/blob/main/EULA.md"
+
 
 def is_packaged_build() -> bool:
     """
-    Legacy: always False. EULA is not enforced for PyPI/uv installs; use of the app
-    is treated as acceptance. Retained for backward compatibility with --accept-eula.
+    Legacy helper retained for callers. Setup always offers EULA acceptance;
+    packaged vs source no longer gates the setup prompt.
     """
     return False
 
@@ -63,10 +65,11 @@ class EULAManager:
         acceptance_hash = self._generate_acceptance_hash()
         accepted_at = datetime.now(timezone.utc).isoformat()
 
-        # Write to config.toml
         self.config.set("eula.accepted", "true")
         self.config.set("eula.accepted_at", accepted_at)
         self.config.set("eula.acceptance_hash", acceptance_hash)
+        # Keep a non-secret breadcrumb of how acceptance was recorded.
+        self.config.set("eula.accepted_by", accepted_by)
 
         logger.info("EULA acceptance recorded in config.toml")
 
@@ -77,19 +80,20 @@ class EULAManager:
         Returns:
             EULA summary text (without interactive instructions - those are shown separately)
         """
-        return """By using this software you agree to the LICENSE and EULA.md.
-
-Use only with content you own or are authorized to access.
-
-No warranty. You assume all risk. You agree to defend
-and indemnify the Provider and contributors."""
+        return (
+            "By using Alchemux you agree to the End User Terms for Official Releases "
+            f"({EULA_GITHUB_URL}) and the repository LICENSE.\n\n"
+            "Use only with content you own or are authorized to access.\n\n"
+            "No warranty. You assume all risk. You agree to defend and indemnify "
+            "the Distributor and contributors."
+        )
 
     def interactive_acceptance(self) -> bool:
         """
-        Prompt user for interactive EULA acceptance using the prompt wrapper (InquirerPy or Rich).
+        Prompt user for interactive EULA acceptance using the prompt wrapper.
 
-        Uses Rich Panel to display EULA summary and confirm prompt for y/n acceptance.
-        On decline, shows clear next steps for accepting later.
+        Shows a short summary with the GitHub EULA link, then a Y/n confirm.
+        On accept, writes eula.* keys to config.toml.
 
         Returns:
             True if user accepts, False otherwise
@@ -101,7 +105,6 @@ and indemnify the Provider and contributors."""
 
         console = Console()
 
-        # Display EULA summary in a panel
         console.print()
         console.print(
             Panel(
@@ -111,11 +114,11 @@ and indemnify the Provider and contributors."""
                 padding=(1, 2),
             )
         )
+        console.print(f"[dim]Full terms:[/dim] [cyan]{EULA_GITHUB_URL}[/cyan]")
         console.print()
 
-        # y/n confirmation via prompt wrapper (InquirerPy or Rich fallback)
         accepted = confirm(
-            "Do you accept the EULA terms?",
+            f"Accept the Alchemux End User Terms for Official Releases? ({EULA_GITHUB_URL})",
             default=False,
         )
         if accepted is None:
@@ -125,32 +128,29 @@ and indemnify the Provider and contributors."""
         if accepted:
             self.accept("user_input")
             console.print(
-                "\n[green]>[/green] EULA accepted. You may now use Alchemux.\n"
+                "\n[green]✓[/green] EULA accepted and saved to config.toml.\n"
             )
             return True
-        else:
-            console.print("\n[yellow]![/yellow] EULA not accepted.")
-            console.print("[dim]To accept later, run:[/dim]")
-            console.print("  [cyan]alchemux setup[/cyan]")
-            console.print()
-            return False
+
+        console.print("\n[yellow]![/yellow] EULA not accepted.")
+        console.print("[dim]To accept later, run:[/dim]")
+        console.print("  [cyan]alchemux setup[/cyan]")
+        console.print()
+        return False
 
     def check_and_require_acceptance(
         self, accept_flag: bool = False, env_var: bool = False
     ) -> bool:
         """
-        Check EULA acceptance and require it if not accepted.
+        Check EULA acceptance for non-setup entry points.
 
-        EULA enforcement only applies to packaged releases. When running from source
-        (Apache 2.0 licensed), this check is skipped automatically.
-
-        Args:
-            accept_flag: True if --accept-eula flag was provided
-            env_var: True if EULA_ACCEPTED=true in environment
-
-        Returns:
-            True if EULA is accepted (or was just accepted), False if user declined
+        Prefer interactive acceptance during ``alchemux setup``. Non-interactive
+        ``--accept-eula`` / env paths still record acceptance when requested.
         """
-        # EULA not enforced for PyPI/uv installs; use of app = acceptance
-        logger.debug("EULA enforcement disabled (acceptance by use)")
-        return True
+        if self.is_accepted():
+            return True
+        if accept_flag or env_var:
+            how = "flag" if accept_flag else "env_var"
+            self.accept(how)
+            return True
+        return self.is_accepted()

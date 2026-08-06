@@ -1,7 +1,7 @@
 # End User Terms for Official Releases
-**Last Updated:** [[2025-12-27]]
+**Last Updated:** [[2026-08-05]]
 
-These terms (“Release Terms”) apply **only** to the official prebuilt releases and binaries distributed by the project’s maintainer(s) (“Distributor”). The source code in this repository is licensed under the **Apache License 2.0** (`LICENSE`). These Release Terms do **not** change the Apache License 2.0 for the source code; they are an additional agreement that applies when you choose to use an official release.
+These terms (“Release Terms”) apply **only** to the official prebuilt releases and binaries distributed by the project’s maintainer(s) (“Distributor”). The source code in this repository is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)** (`LICENSE`). These Release Terms do **not** change the AGPL-3.0 license for the source code; they are an additional agreement that applies when you choose to use an official release.
 
 ## 1) Acceptance
 By downloading, installing, running, or using an official release, you agree to these Release Terms.

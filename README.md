@@ -46,6 +46,7 @@ Alchemux is a **terminal-first** media CLI built on [yt-dlp](https://github.com/
 - 🤖 **AI Agent Support**: CLI guidance for agents like [OpenClaw](https://openclaw.ai), [Agent Zero](https://github.com/agent0ai/agent-zero), and Claude Skills — see [backend/AGENTS.md](backend/AGENTS.md)
 - 🛠️ **`config` Command**: Interactive wizard for formats, cloud credentials, download folder, batch defaults, and more
 - 🩺 **`doctor` Command**: Diagnose cloud misconfigurations, missing FFmpeg, permissions, and common failures
+- ⟁ **`scry` / `inspect`**: Inspect a sealed media file (ffprobe + embedded tags + Metadata Health); see [commands.md](docs/commands.md)
 - ✨ **Arcane Interface**: Optional stylized output (disable with `arcane_terms = "false"` or during setup)
 - 🔄 **`update` Command**: Refresh the bundled yt-dlp dependency from the community release channel
 
@@ -143,7 +144,7 @@ alchemux doctor
 
 Bug reports, feature requests, and feedback are welcome via **[GitHub Issues](https://github.com/bmurrtech/alchemux/issues/new/choose)**. Please read **[docs/known-issues.md](docs/known-issues.md)** first.
 
-Maintainers: local tooling, tests, and CI — **[docs/contributors.md](docs/contributors.md)**. Release process — **[docs/release.md](docs/release.md)**.
+How to contribute (including local tooling, tests, CI, and AI-assisted PRs): **[CONTRIBUTING.md](CONTRIBUTING.md)**. AI pull request rules: **[AI-POLICY.md](AI-POLICY.md)**. Release process: **[docs/release.md](docs/release.md)**.
 
 ## Support open source
 

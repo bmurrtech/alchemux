@@ -39,6 +39,19 @@ def test_normalize_keeps_subcommand_invocation_unchanged() -> None:
     assert normalized == argv
 
 
+def test_normalize_keeps_scry_help_flags_after_command() -> None:
+    """``scry --help`` must not be reordered to ``--help scry`` (would break dispatch)."""
+    argv = ["alchemux", "scry", "--help"]
+
+    assert normalize_argv(argv) == argv
+    assert normalize_argv(["alchemux", "inspect", "file.flac", "--json"]) == [
+        "alchemux",
+        "inspect",
+        "file.flac",
+        "--json",
+    ]
+
+
 def test_normalize_preserves_tokens_after_double_dash() -> None:
     argv = ["alchemux", "--", "https://example.com?a=1&b=2", "--no-config"]
 
@@ -96,3 +109,53 @@ def test_entrypoint_prints_ordering_hint_on_parse_error(
 
     assert exc.value.code == 2
     assert "Hint: place flags before URL" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("subcommand", ["show", "doctor", "mv"])
+def test_entrypoint_dispatches_config_subcommands_to_config_app(
+    monkeypatch: pytest.MonkeyPatch, subcommand: str
+) -> None:
+    """Root [URL] must not steal ``config``; show|doctor|mv go to the config Typer app."""
+    called: dict[str, object] = {}
+
+    def fake_config_app(*, args: list[str], prog_name: str) -> None:
+        called["args"] = list(args)
+        called["prog_name"] = prog_name
+
+    monkeypatch.setenv("ALCHEMUX_SHOW_BANNER", "false")
+    monkeypatch.setattr(sys, "argv", ["alchemux", "config", subcommand])
+    monkeypatch.setattr("app.cli.commands.config.app", fake_config_app)
+
+    with pytest.raises(SystemExit) as exc:
+        entrypoint.main()
+
+    assert exc.value.code == 0
+    assert called["prog_name"] == "config"
+    assert called["args"] == [subcommand]
+
+
+def test_entrypoint_allows_config_subcommand_help(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``config … --help`` must not be short-circuited as root-only help."""
+    called: dict[str, object] = {}
+
+    def fake_config_app(*, args: list[str], prog_name: str) -> None:
+        called["args"] = list(args)
+        called["prog_name"] = prog_name
+
+    monkeypatch.setenv("ALCHEMUX_SHOW_BANNER", "false")
+    monkeypatch.setattr(sys, "argv", ["alchemux", "config", "mv", "--help"])
+    monkeypatch.setattr("app.cli.commands.config.app", fake_config_app)
+
+    assert (
+        entrypoint._only_help_or_version(["alchemux", "config", "mv", "--help"])
+        is False
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        entrypoint.main()
+
+    assert exc.value.code == 0
+    assert called["args"] == ["mv", "--help"]
+    assert called["prog_name"] == "config"

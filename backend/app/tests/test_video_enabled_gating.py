@@ -6,6 +6,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+import pytest
+
 # Ensure `app.*` imports work when running from repo root
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -21,7 +23,10 @@ def _write_cfg(tmpdir: Path, toml_text: str) -> ConfigManager:
     return ConfigManager(env_path=str(cfg_dir / ".env"))
 
 
-def test_video_disabled_by_default_routes_to_audio_path() -> None:
+def test_video_disabled_by_default_routes_to_audio_path(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("media.video.enabled", raising=False)
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _write_cfg(
             Path(tmp),
@@ -48,7 +53,10 @@ enabled_formats = ["mp4"]
         assert any(pp.get("key") == "FFmpegExtractAudio" for pp in postprocessors)
 
 
-def test_legacy_config_without_enabled_stays_disabled() -> None:
+def test_legacy_config_without_enabled_stays_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("media.video.enabled", raising=False)
     with tempfile.TemporaryDirectory() as tmp:
         cfg = _write_cfg(
             Path(tmp),

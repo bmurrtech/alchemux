@@ -5,6 +5,37 @@ All notable changes to Alchemux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-08-05
+
+Media embed enrichment release: thumbnail/chapter embeds, per-title folders, **embed-first Layer-2 metadata** (Artist/comment/date/SOURCE_URL), default-on **companion info file**, optional yt-dlp machine sidecars, safer browser-cookie opt-in (video-gated setup + auto-detect), actionable rate-limit recovery, setup-time EULA acceptance, and **`scry`** media inspection.
+
+### Added
+
+- yt-dlp thumbnail write and embed defaults for supported audio and video outputs
+- Chapter embedding for opted-in MP4 and MKV video transmutations
+- Per-title output folders (`<title>/<title>.<ext>`) for audio and video, with flat per-entry playlist layout
+- Layer-2 mutagen enrichment: channel/uploader as Artist, compact sanitized description→comment, upload date, SOURCE_URL from the input distill URL
+- Companion information file (`download.info_file`, default true; `info_file_format` `md`|`txt`) written as `<stem>.info.md` / `.info.txt` beside the seal
+- Setup prompt (default Yes) and config wizard **Download Settings** for companion info file + yt-dlp sidecars
+- `download.ytdlp_sidecars` (default false) to optionally write yt-dlp `.info.json` + `.description`
+- Shared HTTP 429 / 402 recovery guidance for CLI fractures and future TUI reuse
+- Browser-cookie opt-in in setup (when video is enabled) and the config wizard, with pathlib auto-detect/auto-pick of a browser name stored in `config.toml`
+- Explicit at-your-own-risk browser-cookie comments in both configuration templates
+- Setup-first EULA acceptance (`Y/n`) with the GitHub terms link; persists `eula.*` to `config.toml`
+- `alchemux scry` — ffprobe-backed media inspection with Rich report, Metadata Health, optional interactive picker, `--json` / `--raw` / `--verbose` (technical alias `inspect` remains callable but hidden from `--help`)
+
+### Changed
+
+- `ytdl.cookies_from_browser` is treated as a non-secret preference so the browser selector persists in `config.toml`; cookie contents remain inaccessible to Alchemux
+- Setup skips the cookie prompt when video is disabled and **preserves** any existing cookie preference
+- Rate-limit recovery copy points to `alchemux config` first (setup only after enabling video)
+- Always-on yt-dlp Artist–Title parse-metadata is disabled (Artist comes from Layer-2)
+
+### Fixed
+
+- `alchemux config show|doctor|mv` dispatch so the root `[URL]` argument no longer steals `config`
+- `config … --help` (e.g. `config mv --help`) reaches the config subcommand instead of root help
+
 ## [0.1.2] — 2026-08-03
 
 UX polish release: quieter failures by default, guided FFmpeg checks in setup, OS-native download defaults, clearer install docs, and configurable log levels.
@@ -65,7 +96,8 @@ UX polish release: quieter failures by default, guided FFmpeg checks in setup, O
 - Optional S3 / GCP upload, config doctor, video download support
 - Agent-oriented docs (`backend/AGENTS.md`) and contributor guide
 
-[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/bmurrtech/alchemux/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/bmurrtech/alchemux/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/bmurrtech/alchemux/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/bmurrtech/alchemux/releases/tag/v0.1.0

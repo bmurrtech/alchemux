@@ -105,18 +105,28 @@ class MediaDownloader:
         Returns:
             yt-dlp options dictionary
         """
-        # Use relative outtmpl + paths so yt-dlp doesn't warn "paths is ignored"
+        # Use relative outtmpl + paths so yt-dlp doesn't warn "paths is ignored".
+        # FR-6: seal into a title-named folder: <title>/<title>.<ext> (reuse on collision).
         home_dir = self.config.get("paths.output_dir") or self.config.get(
             "DOWNLOAD_PATH", "./downloads"
         )
         temp_dir = self.config.get("TEMP_PATH", "./temp")
         if os.path.isabs(output_path):
             p = Path(output_path)
-            outtmpl_rel = f"{p.name}.%(ext)s"
+            stem = p.name
+            outtmpl_rel = f"{stem}/{stem}.%(ext)s"
             paths_home = str(p.parent)
         else:
-            outtmpl_rel = f"{output_path}.%(ext)s"
+            stem = Path(output_path).name
+            parent = Path(output_path).parent
+            if str(parent) in (".", ""):
+                outtmpl_rel = f"{stem}/{stem}.%(ext)s"
+            else:
+                outtmpl_rel = f"{parent.as_posix()}/{stem}/{stem}.%(ext)s"
             paths_home = home_dir
+        write_ytdlp_sidecars = self.config.get_bool(
+            "download.ytdlp_sidecars", default=False
+        )
         opts = {
             "outtmpl": outtmpl_rel,
             "restrictfilenames": self.config.get("RESTRICT_FILENAMES", "true").lower()
@@ -124,10 +134,12 @@ class MediaDownloader:
             "paths": {"home": paths_home, "temp": temp_dir},
             # Metadata
             "embedmetadata": True,
-            "writeinfojson": (
-                self.config.get("download.write_info_json", "false") or "false"
-            ).lower()
-            in ("1", "true", "yes"),
+            # Enrich sealed media when the source and output container support it.
+            "writethumbnail": True,
+            "embedthumbnail": True,
+            # yt-dlp machine sidecars are opt-in (ADR 0008); companion .info.md is separate.
+            "writeinfojson": write_ytdlp_sidecars,
+            "writedescription": write_ytdlp_sidecars,
             # Error handling
             "ignoreerrors": False,
             "retries": int(self.config.get("RETRIES", "10")),
@@ -174,6 +186,8 @@ class MediaDownloader:
             )
             opts["format"] = fmt_selector
             opts["merge_output_format"] = merge_fmt
+            if merge_fmt in ("mp4", "mkv"):
+                opts["embedchapters"] = True
             logger.info(f"Video format: {video_fmt} (merge_output_format={merge_fmt})")
         else:
             # Audio extraction: --flac overrides config so effective format is flac
@@ -205,28 +219,27 @@ class MediaDownloader:
             # FLAC override handling
             if self._should_apply_flac_override(audio_fmt, flac_flag):
                 # Apply 16kHz mono via postprocessor args
-                opts["postprocessors"] = [
+                opts.setdefault("postprocessors", []).append(
                     {
                         "key": "FFmpegExtractAudio",
                         "preferredcodec": "flac",
                         "preferredquality": "0",  # Lossless
                     }
-                ]
+                )
                 opts["postprocessor_args"] = {
                     "ffmpeg": ["-ar", "16000", "-ac", "1"]  # 16kHz mono
                 }
                 logger.info("FLAC 16kHz mono conversion enabled")
             else:
                 # Standard audio extraction
-                opts["postprocessors"] = [
-                    {
-                        "key": "FFmpegExtractAudio",
-                        "preferredcodec": audio_fmt,
-                    }
-                ]
+                audio_pp: Dict[str, Any] = {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": audio_fmt,
+                }
                 if audio_fmt.lower() == "mp3":
                     audio_quality = self.config.get("media.audio.quality", "5")
-                    opts["postprocessors"][0]["preferredquality"] = audio_quality
+                    audio_pp["preferredquality"] = audio_quality
+                opts.setdefault("postprocessors", []).append(audio_pp)
 
             logger.info(f"Audio format: {audio_fmt}")
 
@@ -527,8 +540,9 @@ class MediaDownloader:
                 logger.debug(f"Found file via progress hook: {filepath}")
                 return filepath
 
-        # Try expected output path: preferred extension first, then rest
+        # Try expected output path: title folder first, then flat legacy path
         base_path = Path(output_path)
+        title_base = base_path / base_path.name
         all_extensions = [
             ".mp3",
             ".flac",
@@ -547,11 +561,12 @@ class MediaDownloader:
         else:
             possible_extensions = all_extensions
 
-        for ext in possible_extensions:
-            candidate = base_path.with_suffix(ext)
-            if candidate.exists() and candidate.stat().st_size > 0:
-                logger.debug(f"Found file at expected path: {candidate}")
-                return str(candidate)
+        for stem in (title_base, base_path):
+            for ext in possible_extensions:
+                candidate = Path(f"{stem}{ext}")
+                if candidate.exists() and candidate.stat().st_size > 0:
+                    logger.debug(f"Found file at expected path: {candidate}")
+                    return str(candidate)
 
         # Search in output directory
         output_dir = Path(ydl_opts["paths"]["home"])

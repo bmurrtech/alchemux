@@ -290,6 +290,104 @@ def configure_video_settings(config: ConfigManager) -> None:
             console.print(f"  [green]✓[/green] Set restrict_filenames = {new_value}")
 
 
+def configure_ytdl_settings(config: ConfigManager) -> None:
+    """Configure optional browser-cookie access without handling cookie contents."""
+    console.print("\n[bold cyan]Download Reliability Settings[/bold cyan]")
+    current_browser = config.get("ytdl.cookies_from_browser", "") or ""
+    enabled = bool(current_browser.strip())
+    console.print(
+        "  [dim]Cookies are passed from your browser at your own risk; Alchemux "
+        "never writes a cookies.txt file.[/dim]"
+    )
+    if confirm("  Change browser-cookie preference?", default=False) is not True:
+        return
+
+    use_browser_cookies = confirm(
+        "  Pass cookies for YouTube downloads? "
+        "(Caution: Abuse can lead to temporary or permanent account suspension. "
+        "Enable at your own risk.)",
+        default=enabled,
+    )
+    if use_browser_cookies is True:
+        from app.utils.browser_detect import detect_cookie_browsers, pick_cookie_browser
+
+        chosen = pick_cookie_browser(detect_cookie_browsers())
+        if chosen:
+            config.set("ytdl.cookies_from_browser", chosen)
+            console.print(f"  [green]✓[/green] Browser cookies enabled ({chosen})")
+            return
+        config.set("ytdl.cookies_from_browser", "")
+        console.print(
+            "  [dim]No supported browser profile found; cookies left off. "
+            "Set ytdl.cookies_from_browser in config.toml or "
+            "YTDL_COOKIES_FROM_BROWSER if needed.[/dim]"
+        )
+        return
+
+    config.set("ytdl.cookies_from_browser", "")
+    console.print("  [dim]Browser cookies disabled[/dim]")
+
+
+def configure_download_settings(config: ConfigManager) -> None:
+    """Configure companion info file and optional yt-dlp machine sidecars (ADR 0008)."""
+    from app.core.toml_config import read_toml, write_toml
+    from app.utils.info_file import resolve_info_file_format
+
+    console.print("\n[bold cyan]Download Settings[/bold cyan]")
+    console.print(
+        "  [dim]Companion information files (.info.md / .info.txt) are separate "
+        "from optional yt-dlp machine sidecars (.info.json + .description).[/dim]"
+    )
+
+    current_info = config.get_bool("download.info_file", default=True)
+    current_fmt = resolve_info_file_format(
+        config.get("download.info_file_format") or "md"
+    )
+    current_ytdlp = config.get_bool("download.ytdlp_sidecars", default=False)
+
+    console.print(f"\n  info_file: {current_info}")
+    console.print(f"  info_file_format: {current_fmt}")
+    console.print(f"  ytdlp_sidecars: {current_ytdlp}")
+
+    tom = read_toml(config.toml_path) if config.toml_path.exists() else {}
+    if "download" not in tom or not isinstance(tom.get("download"), dict):
+        tom["download"] = {}
+
+    if confirm("  Change info_file?", default=False) is True:
+        new_info = confirm(
+            "  Create a companion information file alongside downloaded media?",
+            default=current_info,
+        )
+        if new_info is not None:
+            tom["download"]["info_file"] = bool(new_info)
+            console.print(f"  [green]✓[/green] Set info_file = {bool(new_info)}")
+
+    if confirm("  Change info_file_format?", default=False) is True:
+        choice = select(
+            message="  Companion info file format",
+            choices=[("md", "Markdown (.info.md)"), ("txt", "Plain text (.info.txt)")],
+            default=current_fmt if current_fmt in ("md", "txt") else "md",
+        )
+        if choice in ("md", "txt"):
+            tom["download"]["info_file_format"] = choice
+            console.print(f"  [green]✓[/green] Set info_file_format = {choice}")
+
+    if confirm("  Change ytdlp_sidecars?", default=False) is True:
+        new_ytdlp = confirm(
+            "  Preserve yt-dlp machine-readable sidecars (.info.json, .description)?",
+            default=current_ytdlp,
+        )
+        if new_ytdlp is not None:
+            tom["download"]["ytdlp_sidecars"] = bool(new_ytdlp)
+            console.print(f"  [green]✓[/green] Set ytdlp_sidecars = {bool(new_ytdlp)}")
+
+    tom["download"].setdefault("info_file", True)
+    tom["download"].setdefault("info_file_format", "md")
+    tom["download"].setdefault("ytdlp_sidecars", False)
+    write_toml(config.toml_path, tom)
+    config._toml_cache = None
+
+
 def configure_flac_preset(config: ConfigManager) -> None:
     """Configure FLAC preset settings."""
     console.print("\n[bold cyan]FLAC Preset Settings[/bold cyan]")
@@ -535,6 +633,8 @@ def interactive_config_wizard(config: ConfigManager) -> bool:
         ("paths", "Filesystem Paths", configure_paths),
         ("audio", "Audio Media Settings", configure_audio_settings),
         ("video", "Video Media Settings", configure_video_settings),
+        ("download", "Download Settings", configure_download_settings),
+        ("ytdl", "Download Reliability Settings", configure_ytdl_settings),
         ("flac", "FLAC Preset Settings", configure_flac_preset),
         ("network", "Network Settings", configure_network_settings),
         ("storage", "Storage Settings", configure_storage_settings),

@@ -9,7 +9,7 @@ Complete reference for all Alchemux commands and options.
 - **Tier 1 (short alias):** `uvx --from alchemux amx "https://…"` — Uses the `amx` console script from the `alchemux` package.
 - **Tier 2 (ephemeral, no writes):** `uvx alchemux --no-config --download-dir . "https://…"` — No config files are read or written; downloads go to the given directory.
 
-**Contributors:** Pre-commit hooks are run via [prek](https://github.com/j178/prek). See [contributors.md](contributors.md) for prek install, `prek run --all-files`, and the test suite.
+**Contributors:** Pre-commit hooks are run via [prek](https://github.com/j178/prek). See [CONTRIBUTING.md](../CONTRIBUTING.md) for prek install, `prek run --all-files`, and the test suite.
 
 ---
 
@@ -105,6 +105,7 @@ Tip: Run `alchemux` and paste the URL when prompted to avoid shell quoting issue
 | `alchemux doctor` | Run configuration diagnostics and guided repairs |
 | `alchemux update` | Update yt-dlp to latest stable version |
 | `alchemux batch` | Process multiple URLs from files (TXT/CSV), paste, or playlist |
+| `alchemux scry` | Inspect a media file (ffprobe + embedded tags + companions); technical alias: `inspect` |
 
 **Note:** All configuration changes are handled through the `alchemux config` wizard.
 
@@ -405,13 +406,15 @@ python backend/app/main.py "https://example.com/video"
 
 ### EULA Acceptance
 
-If the EULA has not been accepted, Alchemux will prompt for acceptance during setup or when running a transmutation. Use the setup wizard to accept interactively:
+`alchemux setup` asks you to accept the End User Terms for Official Releases as the **first** interactive question (with a link to the GitHub EULA). Acceptance is stored in `config.toml` under `[eula]`.
+
+Terms: https://github.com/bmurrtech/alchemux/blob/main/EULA.md
 
 ```bash
 alchemux setup
 ```
 
-To accept non-interactively (e.g., in CI for packaged builds), use:
+To accept non-interactively (e.g., CI / packaged builds):
 
 ```bash
 alchemux --accept-eula          # Accept EULA only
@@ -440,6 +443,25 @@ This command:
 - Throttles checks to once per day (use `--force` to bypass)
 
 **Note**: Update checks are throttled to avoid GitHub API rate limits. The update uses yt-dlp's built-in update mechanism, which is the most reliable method across platforms.
+
+---
+
+## Scry / inspect (media inspection)
+
+Inspect a sealed media file with ffprobe and Alchemux-aware Metadata Health. Inspection only — no retagging or edits.
+
+```bash
+alchemux scry path/to/file.flac
+alchemux inspect path/to/file.flac    # technical alias
+alchemux scry                         # interactive picker under paths.output_dir
+alchemux scry file.flac --verbose     # full description + all tags
+alchemux scry file.flac --json        # structured JSON summary
+alchemux scry file.flac --raw         # raw ffprobe JSON
+```
+
+Default Rich report sections: General, Media, Embedded Metadata, Chapters (when present), Sidecars (companion `.info.md` / yt-dlp `.info.json` when beside the seal), and Metadata Health (Title / Artist / Cover / Source URL / Description / Chapters / Publish Date).
+
+Requires `ffprobe` on PATH (same dependency as distill).
 
 ### YouTube 403 / CDN blocking
 

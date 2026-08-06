@@ -25,6 +25,12 @@ Each stage has both an arcane name and a technical equivalent:
 | **purge** | cleanup | Temporary file cleanup |
 | **seal** | save | Final completion and persistence |
 
+### Commands (not pipeline stages)
+
+| Arcane | Technical | Description |
+|--------|-----------|-------------|
+| **scry** | **inspect** | Inspect a sealed media file (ffprobe + embedded tags + companion presence). Distinct from the pipeline stage **scry** (detect source) above. |
+
 ---
 
 ## Stage Sigils

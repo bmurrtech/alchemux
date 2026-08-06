@@ -34,7 +34,8 @@ debug = false      # true → same as level = "debug"
 verbose = false    # true → same as level = "verbose"
 
 [eula]
-# EULA acceptance state (set to true to accept non-interactively)
+# Acceptance is recorded by `alchemux setup` (first prompt) or `alchemux --accept-eula`.
+# Terms: https://github.com/bmurrtech/alchemux/blob/main/EULA.md
 accepted = false
 accepted_at = ""       # ISO8601 string (auto-set on acceptance)
 acceptance_hash = ""   # Acceptance verification hash (auto-set on acceptance)
@@ -73,14 +74,22 @@ channels = 1
 retries = 3
 
 [download]
-# Save .info.json metadata files next to each output (adds capture + load time; enable manually if needed)
-write_info_json = false
+# Companion information file beside each seal (.info.md or .info.txt).
+# Contains source URL, description, chapters, and other media details. Default on.
+info_file = true
+# Format: md | txt
+info_file_format = "md"
+# Optional yt-dlp machine-readable sidecars (.info.json + .description). Default off.
+# Separate from the human-readable companion info file above.
+ytdlp_sidecars = false
 
 # Optional yt-dlp options to reduce 403/Forbidden (e.g. googlevideo CDN). Env: YTDL_IMPERSONATE, YTDL_COOKIES_FROM_BROWSER, YTDL_FORCE_IPV4, YTDL_AUDIO_FORMAT_SELECTOR.
 # [ytdl]
 # audio_format_selector = "best"  # default: download combined format then extract audio (reduces YouTube 403); use "ba" for best audio-only
 # impersonate = "chrome"           # --impersonate chrome; may help with blocked requests
-# cookies_from_browser = "chrome"  # --cookies-from-browser chrome; use browser session
+# cookies_from_browser = "chrome"  # At your own risk: browser name only; Alchemux never writes cookies.txt
+# Advanced override (Flatpak / custom profile — set manually; wizards auto-detect a browser name only):
+# cookies_from_browser = "chrome:~/.var/app/com.google.Chrome"
 # force_ipv4 = true                # --force-ipv4; try if video fails with 403 (IPv6 path issues)
 
 [storage]

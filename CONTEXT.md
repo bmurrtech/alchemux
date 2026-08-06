@@ -28,6 +28,10 @@ _Avoid_: Fantasy mode, theme mode, flavor text
 Plain wording (`download`, `locate`, `save`, …) when `product.arcane_terms` is false. Sigils stay.
 _Avoid_: Plain English mode, no-theme mode
 
+**Scry (command)**:
+Standalone inspection of a sealed media file (`alchemux scry`). Technical alias: **inspect**. Uses ffprobe + embedded tags + companion presence; inspection only.
+_Avoid_: Confusing with the pipeline stage **scry** (detect source during distill)
+
 ## CLI & modes
 
 **Setup**:
@@ -78,6 +82,14 @@ _Avoid_: Audio mode as if it were a special opt-in
 Video pipeline enabled via `media.video.enabled` or the `--video` one-run override.
 _Avoid_: Video-on-by-default, always-merge
 
+**Companion info file**:
+Human-readable `<stem>.info.md` or `.info.txt` beside a seal (`download.info_file`; format via `info_file_format`). Default on; soft-fail on write.
+_Avoid_: Provenance sidecar, metadata dump (as the user-facing name)
+
+**yt-dlp machine sidecars**:
+Optional `.info.json` + `.description` from yt-dlp (`download.ytdlp_sidecars`, default off). Independent of the companion info file.
+_Avoid_: Calling these the companion info file; conflating with `info_file`
+
 ## Logging
 
 **Log level**:
@@ -105,7 +117,7 @@ _Avoid_: `test_<function>_works`, HOW-oriented names
 | Action vs preference, URL quoting, wizard taxonomy | `pm/ADRs/0002-config-rubric.md` |
 | uvx zero-config / ephemeral / help-always-works | `pm/ADRs/0004-ADR-uvx-zero-config-first-run.md` |
 | prek + CI test gates | `pm/ADRs/0005-ADR-prek-pre-commit-replacement-ci.md` |
-| Secrets unreachable to LLM agents | `pm/ADRs/0006-ADR-llm-secrets-management.md` |
 | Video disabled by default; `--video` opt-in | `pm/ADRs/0007-ADR-video-disabled-by-default-opt-in.md` |
+| Companion info file; yt-dlp machine sidecars | `pm/ADRs/0008-ADR-companion-info-file.md` |
 
 Human-readable arcane ↔ technical tables: `docs/legend.md`.
