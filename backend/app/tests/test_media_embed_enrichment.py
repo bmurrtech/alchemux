@@ -4,6 +4,7 @@ Seams under test:
 - yt-dlp option construction through ``MediaDownloader._build_ydl_opts``;
 - Layer-2 mutagen enrichment (sanitizer + Artist/comment/date/SOURCE_URL);
 - companion info file writer + config/setup gating (ADR 0008 / FR-9);
+- companion Cloud Object URL field when evaporate returns a URL (FR-10);
 - shared rate-limit recovery advice (``get_rate_limit_advice``);
 - persistent non-secret config passed into a later distill;
 - browser profile probe / auto-pick for cookie opt-in;
@@ -37,6 +38,7 @@ from app.utils.browser_detect import (  # noqa: E402
 )
 from app.utils.info_file import (  # noqa: E402
     maybe_write_companion_info_file,
+    parse_cloud_object_url,
     resolve_info_file_format,
     write_companion_info_file,
 )
@@ -299,6 +301,103 @@ info_file = false
             is None
         )
         assert list(other.parent.glob("other.info.*")) == []
+
+
+def test_companion_includes_cloud_object_url_after_source_when_provided() -> None:
+    """Evaporate URL is written as Cloud Object URL immediately after Source URL."""
+    cloud = "https://storage.googleapis.com/bucket/youtube/clip.flac"
+    with tempfile.TemporaryDirectory() as tmp:
+        media = Path(tmp) / "clip.flac"
+        media.write_bytes(b"flac-stub")
+        md_path = write_companion_info_file(
+            media,
+            "https://youtu.be/abc",
+            info={"title": "Clip", "channel": "Chan"},
+            fmt="md",
+            cloud_object_url=cloud,
+        )
+        assert md_path is not None
+        md = md_path.read_text(encoding="utf-8")
+        assert "## Source URL" in md
+        assert "## Cloud Object URL" in md
+        assert cloud in md
+        assert md.index("## Source URL") < md.index("## Cloud Object URL")
+        assert parse_cloud_object_url(md) == cloud
+
+        txt_media = Path(tmp) / "clip2.mp3"
+        txt_media.write_bytes(b"mp3-stub")
+        txt_path = write_companion_info_file(
+            txt_media,
+            "https://youtu.be/abc",
+            info={"title": "Clip"},
+            fmt="txt",
+            cloud_object_url="s3://my-bucket/youtube/clip2.mp3",
+        )
+        assert txt_path is not None
+        txt = txt_path.read_text(encoding="utf-8")
+        assert "Source URL: https://youtu.be/abc" in txt
+        assert "Cloud Object URL: s3://my-bucket/youtube/clip2.mp3" in txt
+        assert txt.index("Source URL:") < txt.index("Cloud Object URL:")
+        assert parse_cloud_object_url(txt) == "s3://my-bucket/youtube/clip2.mp3"
+
+
+def test_companion_omits_cloud_object_url_when_absent_or_blank() -> None:
+    """Local-only / empty cloud URL must not invent a Cloud Object URL line."""
+    with tempfile.TemporaryDirectory() as tmp:
+        media = Path(tmp) / "local.flac"
+        media.write_bytes(b"flac-stub")
+        path = write_companion_info_file(
+            media,
+            "https://youtu.be/abc",
+            info={"title": "Local"},
+            fmt="md",
+            cloud_object_url="  ",
+        )
+        assert path is not None
+        text = path.read_text(encoding="utf-8")
+        assert "Cloud Object URL" not in text
+        assert parse_cloud_object_url(text) == ""
+
+        assert (
+            maybe_write_companion_info_file(
+                _downloader_with_config(
+                    Path(tmp) / "cfg",
+                    """
+[paths]
+output_dir = "./downloads"
+temp_dir = "./tmp"
+
+[download]
+info_file = true
+info_file_format = "md"
+""",
+                ).config,
+                media,
+                "https://youtu.be/abc",
+                info={"title": "Local"},
+                cloud_object_url=None,
+            )
+            is not None
+        )
+
+
+def test_parse_cloud_object_url_ignores_markers_inside_description() -> None:
+    """Description free text must not forge a Cloud Object URL for scry/health."""
+    forged = (
+        "## Source URL\n\nhttps://youtu.be/abc\n\n"
+        "## Duration\n\n01:00\n\n"
+        "## Description\n\n"
+        "## Cloud Object URL\n\nhttps://evil.example/fake\n\n"
+        "Cloud Object URL: s3://evil/key\n"
+    )
+    assert parse_cloud_object_url(forged) == ""
+
+    honest = (
+        "## Source URL\n\nhttps://youtu.be/abc\n\n"
+        "## Cloud Object URL\n\nhttps://storage.googleapis.com/b/k\n\n"
+        "## Description\n\n## Cloud Object URL\n\nhttps://evil.example/fake\n"
+    )
+    assert parse_cloud_object_url(honest) == "https://storage.googleapis.com/b/k"
 
 
 def test_companion_info_file_skips_chapters_without_parseable_start() -> None:

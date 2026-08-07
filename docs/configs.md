@@ -92,7 +92,7 @@ Alchemux uses yt-dlp’s path (`-P` / `paths`) and output template (`-o` / `outt
 | Destination directory | `paths.output_dir` (typically `~/Downloads/Alchemux`) or `--download-dir` |
 | Layout | Per-title folder: `<title>/<title>.<ext>` (reuse folder on collision; playlists are flat per-entry) |
 | Embedded metadata (Layer-2) | Artist = channel/uploader; compact description → comment (≤2048 UTF-8 bytes + `Source:` footer); date when known; **SOURCE_URL** from the distill input URL |
-| Companion info file | On by default. `download.info_file = true` writes `<stem>.info.md` (or `.txt` via `info_file_format`) with source URL, description, chapters, and other details |
+| Companion info file | On by default. `download.info_file = true` writes `<stem>.info.md` (or `.txt` via `info_file_format`) with source URL, optional **Cloud Object URL** after successful S3/GCP evaporate, description, chapters, and other details |
 | yt-dlp machine sidecars | Off by default. Set `download.ytdlp_sidecars = true` for `.info.json` + `.description` |
 | `restrictfilenames` | On — safer across OSes and shells |
 
@@ -108,7 +108,7 @@ info_file = true
 info_file_format = "md"   # md | txt
 ```
 
-Creates `<title>.info.md` (or `.info.txt`) containing the source URL, description, chapters (when present), and other media details. This is separate from yt-dlp’s optional machine-readable `.info.json` files. Set `info_file = false` to skip. Invalid `info_file_format` values fall back to `md`.
+Creates `<title>.info.md` (or `.info.txt`) containing the source URL, description, chapters (when present), and other media details. When S3 or GCP evaporate succeeds, a **Cloud Object URL** line is included immediately after Source URL (exact uploader return value: `https://…` or `s3://…`). The field is omitted for local-only runs or when upload fails — Alchemux never invents cloud URLs. Companion write happens after the evaporate attempt so the URL can be included in a single write. This is separate from yt-dlp’s optional machine-readable `.info.json` files. Set `info_file = false` to skip. Invalid `info_file_format` values fall back to `md`.
 
 ### Optional yt-dlp machine sidecars
 

@@ -512,26 +512,17 @@ def distill(
                     "Layer-2 metadata enrichment incomplete (continuing anyway)"
                 )
 
-            # Companion info file (ADR 0008): soft-fail; seal success is the pass metric.
-            info_path = maybe_write_companion_info_file(
-                config, file_path, url, info=metadata
-            )
-            if info_path is None:
-                logger.debug(
-                    "Companion info file skipped or incomplete (continuing anyway)"
-                )
-            else:
-                logger.debug(f"Companion info file written: {info_path}")
-
         this_display = None
+        cloud_object_url: Optional[str] = None
         if upload_to_gcp and gcp_uploader and file_path:
             with console.stage_status("evaporate", "evaporating artifact..."):
                 up_ok, up_res = gcp_uploader.upload(
                     file_path, Path(file_path).name, source
                 )
             if up_ok:
-                console.stage_ok("evaporate", "transfer complete")
+                console.stage_ok("evaporate", f"transfer complete — {up_res}")
                 this_display = up_res
+                cloud_object_url = up_res
             else:
                 console.print_fracture("evaporate", up_res or "upload failed")
                 this_display = file_path
@@ -541,15 +532,35 @@ def distill(
                     file_path, Path(file_path).name, source
                 )
             if up_ok:
-                console.stage_ok("evaporate", "transfer complete")
+                console.stage_ok("evaporate", f"transfer complete — {up_res}")
                 if this_display is None:
                     this_display = up_res
+                if cloud_object_url is None:
+                    cloud_object_url = up_res
             else:
                 console.print_fracture("evaporate", up_res or "upload failed")
                 if this_display is None:
                     this_display = file_path
         if this_display is None and file_path:
             this_display = file_path
+
+        # Companion info file (ADR 0008 / FR-10): after evaporate so cloud URL
+        # can be included; soft-fail; seal success is the pass metric.
+        if file_path:
+            info_path = maybe_write_companion_info_file(
+                config,
+                file_path,
+                url,
+                info=metadata,
+                cloud_object_url=cloud_object_url,
+            )
+            if info_path is None:
+                logger.debug(
+                    "Companion info file skipped or incomplete (continuing anyway)"
+                )
+            else:
+                logger.debug(f"Companion info file written: {info_path}")
+
         if this_display:
             seal_items.append((ext.lstrip(".") or fmt or "file", this_display))
 

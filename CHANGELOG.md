@@ -5,6 +5,22 @@ All notable changes to Alchemux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] — 2026-08-07
+
+Patch: cloud object URL provenance after S3/GCP evaporate, scry picker fix, release notes from CHANGELOG, and clearer upgrade guidance.
+
+### Added
+
+- Cloud Object URL in the companion info file (immediately after Source URL) when S3/GCP evaporate succeeds — omitted when local-only or upload fails; never invents URLs
+- Evaporate stage prints the object URL on success (in addition to the seal line); upload failure remains a soft fracture
+- `alchemux scry` reads Cloud Object URL from the companion file (JSON `cloud_object_url`); Metadata Health shows the row only when present
+- GitHub Release body includes the matching `CHANGELOG.md` section plus install and upgrade commands
+- README tip: if `uv tool upgrade` fails, uninstall then reinstall
+
+### Fixed
+
+- `scry` / `inspect` interactive picker: InquirerPy `(value, name)` choices now return the path string (not a tuple); cancel no longer scry’s the default file
+
 ## [0.1.3] — 2026-08-05
 
 Media embed enrichment release: thumbnail/chapter embeds, per-title folders, **embed-first Layer-2 metadata** (Artist/comment/date/SOURCE_URL), default-on **companion info file**, optional yt-dlp machine sidecars, safer browser-cookie opt-in (video-gated setup + auto-detect), actionable rate-limit recovery, setup-time EULA acceptance, and **`scry`** media inspection.
@@ -15,7 +31,7 @@ Media embed enrichment release: thumbnail/chapter embeds, per-title folders, **e
 - Chapter embedding for opted-in MP4 and MKV video transmutations
 - Per-title output folders (`<title>/<title>.<ext>`) for audio and video, with flat per-entry playlist layout
 - Layer-2 mutagen enrichment: channel/uploader as Artist, compact sanitized description→comment, upload date, SOURCE_URL from the input distill URL
-- Companion information file (`download.info_file`, default true; `info_file_format` `md`|`txt`) written as `<stem>.info.md` / `.info.txt` beside the seal
+- Companion information file (`download.info_file`, default true; `info_file_format` `md`|`txt`) written as `<stem>.info.md` / `.info.txt` beside the seal (includes source URL)
 - Setup prompt (default Yes) and config wizard **Download Settings** for companion info file + yt-dlp sidecars
 - `download.ytdlp_sidecars` (default false) to optionally write yt-dlp `.info.json` + `.description`
 - Shared HTTP 429 / 402 recovery guidance for CLI fractures and future TUI reuse
@@ -96,7 +112,8 @@ UX polish release: quieter failures by default, guided FFmpeg checks in setup, O
 - Optional S3 / GCP upload, config doctor, video download support
 - Agent-oriented docs (`backend/AGENTS.md`) and contributor guide
 
-[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/bmurrtech/alchemux/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/bmurrtech/alchemux/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/bmurrtech/alchemux/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/bmurrtech/alchemux/compare/v0.1.0...v0.1.1

@@ -18,6 +18,8 @@ logger = setup_logger(__name__)
 
 PathLike = Union[str, Path]
 
+CLOUD_OBJECT_URL_LABEL = "Cloud Object URL"
+
 
 def _log_info_file_issue(message: str) -> None:
     """Surface companion-file issues only at verbose/debug (like Layer-2)."""
@@ -126,6 +128,49 @@ def _downloaded_stamp(when: Optional[datetime] = None) -> str:
     return dt.isoformat(timespec="seconds")
 
 
+def parse_cloud_object_url(text: str) -> str:
+    """Extract Cloud Object URL from companion ``.info.md`` / ``.info.txt`` body.
+
+    Only scans structured header fields (before Description / Chapters / footer).
+    Returns empty string when the field is absent or blank. Does not invent URLs.
+    """
+    if not text:
+        return ""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        lower = line.lower()
+        # Do not scan free-text Description / Chapters / footer (forged provenance).
+        if (
+            lower in ("---", "description:", "chapters:")
+            or lower.startswith("## description")
+            or lower.startswith("# description")
+            or lower.startswith("## chapters")
+            or lower.startswith("# chapters")
+        ):
+            break
+        # Markdown heading form: ## Cloud Object URL
+        if lower in (
+            f"## {CLOUD_OBJECT_URL_LABEL.lower()}",
+            f"# {CLOUD_OBJECT_URL_LABEL.lower()}",
+        ):
+            i += 1
+            while i < len(lines) and not lines[i].strip():
+                i += 1
+            if i < len(lines):
+                value = lines[i].strip()
+                if value and not value.startswith("#"):
+                    return value
+            return ""
+        # Plain-text label form: Cloud Object URL: <url>
+        prefix = f"{CLOUD_OBJECT_URL_LABEL}:"
+        if lower.startswith(prefix.lower()):
+            return line[len(prefix) :].strip()
+        i += 1
+    return ""
+
+
 def _render_markdown(fields: Mapping[str, str], chapter_lines: list[str]) -> str:
     parts: list[str] = []
     order = (
@@ -133,6 +178,7 @@ def _render_markdown(fields: Mapping[str, str], chapter_lines: list[str]) -> str
         ("Creator / Channel", "creator"),
         ("Published", "published"),
         ("Source URL", "source"),
+        (CLOUD_OBJECT_URL_LABEL, "cloud"),
         ("Duration", "duration"),
         ("Downloaded", "downloaded"),
     )
@@ -163,6 +209,7 @@ def _render_txt(fields: Mapping[str, str], chapter_lines: list[str]) -> str:
         ("Creator / Channel", "creator"),
         ("Published", "published"),
         ("Source URL", "source"),
+        (CLOUD_OBJECT_URL_LABEL, "cloud"),
         ("Duration", "duration"),
         ("Downloaded", "downloaded"),
     )
@@ -196,11 +243,13 @@ def write_companion_info_file(
     *,
     fmt: str = "md",
     downloaded_at: Optional[datetime] = None,
+    cloud_object_url: Optional[str] = None,
 ) -> Optional[Path]:
     """
     Write ``<stem>.info.md`` or ``.info.txt`` beside the sealed media file.
 
     Soft-fail: returns None on failure; never raises to callers.
+    ``cloud_object_url`` is omitted when blank (never invent URLs).
     """
     try:
         media = Path(media_path)
@@ -223,11 +272,13 @@ def write_companion_info_file(
             if isinstance(raw_desc, str) and raw_desc.strip():
                 description = sanitize_description_text(raw_desc)
         chapter_lines = format_chapter_lines((info or {}).get("chapters"))
+        cloud = (cloud_object_url or "").strip()
         fields = {
             "title": title,
             "creator": creator,
             "published": published,
             "source": (source_url or "").strip(),
+            "cloud": cloud,
             "duration": duration,
             "downloaded": _downloaded_stamp(downloaded_at),
             "description": description,
@@ -251,6 +302,8 @@ def maybe_write_companion_info_file(
     media_path: PathLike,
     source_url: str,
     info: Optional[Mapping[str, Any]] = None,
+    *,
+    cloud_object_url: Optional[str] = None,
 ) -> Optional[Path]:
     """
     Honor ``download.info_file`` / ``info_file_format`` then write, or skip.
@@ -260,4 +313,10 @@ def maybe_write_companion_info_file(
     if not config.get_bool("download.info_file", default=True):
         return None
     fmt = resolve_info_file_format(config.get("download.info_file_format") or "md")
-    return write_companion_info_file(media_path, source_url, info=info, fmt=fmt)
+    return write_companion_info_file(
+        media_path,
+        source_url,
+        info=info,
+        fmt=fmt,
+        cloud_object_url=cloud_object_url,
+    )

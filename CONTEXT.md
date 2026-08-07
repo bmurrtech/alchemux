@@ -29,7 +29,7 @@ Plain wording (`download`, `locate`, `save`, …) when `product.arcane_terms` is
 _Avoid_: Plain English mode, no-theme mode
 
 **Scry (command)**:
-Standalone inspection of a sealed media file (`alchemux scry`). Technical alias: **inspect**. Uses ffprobe + embedded tags + companion presence; inspection only.
+Standalone inspection of a sealed media file (`alchemux scry`). Technical alias: **inspect**. Uses ffprobe + embedded tags + companion presence; parses companion **Cloud Object URL** when present; inspection only.
 _Avoid_: Confusing with the pipeline stage **scry** (detect source during distill)
 
 ## CLI & modes
@@ -83,7 +83,7 @@ Video pipeline enabled via `media.video.enabled` or the `--video` one-run overri
 _Avoid_: Video-on-by-default, always-merge
 
 **Companion info file**:
-Human-readable `<stem>.info.md` or `.info.txt` beside a seal (`download.info_file`; format via `info_file_format`). Default on; soft-fail on write.
+Human-readable `<stem>.info.md` or `.info.txt` beside a seal (`download.info_file`; format via `info_file_format`). Default on; soft-fail on write. Written after evaporate so an optional **Cloud Object URL** can be included when S3/GCP upload succeeds.
 _Avoid_: Provenance sidecar, metadata dump (as the user-facing name)
 
 **yt-dlp machine sidecars**:

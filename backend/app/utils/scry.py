@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Mapping, Optional, Sequence, Union
 
 from app.utils.file_utils import find_ffprobe_binary
+from app.utils.info_file import parse_cloud_object_url
 from app.utils.metadata import read_source_url_from_metadata
 
 PathLike = Union[str, Path]
@@ -71,6 +72,7 @@ class ScryReport:
     description_present: bool = False
     comment: str = ""
     source_url: str = ""
+    cloud_object_url: str = ""
     chapters: list[dict[str, Any]] = field(default_factory=list)
     has_cover_art: bool = False
     tags: dict[str, str] = field(default_factory=dict)
@@ -284,7 +286,30 @@ def build_health(report: ScryReport) -> list[HealthCheck]:
         ),
         HealthCheck("Publish Date", bool(report.date), report.date or "missing"),
     ]
+    # Optional provenance: only when companion (or future embed) provided a value.
+    if report.cloud_object_url:
+        checks.append(
+            HealthCheck(
+                "Cloud Object URL",
+                True,
+                report.cloud_object_url,
+            )
+        )
     return checks
+
+
+def _read_cloud_object_url_from_companions(
+    companions: Mapping[str, Optional[str]],
+) -> str:
+    """Parse Cloud Object URL from companion file when present; else empty."""
+    companion_path = companions.get("companion_info")
+    if not companion_path:
+        return ""
+    try:
+        text = Path(companion_path).read_text(encoding="utf-8")
+    except OSError:
+        return ""
+    return parse_cloud_object_url(text)
 
 
 def summarize_probe(
@@ -391,6 +416,7 @@ def summarize_probe(
 
     size_bytes = path.stat().st_size if path.is_file() else 0
     companions = discover_companions(path)
+    cloud_object_url = _read_cloud_object_url_from_companions(companions)
 
     report = ScryReport(
         path=str(path.resolve()) if path.exists() else str(path),
@@ -414,6 +440,7 @@ def summarize_probe(
         description_present=description_present,
         comment=comment,
         source_url=source_url,
+        cloud_object_url=cloud_object_url,
         chapters=chapters,
         has_cover_art=_has_cover_art([s for s in streams if isinstance(s, dict)]),
         tags=tags,

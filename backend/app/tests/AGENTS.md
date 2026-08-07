@@ -32,7 +32,7 @@ A **seam** is the public boundary you observe. Before adding tests, list the sea
 | Ephemeral mode | `EphemeralConfig` | No config write |
 | Video opt-in | distill / downloader gating
 | yt-dlp option construction | `MediaDownloader._build_ydl_opts` | Approved seam for embed/thumbnail/chapter/`ytdlp_sidecars` flags (PRD 012); do not reach past opts into yt-dlp internals |
-| Companion info file | `write_companion_info_file` / `maybe_write_companion_info_file`, `download.info_file` / setup + config Download Settings | ADR 0008; no network |
+| Companion info file | `write_companion_info_file` / `maybe_write_companion_info_file` / `parse_cloud_object_url`, `download.info_file` / setup + config Download Settings | ADR 0008 / FR-9 / FR-10 cloud URL; no network |
 | Scry / inspect | `summarize_probe`, `scry_file`, `list_media_under`, `dispatch_from_argv` | Mock ffprobe / subprocess; no real media required |
 | Batch / URL input | batch parsers + mocked InquirerPy/pyperclip/yt-dlp | System boundaries only |
 
@@ -140,8 +140,8 @@ Even in verbose mode, never print values for keys containing `KEY`, `SECRET`, `T
 | `test_ephemeral_config.py` | Ephemeral mode defaults |
 | `test_video_enabled_gating.py` | Video disabled by default; `--video` opt-in |
 | `test_ux_polish.py` | WSL paths, FFmpeg hints, technical terms, log levels, quiet errors |
-| `test_media_embed_enrichment.py` | Thumbnail/chapter yt-dlp opts, Layer-2, companion info file, shared 429/402 advice, cookie opt-in (PRD 012 / ADR 0008) |
-| `test_scry.py` | Scry/inspect summary, health, companions, mocked ffprobe, `--json` dispatch |
+| `test_media_embed_enrichment.py` | Thumbnail/chapter yt-dlp opts, Layer-2, companion info file (+ Cloud Object URL), shared 429/402 advice, cookie opt-in (PRD 012 / ADR 0008) |
+| `test_scry.py` | Scry/inspect summary, health, companions, cloud URL parse, mocked ffprobe, `--json` dispatch |
 
 ### PRD7 expectations (config)
 

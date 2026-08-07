@@ -203,6 +203,60 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Build release body from CHANGELOG
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import os
+          import pathlib
+          import re
+          import textwrap
+
+          version = os.environ["VERSION"]
+          text = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8")
+          pattern = rf"(## \[{re.escape(version)}\][^\n]*\n)(.*?)(?=\n## |\Z)"
+          match = re.search(pattern, text, re.S)
+          if match:
+              section = (match.group(1) + match.group(2)).strip()
+          else:
+              raise SystemExit(
+                  f"ERROR: No CHANGELOG.md section found for version {version}"
+              )
+
+          body = textwrap.dedent(
+              f"""\
+              Published to [PyPI](https://pypi.org/project/alchemux/).
+
+              **Install (recommended):**
+              ```bash
+              uv tool install alchemux
+              uvx alchemux --help
+              ```
+
+              **Upgrade** (if already installed):
+              ```bash
+              uv tool upgrade alchemux
+              ```
+
+              If upgrade fails or you need a clean install:
+              ```bash
+              uv tool uninstall alchemux
+              uv tool install alchemux
+              ```
+
+              The wheel is `py3-none-any` (pure Python) — one install works on macOS, Linux, and Windows. System **FFmpeg** is still required.
+
+              ---
+
+              {section}
+              """
+          )
+          pathlib.Path("RELEASE_BODY.md").write_text(body, encoding="utf-8")
+          PY
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
@@ -210,15 +264,6 @@ jobs:
           name: Alchemux v${{ needs.validate.outputs.version }}
           prerelease: ${{ needs.validate.outputs.is_prerelease }}
           generate_release_notes: true
-          body: |
-            Published to [PyPI](https://pypi.org/project/alchemux/).
-
-            **Install (recommended):**
-            ```bash
-            uv tool install alchemux
-            uvx alchemux --help
-            ```
-
-            The wheel is `py3-none-any` (pure Python) — one install works on macOS, Linux, and Windows. System **FFmpeg** is still required.
+          body_path: RELEASE_BODY.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

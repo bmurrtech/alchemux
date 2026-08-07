@@ -70,12 +70,28 @@ def select(
     if _use_inquirer():
         try:
             from InquirerPy import inquirer
+            from InquirerPy.base.control import Choice
+
+            # InquirerPy treats bare tuples as the *value* (returns the whole
+            # tuple on select). Convert (value, name) pairs to Choice like checkbox.
+            out_choices: list[Any] = []
+            for c in choices:
+                if isinstance(c, Choice):
+                    out_choices.append(c)
+                elif isinstance(c, (list, tuple)) and len(c) >= 2:
+                    out_choices.append(Choice(c[0], name=str(c[1])))
+                elif isinstance(c, dict):
+                    val = c.get("value", c.get("name", c))
+                    out_choices.append(Choice(val, name=str(c.get("name", val))))
+                else:
+                    out_choices.append(c)
 
             return inquirer.select(
-                message=message, choices=list(choices), default=default
+                message=message, choices=out_choices, default=default
             ).execute()
         except KeyboardInterrupt:
-            return default
+            # Cancel should abort, not silently return the default value.
+            return None
         except EOFError:
             return default
     # Rich fallback: simple numbered prompt
@@ -96,7 +112,9 @@ def select(
         idx = int(rep) - 1
         if 0 <= idx < len(opts):
             return opts[idx][0]
-    except (ValueError, KeyboardInterrupt, EOFError):
+    except KeyboardInterrupt:
+        return None
+    except (ValueError, EOFError):
         pass
     return (
         default

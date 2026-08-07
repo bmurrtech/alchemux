@@ -62,6 +62,9 @@ def _pick_media_interactively(output_dir: Path, console: ArcaneConsole) -> Path:
     if not picked:
         console.print_fracture(_fracture_stage(console), "no selection")
         raise typer.Exit(code=1)
+    # Defensive: unwrap legacy (path, label) if any caller still returns a pair.
+    if isinstance(picked, (tuple, list)) and len(picked) >= 1:
+        picked = picked[0]
     return Path(picked)
 
 
@@ -113,13 +116,19 @@ def _render_report(
         ("Album", report.album),
         ("Published", report.date),
         ("Source", report.source_url),
-        (
-            "Description",
-            "yes" if report.description_present else "no",
-        ),
-        ("Cover art", "yes" if report.has_cover_art else "no"),
-        ("Chapters", str(len(report.chapters))),
     ]
+    if report.cloud_object_url:
+        meta_rows.append(("Cloud Object URL", report.cloud_object_url))
+    meta_rows.extend(
+        [
+            (
+                "Description",
+                "yes" if report.description_present else "no",
+            ),
+            ("Cover art", "yes" if report.has_cover_art else "no"),
+            ("Chapters", str(len(report.chapters))),
+        ]
+    )
     console.print()
     console.print(_kv_table(meta_rows, "Embedded Metadata"))
 

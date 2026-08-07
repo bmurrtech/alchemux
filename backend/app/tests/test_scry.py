@@ -143,6 +143,38 @@ def test_discover_companions_finds_info_md_beside_seal(tmp_path: Path) -> None:
     assert found["ytdlp_info_json"] is None
 
 
+def test_scry_reads_cloud_object_url_from_companion_and_health_only_when_present(
+    tmp_path: Path,
+) -> None:
+    """Cloud Object URL comes from companion parse; health row only when present."""
+    cloud = "https://storage.googleapis.com/bucket/youtube/title.flac"
+    media = tmp_path / "title.flac"
+    companion = tmp_path / "title.info.md"
+    media.write_bytes(b"x")
+    companion.write_text(
+        "## Source URL\n\nhttps://youtu.be/abc\n\n" f"## Cloud Object URL\n\n{cloud}\n",
+        encoding="utf-8",
+    )
+    rich = summarize_probe(_sample_probe(), media)
+    assert rich.cloud_object_url == cloud
+    by_label = {c.label: c for c in rich.health}
+    assert "Cloud Object URL" in by_label
+    assert by_label["Cloud Object URL"].ok is True
+    assert by_label["Cloud Object URL"].detail == cloud
+    assert rich.to_dict()["cloud_object_url"] == cloud
+
+    local = tmp_path / "local.flac"
+    local_info = tmp_path / "local.info.md"
+    local.write_bytes(b"x")
+    local_info.write_text(
+        "## Source URL\n\nhttps://youtu.be/abc\n\n## Title\n\nLocal\n",
+        encoding="utf-8",
+    )
+    bare = summarize_probe(_sample_probe(SOURCE_URL=""), local)
+    assert bare.cloud_object_url == ""
+    assert "Cloud Object URL" not in {c.label for c in bare.health}
+
+
 def test_run_ffprobe_raises_when_binary_missing(tmp_path: Path) -> None:
     """Missing ffprobe becomes a ScryError suitable for a CLI fracture."""
     media = tmp_path / "a.flac"

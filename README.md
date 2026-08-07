@@ -104,6 +104,13 @@ uv tool upgrade alchemux
 uv tool uninstall alchemux
 ```
 
+> **Tip:** If `uv tool upgrade alchemux` fails or you still see an older version, uninstall and install cleanly:
+>
+> ```bash
+> uv tool uninstall alchemux
+> uv tool install alchemux
+> ```
+
 ### Run from source (development)
 
 For unreleased or experimental features:
