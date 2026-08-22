@@ -228,7 +228,8 @@ alchemux update --force      # Force update check (bypass throttling)
 **How it works:**
 - Checks current yt-dlp version
 - Compares with latest stable from GitHub
-- Uses yt-dlp's built-in `--update-to stable` mechanism
+- Tries yt-dlp's built-in `--update-to stable` first
+- If yt-dlp was installed via pip/wheel (self-update refused), falls back to `python -m pip install --upgrade yt-dlp`
 - Update checks are throttled to once per 24 hours (use `--force` to check immediately)
 
 **Note**: This updates the yt-dlp Python package; no Alchemux reinstall is required.
@@ -463,6 +464,10 @@ Default Rich report sections: General, Media, Embedded Metadata, Chapters (when 
 
 Requires `ffprobe` on PATH (same dependency as distill).
 
-### YouTube 403 / CDN blocking
+### YouTube 403 / stream client
 
-Alchemux uses a **combined-format** default for audio extraction (`best`): it downloads a single combined stream then extracts audio. This reduces YouTube CDN 403 errors compared to requesting separate audio streams. To use best-audio-only instead (e.g. for non-YouTube sources), set in `config.toml` under `[ytdl]`: `audio_format_selector = "ba"`, or env `YTDL_AUDIO_FORMAT_SELECTOR=ba`. See [yt-dlp #14680](https://github.com/yt-dlp/yt-dlp/issues/14680) for upstream context.
+Alchemux defaults YouTube `player_client` to **`android,web`** (env `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`) to reduce HTTP 403s from default-client / SABR stream selection. Set `YTDL_PLAYER_CLIENT=default` to leave yt-dlp’s stock clients unchanged.
+
+Audio extraction still prefers a **combined-format** selector (`best`) over separate audio-only streams. To use best-audio-only instead (e.g. for non-YouTube sources), set in `config.toml` under `[ytdl]`: `audio_format_selector = "ba"`, or env `YTDL_AUDIO_FORMAT_SELECTOR=ba`. See [yt-dlp #14680](https://github.com/yt-dlp/yt-dlp/issues/14680) and [yt-dlp #12482](https://github.com/yt-dlp/yt-dlp/issues/12482).
+
+If 403s persist: run `alchemux update` (pip installs fall back to `pip install -U yt-dlp`).

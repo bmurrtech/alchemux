@@ -65,10 +65,13 @@ def _normalize_fracture_cause(msg: Optional[str]) -> str:
     if "ffprobe" in m and ("not found" in m or "is not" in m or "no such" in m):
         return "ffprobe not found on PATH — see docs/install.md"
     if "403" in m or "forbidden" in m:
-        # Note: yt-dlp reports "video data" even for audio-only downloads (YouTube returns result_type='video')
-        # The actual issue is CDN blocking (googlevideo.com) - can affect both audio and video streams
+        # yt-dlp says "video data" for audio-only too (YouTube result_type=video).
+        # Often player_client / stale yt-dlp — not necessarily residential CDN block.
         if "video data" in m or "unable to download" in m:
-            return "CDN blocked (HTTP 403) - try from residential IP"
+            return (
+                "HTTP 403 (stream/client) — try `alchemux update` "
+                "or set YTDL_PLAYER_CLIENT"
+            )
         return "HTTP 403 Forbidden"
     if "network" in m or "connection" in m or "timeout" in m or "unreachable" in m:
         return "network error"

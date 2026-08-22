@@ -132,21 +132,53 @@ def _get_latest_stable_version() -> Optional[str]:
         return None
 
 
+def _pip_upgrade_ytdlp() -> Tuple[bool, Optional[str]]:
+    """Upgrade yt-dlp via pip when the self-updater refuses pip/wheel installs."""
+    try:
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "--upgrade", "yt-dlp"],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+        if result.returncode == 0:
+            output = (result.stdout or result.stderr or "").strip()
+            return True, output or "yt-dlp upgraded via pip"
+        err = (result.stderr or result.stdout or "").strip()
+        return False, f"pip upgrade failed: {err}"
+    except subprocess.TimeoutExpired:
+        return False, "pip upgrade timed out (took longer than 3 minutes)"
+    except Exception as e:
+        return False, f"pip upgrade error: {str(e)}"
+
+
+def _looks_like_pip_install_refusal(msg: str) -> bool:
+    m = msg.lower()
+    mentions_pip_channel = "pip" in m or "pypi" in m or "wheel" in m
+    asks_manual_update = (
+        "use that to update" in m
+        or "installed yt-dlp with pip" in m
+        or "using the wheel" in m
+    )
+    return mentions_pip_channel and asks_manual_update
+
+
 def _update_ytdlp_stable() -> Tuple[bool, Optional[str]]:
     """
-    Update yt-dlp to latest stable using built-in update mechanism.
+    Update yt-dlp to latest stable.
+
+    Tries yt-dlp's built-in ``-U`` first; falls back to ``python -m pip install -U yt-dlp``
+    when the self-updater refuses pip/wheel installs.
 
     Returns:
         Tuple of (success, message)
     """
     try:
-        # Use yt-dlp's built-in update mechanism
-        # This is the most reliable method as it handles platform-specific binaries
         result = subprocess.run(
             [sys.executable, "-m", "yt_dlp", "-U", "--update-to", "stable"],
             capture_output=True,
             text=True,
-            timeout=120,  # Update can take time
+            timeout=120,
         )
 
         if result.returncode == 0:
@@ -154,9 +186,14 @@ def _update_ytdlp_stable() -> Tuple[bool, Optional[str]]:
             if "Updated yt-dlp" in output or "yt-dlp is up to date" in output:
                 return True, output
             return True, "yt-dlp updated successfully"
-        else:
-            error_msg = result.stderr.strip() or result.stdout.strip()
-            return False, f"Update failed: {error_msg}"
+
+        error_msg = result.stderr.strip() or result.stdout.strip()
+        if _looks_like_pip_install_refusal(error_msg):
+            logger.info(
+                "yt-dlp self-update refused pip/wheel install; falling back to pip"
+            )
+            return _pip_upgrade_ytdlp()
+        return False, f"Update failed: {error_msg}"
     except subprocess.TimeoutExpired:
         return False, "Update timed out (took longer than 2 minutes)"
     except Exception as e:
@@ -182,7 +219,9 @@ def update(
     - After yt-dlp releases new versions
 
     **How it works:**
-    - Uses yt-dlp's built-in `--update-to stable` mechanism (most reliable)
+    - Tries yt-dlp's built-in `--update-to stable` first
+    - If yt-dlp was installed via pip/wheel (self-update refused), falls back to
+      `python -m pip install --upgrade yt-dlp`
     - Updates the Python package, not the Alchemux binary
     - Throttles checks to once per 24 hours (use --force to check immediately)
 

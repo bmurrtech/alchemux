@@ -35,6 +35,8 @@ YTDL_IMPERSONATE=chrome
 YTDL_COOKIES_FROM_BROWSER=chrome
 YTDL_FORCE_IPV4=true
 YTDL_AUDIO_FORMAT_SELECTOR=ba
+# YouTube player clients (default android,web). Use "default" for yt-dlp stock.
+YTDL_PLAYER_CLIENT=android,web
 ```
 
 ## Cookies from browser (optional, at your own risk)

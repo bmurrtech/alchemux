@@ -5,6 +5,18 @@ All notable changes to Alchemux are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- YouTube HTTP 403 on distill: default `player_client=android,web` (override via `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`; use `default` for yt-dlp stock)
+- `alchemux update` falls back to `pip install -U yt-dlp` when yt-dlp’s self-updater refuses pip/wheel installs
+- 403 fracture copy no longer claims residential CDN block; points to `alchemux update` / `YTDL_PLAYER_CLIENT`
+
+### Changed
+
+- Minimum `yt-dlp` dependency floor raised to `>=2026.8.19`
+
 ## [0.1.4] — 2026-08-07
 
 Patch: cloud object URL provenance after S3/GCP evaporate, scry picker fix, release notes from CHANGELOG, and clearer upgrade guidance.

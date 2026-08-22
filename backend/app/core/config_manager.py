@@ -803,6 +803,7 @@ class EphemeralConfig:
             "FORCE_OVERWRITES": "false",
             "FLAC_OVERRIDE": "false",
             "ytdl.audio_format_selector": "best",
+            "ytdl.player_client": "android,web",
             "ytdl.force_ipv4": "",
         }
         if key in ephemeral_defaults:

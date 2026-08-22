@@ -19,6 +19,27 @@ from app.utils.file_utils import get_ffmpeg_location
 
 logger = setup_logger(__name__)
 
+# Proven default against YouTube SABR / default-client 403s (yt-dlp#12482).
+_DEFAULT_YOUTUBE_PLAYER_CLIENTS = ("android", "web")
+_PLAYER_CLIENT_PASSTHROUGH = frozenset({"", "default", "auto", "off", "none"})
+
+
+def _resolve_youtube_player_clients(
+    raw: Optional[str],
+) -> Optional[list[str]]:
+    """
+    Resolve YouTube player_client list from config/env.
+
+    Returns None when yt-dlp should use its own defaults (escape hatch).
+    """
+    if raw is None:
+        return list(_DEFAULT_YOUTUBE_PLAYER_CLIENTS)
+    text = raw.strip().lower()
+    if text in _PLAYER_CLIENT_PASSTHROUGH:
+        return None
+    clients = [c.strip() for c in text.split(",") if c.strip()]
+    return clients or None
+
 
 class MediaDownloader:
     """Handles media download and conversion using yt-dlp."""
@@ -303,6 +324,19 @@ class MediaDownloader:
             opts["force_ipv4"] = True
             logger.debug("yt-dlp force_ipv4 set (from config/env)")
 
+        # YouTube player_client: default android,web mitigates SABR/default-client 403s.
+        # Override: YTDL_PLAYER_CLIENT / ytdl.player_client; use "default" for yt-dlp stock.
+        player_client_raw = os.getenv("YTDL_PLAYER_CLIENT")
+        if player_client_raw is None:
+            cfg_pc = self.config.get("ytdl.player_client")
+            player_client_raw = cfg_pc if isinstance(cfg_pc, str) else None
+        player_clients = _resolve_youtube_player_clients(player_client_raw)
+        if player_clients:
+            opts["extractor_args"] = {
+                "youtube": {"player_client": player_clients},
+            }
+            logger.debug(f"yt-dlp youtube player_client={player_clients}")
+
         # Debug: sanitized summary of effective opts for MP3 vs MP4 troubleshooting
         if log_level == "debug":
             summary = {
@@ -312,6 +346,7 @@ class MediaDownloader:
                 "impersonate": opts.get("impersonate"),
                 "cookiesfrombrowser": opts.get("cookiesfrombrowser"),
                 "force_ipv4": opts.get("force_ipv4"),
+                "extractor_args": opts.get("extractor_args"),
                 "outtmpl": opts.get("outtmpl"),
                 "paths_home": opts["paths"]["home"][:50] + "…"
                 if len(opts["paths"]["home"]) > 50
