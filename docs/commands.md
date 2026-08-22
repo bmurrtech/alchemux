@@ -466,8 +466,10 @@ Requires `ffprobe` on PATH (same dependency as distill).
 
 ### YouTube 403 / stream client
 
-Alchemux defaults YouTube `player_client` to **`android,web`** (env `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`) to reduce HTTP 403s from default-client / SABR stream selection. Set `YTDL_PLAYER_CLIENT=default` to leave yt-dlp’s stock clients unchanged.
+**Root cause (typical):** YouTube’s default player clients / SABR streaming return googlevideo URLs that 403 — this is **not** usually “your IP isn’t residential.” See [CHANGELOG 0.1.6](../CHANGELOG.md#016---2026-08-22) and [KI-003](known-issues.md).
 
-Audio extraction still prefers a **combined-format** selector (`best`) over separate audio-only streams. To use best-audio-only instead (e.g. for non-YouTube sources), set in `config.toml` under `[ytdl]`: `audio_format_selector = "ba"`, or env `YTDL_AUDIO_FORMAT_SELECTOR=ba`. See [yt-dlp #14680](https://github.com/yt-dlp/yt-dlp/issues/14680) and [yt-dlp #12482](https://github.com/yt-dlp/yt-dlp/issues/12482).
+Alchemux defaults YouTube `player_client` to **`android,web`** (env `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`) to reduce those 403s. Set `YTDL_PLAYER_CLIENT=default` to leave yt-dlp’s stock clients unchanged.
+
+Audio extraction still prefers a **combined-format** selector (`best`) over separate audio-only streams. To use best-audio-only instead (e.g. for non-YouTube sources), set in `config.toml` under `[ytdl]`: `audio_format_selector = "ba"`, or env `YTDL_AUDIO_FORMAT_SELECTOR=ba`. Upstream context: [yt-dlp #14680](https://github.com/yt-dlp/yt-dlp/issues/14680), [yt-dlp #12482](https://github.com/yt-dlp/yt-dlp/issues/12482).
 
 If 403s persist: run `alchemux update` (pip installs fall back to `pip install -U yt-dlp`).

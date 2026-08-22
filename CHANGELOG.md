@@ -7,11 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-08-22
+
+Patch: YouTube HTTP 403 distill failures from default player clients / SABR streams, plus a working yt-dlp update path for pip installs.
+
 ### Fixed
 
-- YouTube HTTP 403 on distill: default `player_client=android,web` (override via `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`; use `default` for yt-dlp stock)
-- `alchemux update` falls back to `pip install -U yt-dlp` when yt-dlp’s self-updater refuses pip/wheel installs
-- 403 fracture copy no longer claims residential CDN block; points to `alchemux update` / `YTDL_PLAYER_CLIENT`
+- YouTube HTTP 403 on distill was **not** residential CDN blocking: default yt-dlp player clients were hitting SABR / stream URLs that return 403. Alchemux now defaults YouTube `player_client` to `android,web` (override: `YTDL_PLAYER_CLIENT` / `[ytdl] player_client`; use `default` for yt-dlp stock). See [known-issues.md — KI-003](docs/known-issues.md)
+- `alchemux update` falls back to `pip install -U yt-dlp` when yt-dlp’s self-updater refuses pip/wheel installs (stale yt-dlp made 403s harder to clear)
+- 403 fracture copy no longer says “CDN blocked / try residential IP”; points to `alchemux update` and `YTDL_PLAYER_CLIENT`
 
 ### Changed
 
@@ -124,7 +128,8 @@ UX polish release: quieter failures by default, guided FFmpeg checks in setup, O
 - Optional S3 / GCP upload, config doctor, video download support
 - Agent-oriented docs (`backend/AGENTS.md`) and contributor guide
 
-[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/bmurrtech/alchemux/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/bmurrtech/alchemux/compare/v0.1.4...v0.1.6
 [0.1.4]: https://github.com/bmurrtech/alchemux/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/bmurrtech/alchemux/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/bmurrtech/alchemux/compare/v0.1.1...v0.1.2
